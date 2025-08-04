@@ -144,9 +144,9 @@ app.use(express.static(path.join(_dirname, 'frontend/build')));
 // });
 
 // Handle React routing, return all requests to React app
-app.get('*', (req, res) => {
-    res.sendFile(path.join(_dirname, 'frontend/build', 'index.html'));
-});
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(_dirname, 'frontend/build', 'index.html'));
+// });
 
 // // Add this before your other routes
 // app.get('/select-company', (req, res) => {
