@@ -1,19 +1,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
-<<<<<<< HEAD
 const bodyParser = require('body-parser');
-=======
->>>>>>> 36ec5a2 (reuploading project)
 const session = require('express-session');
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
 const cors = require('cors');
 const passport = require('passport');
 const initializePassport = require('./config/passport-config');
-<<<<<<< HEAD
 
-=======
 const MongoStore = require('connect-mongo');
 const path = require('path');
 const app = express();
@@ -21,7 +16,6 @@ const app = express();
 const _dirname = path.resolve();
 
 // Import routes
->>>>>>> 36ec5a2 (reuploading project)
 const userRoutes = require('./routes/users');
 const companyRoutes = require('./routes/company');
 const itemRoutes = require('./routes/retailer/items');
@@ -41,20 +35,10 @@ const paymentRoutes = require('./routes/retailer/payment');
 const receiptRoutes = require('./routes/retailer/receipt');
 const stockAdjustmentRoutes = require('./routes/retailer/stockAdjustments');
 
-<<<<<<< HEAD
-const path = require('path');
-const MongoStore = require('connect-mongo');
-const app = express();
-
-const _dirname = path.resolve();
-
-=======
->>>>>>> 36ec5a2 (reuploading project)
 // Initialize Passport
 initializePassport(passport);
 
 // MongoDB connection
-<<<<<<< HEAD
 const mongoUri = process.env.MONGO_URI;
 mongoose.connect(mongoUri);
 
@@ -64,20 +48,9 @@ db.once("open", () => {
     console.log("Database connected");
 });
 
-app.use(cors({
-    origin: 'https://skyforgee-frontend.onrender.com',
-=======
-mongoose.connect(process.env.MONGO_URI);
-const db = mongoose.connection;
-db.on("error", console.error.bind(console, "connection error:"));
-db.once("open", () => {
-    console.log("✅ Database connected");
-});
-
 // Middleware
 app.use(cors({
     origin: 'http://localhost:3000',
->>>>>>> 36ec5a2 (reuploading project)
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -87,15 +60,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 
-<<<<<<< HEAD
-=======
 // Session config
->>>>>>> 36ec5a2 (reuploading project)
 const sessionConfig = {
     secret: 'thisisnotagoodsecret',
     resave: false,
     saveUninitialized: false,
-<<<<<<< HEAD
     serverSelectionTimeoutMS: 5000,
     cookie: {
         httpOnly: true,
@@ -115,23 +84,19 @@ app.use(session({
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-=======
-    store: MongoStore.create({
-        mongoUrl: process.env.MONGO_URI,
-        ttl: 14 * 24 * 60 * 60
-    }),
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 7,
->>>>>>> 36ec5a2 (reuploading project)
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
+        store: MongoStore.create({
+            mongoUrl: process.env.MONGO_URI,
+            ttl: 14 * 24 * 60 * 60
+        }),
+        cookie: {
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+        }
     }
-<<<<<<< HEAD
-}));
-=======
-};
->>>>>>> 36ec5a2 (reuploading project)
+}))
+
 
 app.use(session(sessionConfig));
 app.use(flash());
@@ -142,11 +107,8 @@ app.use(passport.session());
 app.use((req, res, next) => {
     res.locals.user = req.user;
     res.locals.messages = req.flash('success');
-<<<<<<< HEAD
     res.locals.error = req.flash('error'); // Fixed typo here (was 'errsor')
-=======
     res.locals.error = req.flash('error');
->>>>>>> 36ec5a2 (reuploading project)
     next();
 });
 
@@ -154,11 +116,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', userRoutes);
 app.use('/api', companyRoutes);
 
-<<<<<<< HEAD
-//retailer routes
-=======
 // Retailer routes
->>>>>>> 36ec5a2 (reuploading project)
 app.use('/api/retailer', itemRoutes);
 app.use('/api/retailer', categoryRoutes);
 app.use('/api/retailer', itemsCompanyRoutes);
@@ -176,22 +134,15 @@ app.use('/api/retailer', paymentRoutes);
 app.use('/api/retailer', receiptRoutes);
 app.use('/api/retailer', stockAdjustmentRoutes);
 
-<<<<<<< HEAD
 
 // Serve static files from the React app
 app.use(express.static(path.join(_dirname, 'frontend/build')));
 
-=======
-// Serve static files from React frontend
-app.use(express.static(path.join(_dirname, 'frontend/build')));
-
 // ⚠️ Temporary: Comment this out until `frontend/build` exists
->>>>>>> 36ec5a2 (reuploading project)
 // app.get('*', (req, res) => {
 //     res.sendFile(path.resolve(_dirname, 'frontend', 'build', 'index.html'));
 // });
 
-<<<<<<< HEAD
 // Handle React routing, return all requests to React app
 // app.get('*', (req, res) => {
 //     res.sendFile(path.join(_dirname, 'frontend/build', 'index.html'));
@@ -203,15 +154,10 @@ app.use(express.static(path.join(_dirname, 'frontend/build')));
 // });
 
 app.get('/', (req, res) => {
-  res.send('Backend is running');
+    res.send('Backend is running');
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-=======
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
->>>>>>> 36ec5a2 (reuploading project)
-});
+})
