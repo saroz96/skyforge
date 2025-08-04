@@ -8,10 +8,11 @@ const methodOverride = require('method-override');
 const cors = require('cors');
 const passport = require('passport');
 const initializePassport = require('./config/passport-config');
+
 const MongoStore = require('connect-mongo');
 const path = require('path');
-
 const app = express();
+
 const _dirname = path.resolve();
 
 // Import routes
@@ -40,10 +41,11 @@ initializePassport(passport);
 // MongoDB connection
 const mongoUri = process.env.MONGO_URI;
 mongoose.connect(mongoUri);
+
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
 db.once("open", () => {
-    console.log("✅ Database connected");
+    console.log("Database connected");
 });
 
 // Middleware
@@ -60,7 +62,20 @@ app.use(methodOverride('_method'));
 
 // Session config
 const sessionConfig = {
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: 'thisisnotagoodsecret',
+    resave: false,
+    saveUninitialized: false,
+    serverSelectionTimeoutMS: 5000,
+    cookie: {
+        httpOnly: true,
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+        maxAge: 1000 * 60 * 60 * 24 * 7
+    }
+};
+
+// Configure session middleware
+app.use(session({
+    secret: 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -69,11 +84,19 @@ const sessionConfig = {
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
+        store: MongoStore.create({
+            mongoUrl: process.env.MONGO_URI,
+            ttl: 14 * 24 * 60 * 60
+        }),
+        cookie: {
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+        }
     }
-};
+}))
+
 
 app.use(session(sessionConfig));
 app.use(flash());
@@ -84,6 +107,7 @@ app.use(passport.session());
 app.use((req, res, next) => {
     res.locals.user = req.user;
     res.locals.messages = req.flash('success');
+    res.locals.error = req.flash('error'); // Fixed typo here (was 'errsor')
     res.locals.error = req.flash('error');
     next();
 });
@@ -110,24 +134,30 @@ app.use('/api/retailer', paymentRoutes);
 app.use('/api/retailer', receiptRoutes);
 app.use('/api/retailer', stockAdjustmentRoutes);
 
-// ✅ Serve frontend build (React)
+
+// Serve static files from the React app
 app.use(express.static(path.join(_dirname, 'frontend/build')));
 
-// ✅ Catch-all route to handle React routing
+// ⚠️ Temporary: Comment this out until `frontend/build` exists
+// app.get('*', (req, res) => {
+//     res.sendFile(path.resolve(_dirname, 'frontend', 'build', 'index.html'));
+// });
+
+// Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
-    if (req.originalUrl.startsWith('/api')) {
-        return res.status(404).json({ error: 'API route not found' });
-    }
-    res.sendFile(path.join(_dirname, 'frontend', 'build', 'index.html'));
+    res.sendFile(path.join(_dirname, 'frontend/build', 'index.html'));
 });
 
-// Default route
+// // Add this before your other routes
+// app.get('/select-company', (req, res) => {
+//     res.redirect('http://localhost:3000/select-company');
+// });
+
 app.get('/', (req, res) => {
-    res.send('🌐 Backend is running');
+    res.send('Backend is running');
 });
 
-// Server start
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
-});
+    console.log(`Server is running on port ${PORT}`);
+})
