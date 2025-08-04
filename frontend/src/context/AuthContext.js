@@ -1,8 +1,5 @@
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 36ec5a2 (reuploading project)
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCredentials, logout as reduxLogout, setCurrentCompany } from '../auth/authSlice';
@@ -24,19 +21,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-<<<<<<< HEAD
-    const api = axios.create({
-    baseURL: process.env.REACT_APP_API_BASE_URL,
-    withCredentials: true,
-  });
-  
-=======
   const api = axios.create({
     baseURL: process.env.REACT_APP_API_BASE_URL,
     withCredentials: true,
   });
 
->>>>>>> 36ec5a2 (reuploading project)
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
@@ -44,11 +33,7 @@ export const AuthProvider = ({ children }) => {
         // Check if user is already logged in (via session cookie)
         const { data } = await api.get('/api/auth/me', { withCredentials: true });
         if (data.user) {
-<<<<<<< HEAD
-          dispatch(setCredentials({ 
-=======
           dispatch(setCredentials({
->>>>>>> 36ec5a2 (reuploading project)
             user: data.user,
             currentCompany: data.currentCompany || null
           }));
@@ -133,11 +118,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await axios.get('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
-<<<<<<< HEAD
-      dispatch(setCredentials({ 
-=======
       dispatch(setCredentials({
->>>>>>> 36ec5a2 (reuploading project)
         user: data.user,
         currentCompany: data.currentCompany || null
       }));
@@ -161,11 +142,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Login failed');
       }
 
-<<<<<<< HEAD
-      dispatch(setCredentials({ 
-=======
       dispatch(setCredentials({
->>>>>>> 36ec5a2 (reuploading project)
         user: data.user,
         currentCompany: data.currentCompany || null
       }));
@@ -220,8 +197,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 36ec5a2 (reuploading project)
