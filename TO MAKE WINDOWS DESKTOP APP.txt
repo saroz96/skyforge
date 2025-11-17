@@ -1,0 +1,2 @@
+to make windows desktop app 
+npx electron-builder --win --x64

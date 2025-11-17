@@ -1,0 +1,70 @@
+{
+  "name": "skyforge-desktop",
+  "version": "1.0.0",
+  "description": "SkyForge",
+  "author": "SkyForge",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "build-frontend": "cd frontend && npm run build",
+    "electron": "electron .",
+    "package-win": "electron-builder --win",
+    "package-mac": "electron-builder --mac",
+    "package-linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.skyforge.app",
+    "productName": "SkyForge",
+    "directories": {
+      "output": "dist",
+      "app": "."
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/build/**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!node_modules/**/*.md",
+          "!node_modules/**/*.ts",
+          "!node_modules/**/*.yml",
+          "!node_modules/**/test{,s}",
+          "!node_modules/**/example{,s}",
+          "!node_modules/**/benchmark{,s}"
+        ]
+      },
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true
+    },
+    "publish": null
+  },
+
+  "dependencies": {
+    "electron-is-dev": "^3.0.1"
+  }
+}
