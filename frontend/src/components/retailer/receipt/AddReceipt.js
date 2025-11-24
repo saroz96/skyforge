@@ -6,6 +6,7 @@ import NepaliDate from 'nepali-date-converter';
 import NotificationToast from '../../NotificationToast';
 import Header from '../Header';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const AddReceipt = () => {
     const navigate = useNavigate();
@@ -13,6 +14,11 @@ const AddReceipt = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const [printData, setPrintData] = useState(null);
     const printableRef = useRef();
+    const [showProductModal, setShowProductModal] = useState(false);
+
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSaveReceipt') === 'true' || false
+    );
     const [dateErrors, setDateErrors] = useState({
         transactionDateNepali: '',
         nepaliDate: ''
@@ -81,6 +87,20 @@ const AddReceipt = () => {
         fetchReceiptFormData();
     }, []);
 
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -116,13 +136,95 @@ const AddReceipt = () => {
         setShowBankDetails(false);
     };
 
+    // const handleSubmit = async (print = false) => {
+    //     setIsSaving(true);
+
+    //     try {
+    //         const payload = {
+    //             ...formData,
+    //             print
+    //         };
+
+    //         const response = await api.post('/api/retailer/receipts', payload);
+
+    //         setNotification({
+    //             show: true,
+    //             message: 'Receipt saved successfully!',
+    //             type: 'success'
+    //         });
+
+    //         try {
+    //             const formDataResponse = await api.get('/api/retailer/receipts');
+    //             const { data } = formDataResponse;
+
+    //             setNextBillNumber(data.data.nextBillNumber);
+    //             const currentDate = new Date().toISOString().split('T')[0];
+    //             // const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+
+    //             // Check if the selected receipt account is a bank account
+    //             const isBankAccount = data.data.bankAccounts.some(
+    //                 account => account._id === formData.receiptAccount
+    //             );
+
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 billDate: currentDate,
+    //                 nepaliDate: currentNepaliDate,
+    //                 billNumber: data.data.nextBillNumber,
+    //                 accountId: '',
+    //                 accountName: '',
+    //                 credit: '',
+    //                 InstType: 'N/A',
+    //                 bankAcc: 'N/A',
+    //                 InstNo: '',
+    //                 description: ''
+    //             }));
+
+    //             // Set showBankDetails based on receipt account type
+    //             setShowBankDetails(isBankAccount);
+
+    //             if (print && response.data.data?.receipt?._id) {
+    //                 try {
+    //                     const printResponse = await api.get(`/api/retailer/receipts/${response.data.data.receipt._id}/print`);
+    //                     printVoucherImmediately(printResponse.data.data);
+    //                 } catch (printError) {
+    //                     console.error('Error fetching print data:', printError);
+    //                     setNotification({
+    //                         show: true,
+    //                         message: 'Receipt saved but failed to load print data',
+    //                         type: 'warning'
+    //                     });
+    //                 }
+    //             } else {
+    //                 setTimeout(() => {
+    //                     const dateInputId = companyDateFormat === 'nepali' ? 'nepaliDate' : 'billDate';
+    //                     document.getElementById(dateInputId)?.focus();
+    //                 }, 0);
+    //             }
+    //         } catch (err) {
+    //             console.error('Error refetching form data:', err);
+    //             resetForm();
+    //         }
+    //     } catch (err) {
+    //         setNotification({
+    //             show: true,
+    //             message: err.response?.data?.message || 'Failed to save receipt',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsSaving(false);
+    //     }
+    // };
+
+    // Add this function after your other handlers
+
     const handleSubmit = async (print = false) => {
         setIsSaving(true);
 
         try {
             const payload = {
                 ...formData,
-                print
+                print: print || printAfterSave // Use the parameter or the saved preference
             };
 
             const response = await api.post('/api/retailer/receipts', payload);
@@ -139,7 +241,6 @@ const AddReceipt = () => {
 
                 setNextBillNumber(data.data.nextBillNumber);
                 const currentDate = new Date().toISOString().split('T')[0];
-                // const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
 
                 // Check if the selected receipt account is a bank account
                 const isBankAccount = data.data.bankAccounts.some(
@@ -163,7 +264,8 @@ const AddReceipt = () => {
                 // Set showBankDetails based on receipt account type
                 setShowBankDetails(isBankAccount);
 
-                if (print && response.data.data?.receipt?._id) {
+                // If print was requested (either explicitly or via printAfterSave), fetch print data and print immediately
+                if ((print || printAfterSave) && response.data.data?.receipt?._id) {
                     try {
                         const printResponse = await api.get(`/api/retailer/receipts/${response.data.data.receipt._id}/print`);
                         printVoucherImmediately(printResponse.data.data);
@@ -194,6 +296,12 @@ const AddReceipt = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSaveReceipt', isChecked);
     };
 
     const openAccountModal = () => {
@@ -682,7 +790,7 @@ const AddReceipt = () => {
                                 </span>
                             )}
                             <br />
-                            <div className="d-flex justify-content-between">
+                            {/* <div className="d-flex justify-content-between">
                                 <div className="col">
                                     <input
                                         type="text"
@@ -726,6 +834,78 @@ const AddReceipt = () => {
                                     >
                                         <i className="fas fa-print"></i> Save & Print
                                     </button>
+                                </div>
+                            </div> */}
+
+                            <br />
+                            <div className="d-flex justify-content-between align-items-center">
+                                <div className="col-md-8 col-12">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        name="description"
+                                        id="description"
+                                        placeholder="Description"
+                                        value={formData.description}
+                                        onChange={handleInputChange}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                document.getElementById('saveBill')?.focus();
+                                            }
+                                        }}
+                                        autoComplete='off'
+                                    />
+                                </div>
+
+                                <div className="d-flex align-items-center gap-3">
+                                    {/* Print After Save Checkbox */}
+                                    <div className="form-check mb-0">
+                                        <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            id="printAfterSave"
+                                            checked={printAfterSave}
+                                            onChange={handlePrintAfterSaveChange}
+                                        />
+                                        <label className="form-check-label" htmlFor="printAfterSave">
+                                            Print after save
+                                        </label>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="d-flex gap-2">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={resetForm}
+                                            disabled={isSaving}
+                                        >
+                                            <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
+                                        </button>
+
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary btn-sm"
+                                            id="saveBill"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleSubmit(false); // Regular save, printAfterSave will be used automatically
+                                            }}
+                                            disabled={isSaving}
+                                        >
+                                            {isSaving ? (
+                                                <>
+                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="bi bi-save me-1"></i> Save
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -893,6 +1073,11 @@ const AddReceipt = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

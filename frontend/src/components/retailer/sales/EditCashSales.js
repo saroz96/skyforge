@@ -12,6 +12,7 @@ import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemList from '../../VirtualizedItemList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const EditCashSales = () => {
     const { id } = useParams();
@@ -21,7 +22,11 @@ const EditCashSales = () => {
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
-
+    const [showProductModal, setShowProductModal] = useState(false);
+    // Add print state
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSave') === 'true' || false
+    );
     const transactionDateRef = useRef(null);
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
     const addressRef = useRef(null);
@@ -180,6 +185,20 @@ const EditCashSales = () => {
 
         fetchBillData();
     }, [id]);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
 
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
@@ -497,6 +516,84 @@ const EditCashSales = () => {
         }
     };
 
+    // const handleSubmit = async (e, print = false) => {
+    //     e.preventDefault();
+    //     setIsSaving(true);
+
+    //     try {
+    //         const billData = {
+    //             cashAccount: formData.cashAccount,
+    //             cashAccountAddress: formData.cashAccountAddress,
+    //             cashAccountPan: formData.cashAccountPan,
+    //             cashAccountEmail: formData.cashAccountEmail,
+    //             cashAccountPhone: formData.cashAccountPhone,
+    //             vatPercentage: formData.vatPercentage,
+    //             transactionDateRoman: formData.transactionDateRoman,
+    //             transactionDateNepali: formData.transactionDateNepali,
+    //             billDate: formData.billDate,
+    //             nepaliDate: formData.nepaliDate,
+    //             isVatExempt: formData.isVatExempt,
+    //             discountPercentage: formData.discountPercentage,
+    //             paymentMode: formData.paymentMode,
+    //             roundOffAmount: formData.roundOffAmount,
+    //             items: items.map(item => ({
+    //                 item: item.item,
+    //                 batchNumber: item.batchNumber,
+    //                 expiryDate: item.expiryDate,
+    //                 quantity: item.quantity,
+    //                 unit: item.unit?._id,
+    //                 price: item.price,
+    //                 puPrice: item.puPrice,
+    //                 netPuPrice: item.netPuPrice,
+    //                 vatStatus: item.vatStatus,
+    //                 uniqueUuId: item.uniqueUuId
+    //             })),
+    //             print
+    //         };
+
+    //         const response = await api.put(`/api/retailer/cash-sales/edit/${id}`, billData);
+
+    //         if (response.data.success) {
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Cash sales bill updated successfully!',
+    //                 type: 'success'
+    //             });
+
+    //             await fetchItemsAndAccounts()
+
+    //             if (print && response.data.data?.bill?._id) {
+    //                 setItems([]);
+    //                 setIsSaving(false);
+    //                 await printImmediately(response.data.data.bill._id);
+    //                 setTimeout(() => {
+    //                     handleBack();
+    //                 }, 1000);
+    //             } else {
+    //                 setItems([]);
+    //                 setIsSaving(false);
+    //                 handleBack();
+    //             }
+
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: response.data.error || 'Failed to update cash sales bill',
+    //                 type: 'error'
+    //             });
+    //             setIsSaving(false);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error updating cash sales bill:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: error.response?.data?.error || 'Failed to update cash sales bill. Please try again.',
+    //             type: 'error'
+    //         });
+    //         setIsSaving(false);
+    //     }
+    // };
+
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
         setIsSaving(true);
@@ -541,14 +638,22 @@ const EditCashSales = () => {
                     type: 'success'
                 });
 
-                await fetchItemsAndAccounts()
+                // Refresh items and accounts after successful update
+                await fetchItemsAndAccounts();
 
-                if (print) {
+                if (print && response.data.data?.bill?._id) {
+                    setItems([]);
                     setIsSaving(false);
-                    navigate(`/bills/${response.data.data.billId}/cash/direct-print`);
+                    await printImmediately(response.data.data.bill._id);
+                    setTimeout(() => {
+                        handleBack();
+                    }, 1000);
                 } else {
+                    setItems([]);
                     setIsSaving(false);
+                    handleBack();
                 }
+
             } else {
                 setNotification({
                     show: true,
@@ -565,6 +670,282 @@ const EditCashSales = () => {
                 type: 'error'
             });
             setIsSaving(false);
+        }
+    };
+
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSave', isChecked);
+    };
+
+    const printImmediately = async (billId) => {
+        try {
+            const response = await api.get(`/api/retailer/sales/${billId}/print`);
+            const printData = response.data.data;
+
+            // Create a temporary div to hold the print content
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+
+            // Create the printable content
+            tempDiv.innerHTML = `
+            <div id="printableContent">
+                <div class="print-invoice-container">
+                    <div class="print-invoice-header">
+                        <div class="print-company-name">${printData.currentCompanyName}</div>
+                        <div class="print-company-details">
+                            ${printData.currentCompany.address} | Tel: ${printData.currentCompany.phone} | PAN: ${printData.currentCompany.pan}
+                        </div>
+                        <div class="print-invoice-title">${printData.firstBill ? 'TAX INVOICE' : 'INVOICE'}</div>
+                    </div>
+
+                    <div class="print-invoice-details">
+                        <div>
+                            <div><strong>M/S:</strong> ${printData.bill.account?.name || printData.bill.cashAccount || 'Account Not Found'}</div>
+                            <div><strong>Address:</strong> ${printData.bill.account?.address || printData.bill.cashAccountAddress || 'N/A'}</div>
+                            <div><strong>PAN:</strong> ${printData.bill.account?.pan || printData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> ${printData.bill.account?.phone || printData.bill.cashAccountPhone || 'N/A'}</div>
+                            <div><strong>Email:</strong> ${printData.bill.account?.email || printData.bill.cashAccountEmail || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div><strong>Invoice No:</strong> ${printData.bill.billNumber}</div>
+                            <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
+                            <div><strong>Invoice Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
+                            <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode}</div>
+                        </div>
+                    </div>
+
+                    <table class="print-invoice-table">
+                        <thead>
+                            <tr>
+                                <th>S.N.</th>
+                                <th>#</th>
+                                <th>HSN</th>
+                                <th>Description of Goods</th>
+                                <th>Unit</th>
+                                <th>Batch</th>
+                                <th>Expiry</th>
+                                <th>Qty</th>
+                                <th>Rate (Rs.)</th>
+                                <th>Total (Rs.)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${printData.bill.items.map((item, i) => `
+                                <tr key="${i}">
+                                    <td>${i + 1}</td>
+                                    <td>${item.item.uniqueNumber}</td>
+                                    <td>${item.item.hscode}</td>
+                                    <td>
+                                        ${item.item.vatStatus === 'vatExempt' ?
+                    `${item.item.name} *` :
+                    item.item.name
+                }
+                                    </td>
+                                    <td>${item.item.unit?.name || ''}</td>
+                                    <td>${item.batchNumber}</td>
+                                    <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${item.price.toFixed(2)}</td>
+                                    <td>${(item.quantity * item.price).toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tr>
+                            <td colSpan="10" style="border-bottom: 1px solid #000"></td>
+                        </tr>
+                    </table>
+
+                    <table class="print-totals-table">
+                        <tbody>
+                            <tr>
+                                <td><strong>Sub-Total:</strong></td>
+                                <td class="print-text-right">${printData.bill.subTotal.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Discount:</strong></td>
+                                <td class="print-text-right">${printData.bill.discountAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Non-Taxable:</strong></td>
+                                <td class="print-text-right">${printData.bill.nonVatSales.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Taxable Amount:</strong></td>
+                                <td class="print-text-right">${printData.bill.taxableAmount.toFixed(2)}</td>
+                            </tr>
+                            ${!printData.bill.isVatExempt ? `
+                                <tr>
+                                    <td><strong>VAT (${printData.bill.vatPercentage}%):</strong></td>
+                                    <td class="print-text-right">${(printData.bill.taxableAmount * printData.bill.vatPercentage / 100).toFixed(2)}</td>
+                                </tr>
+                            ` : ''}
+                            <tr>
+                                <td><strong>Round Off:</strong></td>
+                                <td class="print-text-right">${printData.bill.roundOffAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Grand Total:</strong></td>
+                                <td class="print-text-right">${printData.bill.totalAmount.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="print-amount-in-words">
+                        <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.bill.totalAmount)} Only.
+                    </div>
+
+                    <div class="print-signature-area">
+                        <div class="print-signature-box">Received By</div>
+                        <div class="print-signature-box">Prepared By: ${printData.bill.user.name}</div>
+                        <div class="print-signature-box">For: ${printData.currentCompanyName}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+            // Add print styles
+            const styles = `
+            @page {
+                size: A4;
+                margin: 5mm;
+            }
+            body {
+                font-family: 'Arial Narrow', Arial, sans-serif;
+                font-size: 9pt;
+                line-height: 1.2;
+                color: #000;
+                background: white;
+                margin: 0;
+                padding: 0;
+            }
+            .print-invoice-container {
+                width: 100%;
+                max-width: 210mm;
+                margin: 0 auto;
+                padding: 2mm;
+            }
+            .print-invoice-header {
+                text-align: center;
+                margin-bottom: 3mm;
+                border-bottom: 1px solid #000;
+                padding-bottom: 2mm;
+            }
+            .print-invoice-title {
+                font-size: 12pt;
+                font-weight: bold;
+                margin: 2mm 0;
+                text-transform: uppercase;
+            }
+            .print-company-name {
+                font-size: 16pt;
+                font-weight: bold;
+            }
+            .print-company-details {
+                font-size: 8pt;
+                margin: 1mm 0;
+                font-weight: bold;
+            }
+            .print-invoice-details {
+                display: flex;
+                justify-content: space-between;
+                margin: 2mm 0;
+                font-size: 8pt;
+            }
+            .print-invoice-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 3mm 0;
+                font-size: 8pt;
+                border: none;
+            }
+            .print-invoice-table thead {
+                border-top: 1px solid #000;
+                border-bottom: 1px solid #000;
+            }
+            .print-invoice-table th {
+                background-color: transparent;
+                border: none;
+                padding: 1mm;
+                text-align: left;
+                font-weight: bold;
+            }
+            .print-invoice-table td {
+                border: none;
+                padding: 1mm;
+                border-bottom: 1px solid #eee;
+            }
+            .print-text-right {
+                text-align: right;
+            }
+            .print-text-center {
+                text-align: center;
+            }
+            .print-amount-in-words {
+                font-size: 8pt;
+                margin: 2mm 0;
+                padding: 1mm;
+                border: 1px dashed #000;
+            }
+            .print-signature-area {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 5mm;
+                font-size: 8pt;
+            }
+            .print-signature-box {
+                text-align: center;
+                width: 30%;
+                border-top: 1px solid #000;
+                padding-top: 1mm;
+                font-weight: bold;
+            }
+            .print-totals-table {
+                width: 60%;
+                margin-left: auto;
+                border-collapse: collapse;
+                font-size: 8pt;
+            }
+            .print-totals-table td {
+                padding: 1mm;
+            }
+        `;
+
+            // Create print window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Sales_Invoice_${printData.bill.billNumber}</title>
+                    <style>${styles}</style>
+                </head>
+                <body>
+                    ${tempDiv.innerHTML}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 200);
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+            printWindow.document.close();
+
+            // Clean up
+            document.body.removeChild(tempDiv);
+        } catch (error) {
+            console.error('Error fetching print data:', error);
+            setNotification({
+                show: true,
+                message: 'Bill saved but failed to load print data',
+                type: 'warning'
+            });
         }
     };
 
@@ -1414,7 +1795,7 @@ const EditCashSales = () => {
                             </table>
                         </div>
 
-                        <div className="d-flex justify-content-end mt-4">
+                        {/* <div className="d-flex justify-content-end mt-4">
                             <Button variant="secondary" className="me-2" onClick={handleBack}>
                                 <BiArrowBack /> Back
                             </Button>
@@ -1439,6 +1820,47 @@ const EditCashSales = () => {
                             >
                                 <i className="bi bi-printer"></i>
                             </button>
+                        </div> */}
+
+                        {/* Action Buttons */}
+                        <div className="d-flex justify-content-end mt-4">
+                            {/* Add Print After Save Checkbox */}
+                            <div className="form-check me-3 align-self-center">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="printAfterSave"
+                                    checked={printAfterSave}
+                                    onChange={handlePrintAfterSaveChange}
+                                />
+                                <label className="form-check-label" htmlFor="printAfterSave">
+                                    Print after save
+                                </label>
+                            </div>
+
+                            <div className="d-flex justify-content-end gap-2">
+                                <Button variant="secondary" className="me-2" onClick={handleBack}>
+                                    <BiArrowBack /> Back
+                                </Button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary btn-sm"
+                                    id="saveBill"
+                                    onClick={(e) => handleSubmit(e, printAfterSave)}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-save me-1"></i> Update
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -1928,6 +2350,11 @@ const EditCashSales = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

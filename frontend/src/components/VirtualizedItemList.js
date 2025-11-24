@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 
 const ItemRow = memo(({ item, index, style, onItemClick, searchRef }) => {
   const handleClick = () => onItemClick(item);
-  
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -60,7 +60,7 @@ const ItemRow = memo(({ item, index, style, onItemClick, searchRef }) => {
       <div>{item.category?.name || 'No Category'}</div>
       <div>{item.stock || 0}</div>
       <div>{item.unit?.name || ''}</div>
-      <div>Rs.{item.latestPuPrice || 0}</div>
+      <div>Rs.{item.latestPuPrice ? item.latestPuPrice : item.latestPrice || 0}</div>
     </div>
   );
 });
@@ -73,14 +73,14 @@ const VirtualizedItemList = memo(({ items, onItemClick, searchRef }) => {
   useEffect(() => {
     const handleScroll = () => {
       if (!containerRef.current) return;
-      
+
       const scrollTop = containerRef.current.scrollTop;
       const start = Math.floor(scrollTop / itemHeight);
       const end = start + 30; // Render 30 items at a time (with buffer)
 
-      setVisibleRange({ 
-        start: Math.max(0, start - 5), 
-        end: Math.min(items.length, end + 5) 
+      setVisibleRange({
+        start: Math.max(0, start - 5),
+        end: Math.min(items.length, end + 5)
       });
     };
 
@@ -88,7 +88,7 @@ const VirtualizedItemList = memo(({ items, onItemClick, searchRef }) => {
     if (container) {
       container.addEventListener('scroll', handleScroll);
       handleScroll(); // Initial calculation
-      
+
       return () => container.removeEventListener('scroll', handleScroll);
     }
   }, [items.length]);
@@ -98,10 +98,10 @@ const VirtualizedItemList = memo(({ items, onItemClick, searchRef }) => {
   const offsetY = visibleRange.start * itemHeight;
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      style={{ 
-        height: '240px', 
+      style={{
+        height: '240px',
         overflow: 'auto',
         position: 'relative'
       }}

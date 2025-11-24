@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const DebitNoteNumberForm = () => {
     const [billNumber, setBillNumber] = useState('');
@@ -9,11 +10,26 @@ const DebitNoteNumberForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingLatest, setIsFetchingLatest] = useState(true);
     const navigate = useNavigate();
+    const [showProductModal, setShowProductModal] = useState(false);
 
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
 
     // Fetch the latest debit note number when component mounts
     useEffect(() => {
@@ -122,6 +138,10 @@ const DebitNoteNumberForm = () => {
                     </form>
                 </div>
             </div>
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

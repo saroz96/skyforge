@@ -8,6 +8,7 @@ import Loader from '../../Loader';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const EditJournalVoucher = () => {
     const { id } = useParams();
@@ -15,6 +16,10 @@ const EditJournalVoucher = () => {
     const accountSearchRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSaveJournalEdit') === 'true' || false
+    );
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -44,6 +49,21 @@ const EditJournalVoucher = () => {
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
+
 
     useEffect(() => {
         const fetchJournalData = async () => {
@@ -276,13 +296,23 @@ const EditJournalVoucher = () => {
     //             type: 'success'
     //         });
 
+    //         // If print was requested, fetch print data and print immediately
     //         if (print && response.data.data?.journal?._id) {
-    //             // Redirect to print page or handle printing
-    //             window.open(`/journal/${response.data.data.journal._id}/direct-print-edit`, '_blank');
+    //             try {
+    //                 const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journal._id}/print`);
+    //                 printVoucherImmediately(printResponse.data.data);
+    //             } catch (printError) {
+    //                 console.error('Error fetching print data:', printError);
+    //                 setNotification({
+    //                     show: true,
+    //                     message: 'Journal voucher updated but failed to load print data',
+    //                     type: 'warning'
+    //                 });
+    //             }
     //         } else {
     //             // Navigate back to view page after a short delay
     //             setTimeout(() => {
-    //                 navigate(`/api/retailer/journal/${id}`);
+    //                 navigate(`/retailer/journal/${id}`);
     //             }, 1500);
     //         }
     //     } catch (err) {
@@ -358,7 +388,7 @@ const EditJournalVoucher = () => {
                 description: formData.description,
                 debitAccounts,
                 creditAccounts,
-                print
+                print: print || printAfterSave // Use the parameter or the saved preference
             };
 
             const response = await api.put(`/api/retailer/journal/${id}`, payload);
@@ -369,11 +399,15 @@ const EditJournalVoucher = () => {
                 type: 'success'
             });
 
-            // If print was requested, fetch print data and print immediately
-            if (print && response.data.data?.journal?._id) {
+            // If print was requested (either explicitly or via printAfterSave), fetch print data and print immediately
+            if ((print || printAfterSave) && response.data.data?.journal?._id) {
                 try {
                     const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journal._id}/print`);
                     printVoucherImmediately(printResponse.data.data);
+                    // Navigate back after successful print
+                    setTimeout(() => {
+                        handleBack();
+                    }, 1000);
                 } catch (printError) {
                     console.error('Error fetching print data:', printError);
                     setNotification({
@@ -381,12 +415,13 @@ const EditJournalVoucher = () => {
                         message: 'Journal voucher updated but failed to load print data',
                         type: 'warning'
                     });
+                    // Still navigate back even if print fails
+
+                    handleBack();
                 }
             } else {
                 // Navigate back to view page after a short delay
-                setTimeout(() => {
-                    navigate(`/retailer/journal/${id}`);
-                }, 1500);
+                handleBack();
             }
         } catch (err) {
             setNotification({
@@ -397,6 +432,13 @@ const EditJournalVoucher = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSaveJournalEdit', isChecked);
     };
 
     const handleCancelVoucher = async () => {
@@ -885,6 +927,7 @@ const EditJournalVoucher = () => {
                                                 handleKeyDown(e, 'description');
                                             }
                                         }}
+                                        autoComplete='off'
                                     />
                                 </div>
                             </div>
@@ -1050,7 +1093,7 @@ const EditJournalVoucher = () => {
                             )}
 
                             {/* Action Buttons */}
-                            <div className="d-flex justify-content-between mt-4">
+                            {/* <div className="d-flex justify-content-between mt-4">
                                 <div className="text-muted small">
                                     <i className="fas fa-info-circle me-1"></i>
                                 </div>
@@ -1085,6 +1128,44 @@ const EditJournalVoucher = () => {
                                         <i className="fas fa-print me-2"></i> Update & Print
                                     </button>
                                 </div>
+                            </div> */}
+
+                            <div className="d-flex justify-content-end mt-4">
+                                {/* Add Print After Save Checkbox */}
+                                <div className="form-check me-3 align-self-center">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id="printAfterSave"
+                                        checked={printAfterSave}
+                                        onChange={handlePrintAfterSaveChange}
+                                    />
+                                    <label className="form-check-label" htmlFor="printAfterSave">
+                                        Print after save
+                                    </label>
+                                </div>
+
+                                <Button variant="secondary" className="me-2" onClick={handleBack}>
+                                    <BiArrowBack /> Back
+                                </Button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary btn-sm"
+                                    id="saveBill"
+                                    onClick={(e) => handleSubmit(e, printAfterSave)}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-save me-1"></i> Update
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -1281,6 +1362,11 @@ const EditJournalVoucher = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
 
             <style jsx>{`
                 .hover-row:hover {

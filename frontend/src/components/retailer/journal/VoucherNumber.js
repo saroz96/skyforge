@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const JournalVoucherNumberForm = () => {
     const [billNumber, setBillNumber] = useState('');
     const [error, setError] = useState('');
+    const [showProductModal, setShowProductModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingLatest, setIsFetchingLatest] = useState(true);
     const navigate = useNavigate();
@@ -14,6 +16,21 @@ const JournalVoucherNumberForm = () => {
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
+
 
     // Fetch the latest journal number when component mounts
     useEffect(() => {
@@ -122,6 +139,11 @@ const JournalVoucherNumberForm = () => {
                     </form>
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

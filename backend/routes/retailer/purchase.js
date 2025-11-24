@@ -829,11 +829,46 @@ router.post('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
             await session.commitTransaction();
             session.endSession();
 
-            // Return response
             const response = {
                 success: true,
                 message: 'Purchase bill saved successfully!',
-                billId: newBill._id
+                data: {
+                    bill: {
+                        _id: newBill._id,
+                        billNumber: newBill.billNumber,
+                        account: {
+                            name: account.name,
+                            address: account.address,
+                            pan: account.pan
+                        },
+                        totalAmount: newBill.totalAmount,
+                        items: newBill.items.map(item => ({
+                            item: item.item,
+                            quantity: item.quantity,
+                            bonus: item.bonus,
+                            puPrice: item.puPrice,
+                            batchNumber: item.batchNumber,
+                            expiryDate: item.expiryDate,
+                            vatStatus: item.vatStatus
+                        })),
+                        vatAmount: newBill.vatAmount,
+                        discountAmount: newBill.discountAmount,
+                        roundOffAmount: newBill.roundOffAmount,
+                        subTotal: newBill.subTotal,
+                        taxableAmount: newBill.taxableAmount,
+                        nonVatPurchase: newBill.nonVatPurchase,
+                        totalCCAmount: newBill.totalCCAmount,
+                        isVatExempt: newBill.isVatExempt,
+                        vatPercentage: newBill.vatPercentage,
+                        paymentMode: newBill.paymentMode,
+                        partyBillNumber: newBill.partyBillNumber,
+                        date: newBill.date,
+                        transactionDate: newBill.transactionDate,
+                        user: {
+                            name: req.user.name
+                        }
+                    }
+                }
             };
 
             if (req.query.print === 'true') {

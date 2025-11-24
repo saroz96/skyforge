@@ -109,8 +109,13 @@ router.get('/purchase-return', isLoggedIn, ensureAuthenticated, ensureCompanySel
             });
         }
 
+        // Fetch only the required company groups: Cash in Hand, Sundry Debtors, Sundry Creditors
+        const relevantGroups = await CompanyGroup.find({
+            name: { $in: ['Sundry Debtors', 'Sundry Creditors'] }
+        }).exec();
+
         // Convert relevant group IDs to an array of ObjectIds
-        const relevantGroupIds = companyGroups.map(group => group._id);
+        const relevantGroupIds = relevantGroups.map(group => group._id);
 
         // Fetch accounts that belong only to the specified groups
         const accounts = await Account.find({
@@ -798,20 +803,53 @@ router.post('/purchase-return', isLoggedIn, ensureAuthenticated, ensureCompanySe
         await session.commitTransaction();
         session.endSession();
 
-        // Return success response
-        return res.status(201).json({
+        // Prepare response
+        const response = {
             success: true,
             message: 'Purchase return created successfully',
-            bill: {
-                _id: newBill._id,
-                billNumber: newBill.billNumber,
-                account: newBill.account,
-                totalAmount: newBill.totalAmount,
-                date: newBill.date,
-                transactionDate: newBill.transactionDate
-            },
-            printUrl: req.query.print === 'true' ? `/purchase-return/${newBill._id}/direct-print` : null
-        });
+            data: {
+                bill: {
+                    _id: newBill._id,
+                    billNumber: newBill.billNumber,
+                    account: {
+                        name: accounts.name, // Make sure you have the account object
+                        address: accounts.address,
+                        pan: accounts.pan
+                    },
+                    totalAmount: newBill.totalAmount,
+                    items: newBill.items.map(item => ({
+                        item: item.item,
+                        quantity: item.quantity,
+                        puPrice: item.puPrice,
+                        batchNumber: item.batchNumber,
+                        expiryDate: item.expiryDate,
+                        vatStatus: item.vatStatus
+                    })),
+                    vatAmount: newBill.vatAmount,
+                    discountAmount: newBill.discountAmount,
+                    roundOffAmount: newBill.roundOffAmount,
+                    subTotal: newBill.subTotal,
+                    taxableAmount: newBill.taxableAmount,
+                    nonVatPurchaseReturn: newBill.nonVatPurchaseReturn,
+                    isVatExempt: newBill.isVatExempt,
+                    vatPercentage: newBill.vatPercentage,
+                    paymentMode: newBill.paymentMode,
+                    partyBillNumber: newBill.partyBillNumber,
+                    date: newBill.date,
+                    transactionDate: newBill.transactionDate,
+                    user: {
+                        name: req.user.name
+                    }
+                }
+            }
+        };
+
+        // Add redirect URL for printing
+        if (req.body.print === true || req.body.print === 'true') {
+            response.redirectUrl = `/purchase-return/${newBill._id}/direct-print`;
+        }
+
+        return res.status(201).json(response);
 
     } catch (error) {
         console.error("Error creating purchase return:", error);
@@ -1298,7 +1336,7 @@ router.put('/purchase-return/edit/:id', isLoggedIn, ensureAuthenticated, ensureC
         const session = await mongoose.startSession();
         session.startTransaction();
         const billId = req.params.id;
-        
+
         try {
             const {
                 accountId,
@@ -1405,7 +1443,7 @@ router.put('/purchase-return/edit/:id', isLoggedIn, ensureAuthenticated, ensureC
                 }
 
                 const itemTotal = parseFloat(item.puPrice) * parseFloat(item.quantity);
-                
+
                 if (product.vatStatus === 'vatable') {
                     totalTaxableAmount += itemTotal;
                 } else {
@@ -1459,7 +1497,7 @@ router.put('/purchase-return/edit/:id', isLoggedIn, ensureAuthenticated, ensureC
 
             // Process items and reduce stock
             const billItems = [];
-            
+
             for (const item of items) {
                 const product = await Item.findById(item.item).session(session);
                 if (!product) {

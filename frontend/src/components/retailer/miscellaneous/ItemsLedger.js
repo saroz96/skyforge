@@ -7,6 +7,7 @@ import { BiBox, BiSearch, BiPrinter } from 'react-icons/bi';
 import Header from '../Header';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import '../../../stylesheet/retailer/Items/ItemsLedger.css';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const ItemsLedger = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
@@ -17,6 +18,8 @@ const ItemsLedger = () => {
         vatEnabled: true,
         fiscalYear: {}
     });
+
+    const [showProductModal, setShowProductModal] = useState(false);
 
     const [data, setData] = useState(() => {
         if (draftSave && draftSave.itemsLedgerData) {
@@ -124,6 +127,21 @@ const ItemsLedger = () => {
 
         fetchItems();
     }, []);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
+
 
     // Focus on fromDate after item selection
     useEffect(() => {
@@ -902,6 +920,11 @@ const ItemsLedger = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
             )}
         </div>
     );

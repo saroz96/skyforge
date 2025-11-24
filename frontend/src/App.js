@@ -113,6 +113,16 @@ import EditDebitNote from './components/retailer/debitNote/EditDebitNote';
 import DebitNoteNumberForm from './components/retailer/debitNote/VoucherNumber';
 import { StatementProvider } from './context/StatementContext';
 import VATConfirmationLetter from './components/VATConfirmationLetter';
+import OpeningTrialBalance from './components/retailer/TrialBalance/OpeningTrialBalance';
+import AddCreditNote from './components/retailer/creditNote/AddCreditNote';
+import CreditNoteRegister from './components/retailer/creditNote/List';
+import CreditNotePrint from './components/retailer/creditNote/Print';
+import EditCreditNote from './components/retailer/creditNote/EditCreditNote';
+import CreditNoteNumberForm from './components/retailer/creditNote/VoucherNumber';
+import ItemsImport from './components/retailer/Items/ItemsImport';
+import ItemsImportResults from './components/retailer/Items/ItemsImportResults';
+import AccountsImport from './components/retailer/accounts/AccountsImport';
+import AccountsImportResults from './components/retailer/accounts/AccountsImportResults';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -201,6 +211,22 @@ function AppContent() {
               }
             />
             <Route
+              path="/retailer/items-import"
+              element={
+                <ProtectedRoute>
+                  <ItemsImport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/import-results"
+              element={
+                <ProtectedRoute>
+                  <ItemsImportResults />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/retailer/items-ledger"
               element={
                 <ProtectedRoute>
@@ -255,6 +281,22 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <Accounts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/accounts-import"
+              element={
+                <ProtectedRoute>
+                  <AccountsImport />
+                </ProtectedRoute>
+              }
+            />
+                <Route
+              path="/retailer/accounts-import-results"
+              element={
+                <ProtectedRoute>
+                  <AccountsImportResults />
                 </ProtectedRoute>
               }
             />
@@ -804,7 +846,54 @@ function AppContent() {
             />
             {/**======================================================*/}
 
-            {/**===================== Journal Voucher ================ */}
+
+            {/**===================== Credit Note ================ */}
+            <Route
+              path="/retailer/credit-note"
+              element={
+                <ProtectedRoute>
+                  <AddCreditNote />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/credit-note/register"
+              element={
+                <ProtectedRoute>
+                  <CreditNoteRegister />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/retailer/credit-note/finds"
+              element={
+                <ProtectedRoute>
+                  <CreditNoteNumberForm />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/retailer/credit-note/:id"
+              element={
+                <ProtectedRoute>
+                  <EditCreditNote />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/credit-note/:id/print"
+              element={
+                <ProtectedRoute>
+                  <CreditNotePrint />
+                </ProtectedRoute>
+              }
+            />
+
+            {/**======================================================*/}
+
+            {/**===================== Debit Note ================ */}
             <Route
               path="/retailer/debit-note"
               element={
@@ -915,6 +1004,17 @@ function AppContent() {
             {/**======================================================*/}
 
             <Route path="/retailer/confirmation-of-vat" element={<VATConfirmationLetter />} />
+
+            {/**===================== Trial Balance ================ */}
+            <Route
+              path="/retailer/opening-trial-balance/alphabetical"
+              element={
+                <ProtectedRoute>
+                  <OpeningTrialBalance />
+                </ProtectedRoute>
+              }
+            />
+            {/**======================================================*/}
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -533,9 +533,9 @@ const PurchaseBillPrint = () => {
                                     <th>Code</th>
                                     <th>HSN</th>
                                     <th>Description of Goods</th>
+                                    <th>Unit</th>
                                     <th>Batch</th>
                                     <th>Expiry</th>
-                                    <th>Unit</th>
                                     <th>Qty</th>
                                     <th>Free</th>
                                     <th>Rate</th>
@@ -559,9 +559,9 @@ const PurchaseBillPrint = () => {
                                                 item.item.name
                                             )}
                                         </td>
+                                        <td>{item.item.unit.name}</td>
                                         <td>{item.batchNumber}</td>
                                         <td>{new Date(item.expiryDate).toLocaleDateString()}</td>
-                                        <td>{item.item.unit.name}</td>
                                         <td>{item.Altquantity}</td>
                                         <td>{item.Altbonus}</td>
                                         <td>{formatTo2Decimal(item.AltpuPrice)}</td>
@@ -659,9 +659,9 @@ const PurchaseBillPrint = () => {
                                 <th>Code</th>
                                 <th>HSN</th>
                                 <th>Description of Goods</th>
+                                <th>Unit</th>
                                 <th>Batch</th>
                                 <th>Expiry</th>
-                                <th>Unit</th>
                                 <th>Qty</th>
                                 <th>Free</th>
                                 <th>Rate</th>
@@ -685,9 +685,9 @@ const PurchaseBillPrint = () => {
                                             item.item.name
                                         )}
                                     </td>
+                                    <td>{item.item.unit.name}</td>
                                     <td>{item.batchNumber}</td>
                                     <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                    <td>{item.item.unit.name}</td>
                                     <td>{item.Altquantity}</td>
                                     <td>{item.Altbonus}</td>
                                     <td>{formatTo2Decimal(item.AltpuPrice)}</td>

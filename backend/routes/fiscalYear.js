@@ -850,6 +850,619 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //     });
 // });
 
+// router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+//     if (req.tradeType !== 'retailer') {
+//         res.write(`data: ${JSON.stringify({ type: 'error', message: 'Unauthorized access' })}\n\n`);
+//         return res.end();
+//     }
+
+//     // Set headers for SSE
+//     res.writeHead(200, {
+//         'Content-Type': 'text/event-stream',
+//         'Cache-Control': 'no-cache',
+//         'Connection': 'keep-alive',
+//     });
+
+//     // Function to send events
+//     const sendEvent = (type, data) => {
+//         res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+//     };
+
+//     const session = await mongoose.startSession();
+//     let transactionCommitted = false;
+//     let transactionAborted = false;
+
+//     // Helper function to safely abort transaction
+//     const safeAbortTransaction = async () => {
+//         if (!transactionCommitted && !transactionAborted && session.inTransaction()) {
+//             try {
+//                 await session.abortTransaction();
+//                 transactionAborted = true;
+//             } catch (abortError) {
+//                 // Ignore errors when aborting already aborted transaction
+//                 if (!abortError.message.includes('abortTransaction twice')) {
+//                     console.error('Error aborting transaction:', abortError);
+//                 }
+//             }
+//         }
+//     };
+
+//     try {
+//         // Start transaction with extended timeout and retry options
+//         const transactionOptions = {
+//             readConcern: { level: 'snapshot' },
+//             writeConcern: { w: 'majority' },
+//             maxTimeMS: 600000, // 10 minute timeout
+//             retryWrites: true
+//         };
+
+//         await session.withTransaction(async () => {
+//             const companyId = req.session.currentCompany;
+//             const currentFiscalYear = req.session.currentFiscalYear.id;
+
+//             // Get parameters from query string
+//             const { startDateEnglish, endDateEnglish, startDateNepali, endDateNepali, dateFormat } = req.query;
+
+//             let startDate, endDate;
+//             if (dateFormat === 'nepali') {
+//                 startDate = startDateNepali;
+//                 endDate = endDateNepali;
+//             } else if (dateFormat === 'english') {
+//                 startDate = startDateEnglish;
+//                 endDate = endDateEnglish;
+//             } else {
+//                 sendEvent('error', { message: 'Invalid date format' });
+//                 throw new Error('Invalid date format');
+//             }
+
+//             if (!endDate) {
+//                 // If endDate is not provided, calculate it as one year minus one day from startDate
+//                 endDate = new Date(startDate);
+//                 endDate.setFullYear(endDate.getFullYear() + 1);
+//                 endDate.setDate(endDate.getDate() - 1);
+//             }
+
+//             const startDateObject = new Date(startDate);
+//             const endDateObject = new Date(endDate);
+//             const startYear = startDateObject.getFullYear();
+//             const endYear = endDateObject.getFullYear();
+//             const fiscalYearName = `${startYear}/${endYear.toString().slice(-2)}`;
+
+//             // Step 1: Create fiscal year
+//             sendEvent('log', { message: `Creating new fiscal year ${fiscalYearName}...` });
+//             sendEvent('progress', { value: 10 });
+
+//             const existingFiscalYear = await FiscalYear.findOne({
+//                 name: fiscalYearName,
+//                 company: companyId
+//             }).session(session);
+
+//             if (existingFiscalYear) {
+//                 sendEvent('error', { message: `Fiscal Year ${fiscalYearName} already exists.` });
+//                 throw new Error('Fiscal year already exists');
+//             }
+
+//             // Process in batches to avoid transaction timeouts
+//             const processInBatches = async (items, processFn, batchSize = 50) => {
+//                 for (let i = 0; i < items.length; i += batchSize) {
+//                     const batch = items.slice(i, i + batchSize);
+//                     await Promise.all(batch.map(item => processFn(item)));
+
+//                     // Send progress updates
+//                     const progress = 33 + (i / items.length * 33);
+//                     sendEvent('progress', { value: Math.min(progress, 66) });
+//                 }
+//             };
+
+//             const newFiscalYear = (await FiscalYear.create([{
+//                 name: fiscalYearName,
+//                 startDate: startDateObject,
+//                 endDate: endDateObject,
+//                 dateFormat,
+//                 company: companyId
+//             }], { session }))[0];
+
+//             sendEvent('log', { message: `Created new fiscal year: ${fiscalYearName}` });
+//             sendEvent('progress', { value: 33 });
+
+//             // Step 1.5: Clone settings to new fiscal year - FIXED DUPLICATE KEY ISSUE
+//             sendEvent('log', { message: 'Cloning settings to new fiscal year...' });
+
+//             // Check if settings already exist for this user and company in new fiscal year
+//             const existingSettings = await Settings.findOne({
+//                 company: companyId,
+//                 fiscalYear: newFiscalYear._id,
+//                 userId: req.user.id
+//             }).session(session);
+
+//             if (existingSettings) {
+//                 sendEvent('log', { message: 'Settings already exist for new fiscal year, skipping creation' });
+//             } else {
+//                 const currentSettings = await Settings.findOne({
+//                     company: companyId,
+//                     fiscalYear: currentFiscalYear,
+//                     userId: req.user.id
+//                 }).session(session);
+
+//                 if (currentSettings) {
+//                     // Create new settings with unique _id and proper fiscal year reference
+//                     const newSettingsData = {
+//                         ...currentSettings.toObject(),
+//                         _id: new mongoose.Types.ObjectId(), // Generate new unique ID
+//                         fiscalYear: newFiscalYear._id,
+//                         createdAt: new Date(),
+//                         updatedAt: new Date()
+//                     };
+//                     // Remove any existing _id to ensure new one is used
+//                     delete newSettingsData._id;
+
+//                     await Settings.create([newSettingsData], { session });
+//                     sendEvent('log', { message: 'Settings cloned successfully' });
+//                 } else {
+//                     // Create default settings
+//                     await Settings.create([{
+//                         company: companyId,
+//                         userId: req.user.id,
+//                         fiscalYear: newFiscalYear._id,
+//                         createdAt: new Date(),
+//                         updatedAt: new Date()
+//                     }], { session });
+//                     sendEvent('log', { message: 'Created default settings for new fiscal year' });
+//                 }
+//             }
+
+//             // Step 2: Process items in batches
+//             sendEvent('log', { message: 'Creating items for new fiscal year...' });
+//             const items = await Item.find({
+//                 company: companyId,
+//                 fiscalYear: { $in: [currentFiscalYear] }
+//             }).session(session);
+
+//             await processInBatches(items, async (item) => {
+//                 try {
+//                     // Get ALL transactions that affect stock for this item
+//                     const stockTransactions = await Transaction.find({
+//                         item: item._id,
+//                         company: companyId,
+//                         fiscalYear: currentFiscalYear,
+//                         type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'StockAdjustment'] }
+//                     }).sort({ date: 1 }).session(session);
+
+//                     // Calculate current stock by processing all transactions
+//                     let currentStock = Number(item.openingStockByFiscalYear?.find(f => f.fiscalYear.equals(currentFiscalYear))?.openingStock) || 0;
+//                     let totalPurchases = 0;
+//                     let totalSales = 0;
+//                     let totalPurchaseReturns = 0;
+//                     let totalSalesReturns = 0;
+//                     let totalAdjustments = 0;
+
+//                     for (const transaction of stockTransactions) {
+//                         const quantity = Number(transaction.quantity) || 0;
+//                         const adjustmentQuantity = Number(transaction.adjustmentQuantity) || 0;
+
+//                         switch (transaction.type) {
+//                             case 'Purc': // Purchase
+//                                 currentStock += quantity;
+//                                 totalPurchases += quantity;
+//                                 break;
+//                             case 'Sale': // Sale
+//                                 currentStock -= quantity;
+//                                 totalSales += quantity;
+//                                 break;
+//                             case 'PrRt': // Purchase Return
+//                                 currentStock -= quantity;
+//                                 totalPurchaseReturns += quantity;
+//                                 break;
+//                             case 'SlRt': // Sales Return
+//                                 currentStock += quantity;
+//                                 totalSalesReturns += quantity;
+//                                 break;
+//                             case 'StockAdjustment': // Stock Adjustment
+//                                 currentStock += adjustmentQuantity;
+//                                 totalAdjustments += adjustmentQuantity;
+//                                 break;
+//                         }
+//                     }
+
+//                     // Calculate weighted average purchase price from stockEntries
+//                     let totalQuantityFromEntries = 0;
+//                     let totalPriceFromEntries = 0;
+//                     let totalSalesPriceFromEntries = 0;
+
+//                     for (const entry of item.stockEntries) {
+//                         const entryPuPrice = Number(entry.puPrice) || 0;
+//                         const entryQuantity = Number(entry.quantity) || 0;
+//                         const entryPrice = Number(entry.price) || 0;
+
+//                         if (entryPuPrice > 0 && entryQuantity > 0) {
+//                             totalQuantityFromEntries += entryQuantity;
+//                             totalPriceFromEntries += entryQuantity * entryPuPrice;
+//                             totalSalesPriceFromEntries += entryQuantity * entryPrice;
+//                         }
+//                     }
+
+//                     let purchasePrice = 0;
+//                     let salesPrice = 0;
+
+//                     if (totalQuantityFromEntries > 0) {
+//                         purchasePrice = totalPriceFromEntries / totalQuantityFromEntries;
+//                         salesPrice = totalSalesPriceFromEntries / totalQuantityFromEntries;
+//                     } else {
+//                         // Fallback to transaction-based calculation if no valid stock entries
+//                         const purchases = await Transaction.find({
+//                             item: item._id,
+//                             company: companyId,
+//                             type: 'Purc',
+//                             fiscalYear: currentFiscalYear
+//                         }).session(session);
+
+//                         let totalQuantity = 0;
+//                         let totalPrice = 0;
+//                         for (let purchase of purchases) {
+//                             const purchaseQuantity = Number(purchase.quantity) || 0;
+//                             const purchasePuPrice = Number(purchase.puPrice) || 0;
+//                             if (purchaseQuantity > 0 && purchasePuPrice > 0) {
+//                                 totalQuantity += purchaseQuantity;
+//                                 totalPrice += purchaseQuantity * purchasePuPrice;
+//                             }
+//                         }
+
+//                         // Ensure item.puPrice is also a number for fallback
+//                         purchasePrice = totalQuantity > 0 ? (totalPrice / totalQuantity) : (Number(item.puPrice) || 0);
+
+//                         const salesTransactions = await Transaction.find({
+//                             item: item._id,
+//                             company: companyId,
+//                             type: 'Sale',
+//                             fiscalYear: currentFiscalYear
+//                         }).session(session);
+
+//                         let totalSalesQuantity = 0;
+//                         let totalSalesPrice = 0;
+//                         for (let sale of salesTransactions) {
+//                             const saleSalesPrice = Number(sale.salesPrice) || 0;
+//                             const saleQuantity = Number(sale.quantity) || 0;
+//                             if (saleSalesPrice > 0 && saleQuantity > 0) {
+//                                 totalSalesQuantity += saleQuantity;
+//                                 totalSalesPrice += saleQuantity * saleSalesPrice;
+//                             }
+//                         }
+//                         salesPrice = totalSalesQuantity > 0 ? (totalSalesPrice / totalSalesQuantity) : (Number(item.price) || 0); // Use item.price as fallback if no sales transactions
+//                     }
+
+//                     // Ensure all final values are numbers, defaulting to 0 if NaN
+//                     purchasePrice = Number(purchasePrice) || 0;
+//                     salesPrice = Number(salesPrice) || 0;
+
+//                     const openingStockFromEntries = item.stockEntries.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+//                     const openingStock = Number(openingStockFromEntries > 0 ? openingStockFromEntries : currentStock) || 0;
+//                     const openingStockValue = Number(purchasePrice * openingStock) || 0; // Ensure this is a number
+
+//                     sendEvent('log', {
+//                         message: `Item ${item.name} - ` +
+//                             `Stock from Entries: ${openingStockFromEntries}, ` +
+//                             `Purchases: ${totalPurchases}, ` +
+//                             `Sales: ${totalSales}, ` +
+//                             `Purchase Returns: ${totalPurchaseReturns}, ` +
+//                             `Sales Returns: ${totalSalesReturns}, ` +
+//                             `Adjustments: ${totalAdjustments},` +
+//                             `Calculated Purchase Price: ${purchasePrice} (from ${totalQuantityFromEntries > 0 ? 'stock entries' : 'transactions'})`
+//                     });
+
+//                     if (!item.fiscalYear.includes(newFiscalYear._id)) {
+//                         item.fiscalYear.push(newFiscalYear._id);
+//                     }
+
+//                     // Remove existing opening stock entry for this fiscal year if it exists
+//                     item.openingStockByFiscalYear = item.openingStockByFiscalYear.filter(
+//                         f => !f.fiscalYear.equals(newFiscalYear._id)
+//                     );
+
+//                     item.openingStockByFiscalYear.push({
+//                         fiscalYear: newFiscalYear._id,
+//                         openingStock: openingStock,
+//                         openingStockValue: openingStockValue,
+//                         purchasePrice: purchasePrice,
+//                         salesPrice: salesPrice,
+//                     });
+
+//                     // Remove existing closing stock entry for current fiscal year if it exists
+//                     item.closingStockByFiscalYear = item.closingStockByFiscalYear.filter(
+//                         f => !f.fiscalYear.equals(currentFiscalYear)
+//                     );
+
+//                     item.closingStockByFiscalYear.push({
+//                         fiscalYear: currentFiscalYear,
+//                         // The closing stock for the current fiscal year is the calculated opening stock for the NEW fiscal year
+//                         closingStock: openingStock,
+//                         closingStockValue: openingStockValue, // The value for current fiscal year's closing stock
+//                         purchasePrice: purchasePrice, // Use the calculated purchase price
+//                         salesPrice: salesPrice,       // Use the calculated sales price
+//                     });
+
+//                     // Update main stock fields of the item for the new fiscal year
+//                     item.stock = openingStock;
+//                     item.openingStock = openingStock;
+
+//                     await item.save({ session });
+//                     sendEvent('log', { message: `Updated item: ${item.name} with new opening stock: ${item.stock} and value: ${openingStockValue}` });
+//                 } catch (saveError) {
+//                     console.error(`Error processing item ${item.name}:`, saveError);
+//                     throw saveError;
+//                 }
+//             });
+
+//             // Step 3: Process accounts in batches
+//             sendEvent('log', { message: 'Updating accounts for new fiscal year...' });
+//             const accounts = await Account.find({
+//                 company: companyId,
+//                 fiscalYear: { $in: [currentFiscalYear] }
+//             }).session(session);
+
+//             // Define account groups that should have zero opening balance (except cash accounts)
+//             const zeroBalanceGroups = await CompanyGroup.find({
+//                 name: {
+//                     $in: ['Purchase', 'Sale', 'Fixed Assets', // Fixed Assets should actually carry balance, review this list
+//                         'Reserves & Surplus', // These are usually P&L related and reset or adjusted
+//                         'Secured Loans',      // Should carry balance
+//                         'Securities & Deposits', // Should carry balance
+//                         'Stock in hand',      // Handled by Item stock, typically zero for account
+//                         'Unsecured Loans',    // Should carry balance
+//                         'Expenses (Direct/Mfg.)', // Reset
+//                         'Expenses (Indirect/Admn.)', // Reset
+//                         'Income (Direct/Opr.)',     // Reset
+//                         'Income (Indirect)',        // Reset
+//                         'Loans & Advances',         // Should carry balance
+//                         'Provisions/Expenses Payable', // Should carry balance
+//                         'Profit & Loss',            // Reset/Adjusted
+//                         'Current Assets',           // THIS IS TOO BROAD, many current assets carry balance (e.g., Debtors, Cash, Bank).
+//                         // Re-evaluate your zeroBalanceGroups list carefully.
+//                         // For demonstration, I'm assuming you intend these to be reset.
+//                     ]
+//                 },
+//                 company: companyId
+//             }).select('_id').session(session);
+
+//             const zeroBalanceGroupIds = zeroBalanceGroups.map(g => g._id.toString()); // Convert to string for easier comparison
+
+//             // Get special account group IDs
+//             const [cashInHandGroup, sundryDebtorsGroup, sundryCreditorsGroup] = await Promise.all([
+//                 CompanyGroup.findOne({ name: 'Cash in Hand', company: companyId }).select('_id').session(session),
+//                 CompanyGroup.findOne({ name: 'Sundry Debtors', company: companyId }).select('_id').session(session),
+//                 CompanyGroup.findOne({ name: 'Sundry Creditors', company: companyId }).select('_id').session(session)
+//             ]);
+
+//             const cashInHandGroupId = cashInHandGroup?._id.toString();
+//             const sundryDebtorsGroupId = sundryDebtorsGroup?._id.toString();
+//             const sundryCreditorsGroupId = sundryCreditorsGroup?._id.toString();
+
+//             const processAccountBatch = async (batch) => {
+//                 return Promise.all(batch.map(async (account) => {
+//                     try {
+//                         const accountCompanyGroupId = account.companyGroups ? account.companyGroups.toString() : null;
+
+//                         // Determine account type based on their company group
+//                         const isCashAccount = accountCompanyGroupId === cashInHandGroupId;
+//                         const isSundryAccount = accountCompanyGroupId === sundryDebtorsGroupId || accountCompanyGroupId === sundryCreditorsGroupId;
+//                         const isZeroBalanceAccount = zeroBalanceGroupIds.includes(accountCompanyGroupId);
+
+//                         // Build transaction query
+//                         let transactionQuery = {
+//                             account: account._id,
+//                             company: companyId,
+//                             fiscalYear: currentFiscalYear,
+//                             type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt', 'BnkDep', 'BnkWtd'] } // Added Bank Deposit/Withdrawal
+//                         };
+
+//                         // For Sundry Debtors/Creditors, filter out cash transactions from 'Sale'/'Purc' etc.
+//                         if (isSundryAccount) {
+//                             transactionQuery.$or = [
+//                                 { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: { $ne: 'cash' } }, // Only non-cash
+//                                 { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt'] } } // Other types always affect
+//                             ];
+//                         } else if (isCashAccount) {
+//                             // For cash accounts, only consider transactions that involve cash
+//                             transactionQuery.$or = [
+//                                 { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: 'cash' },
+//                                 { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'BnkWtd', 'BnkDep'] } } // Payment/Receipt, Jrnl, Bank Withdrawals/Deposits
+//                             ];
+//                         }
+
+//                         // Get transactions for balance calculation
+//                         const transactions = await Transaction.find(transactionQuery).session(session);
+
+//                         // Calculate new opening balance - USING openingBalanceByFiscalYear
+//                         let newOpeningBalance;
+//                         if (isZeroBalanceAccount) {
+//                             newOpeningBalance = {
+//                                 amount: 0,
+//                                 type: 'Dr', // Default to Dr, though 0 has no type
+//                                 fiscalYear: newFiscalYear._id
+//                             };
+//                             sendEvent('log', { message: `Resetting balance to zero for ${account.name} (Zero Balance Group)` });
+//                         } else {
+//                             // Get opening balance from openingBalanceByFiscalYear for current fiscal year
+//                             const currentFiscalYearOpeningBalanceEntry = account.openingBalanceByFiscalYear?.find(
+//                                 f => f.fiscalYear.equals(currentFiscalYear)
+//                             );
+
+//                             let runningBalance = 0;
+//                             let startingBalanceType = 'Dr';
+
+//                             if (currentFiscalYearOpeningBalanceEntry) {
+//                                 runningBalance = Number(currentFiscalYearOpeningBalanceEntry.amount) || 0;
+//                                 startingBalanceType = currentFiscalYearOpeningBalanceEntry.type || 'Dr';
+//                                 if (startingBalanceType === 'Cr') {
+//                                     runningBalance = -runningBalance; // Represent Cr as negative for calculation
+//                                 }
+//                                 sendEvent('log', { message: `Using opening balance from openingBalanceByFiscalYear for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'}` });
+//                             } else {
+//                                 // Fallback to current openingBalance if no fiscal year entry found
+//                                 runningBalance = Number(account.openingBalance?.amount) || 0;
+//                                 startingBalanceType = account.openingBalance?.type || 'Dr';
+//                                 if (startingBalanceType === 'Cr') {
+//                                     runningBalance = -runningBalance;
+//                                 }
+//                                 sendEvent('log', { message: `Using current account.openingBalance for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'} (fallback)` });
+//                             }
+
+//                             // Process all transactions to calculate running balance
+//                             for (const transaction of transactions) {
+//                                 const debit = Number(transaction.debit) || 0;
+//                                 const credit = Number(transaction.credit) || 0;
+//                                 if (debit > 0) runningBalance += debit;
+//                                 if (credit > 0) runningBalance -= credit;
+//                             }
+
+//                             newOpeningBalance = {
+//                                 amount: Math.abs(runningBalance),
+//                                 type: runningBalance >= 0 ? 'Dr' : 'Cr',
+//                                 fiscalYear: newFiscalYear._id
+//                             };
+//                         }
+
+//                         // Update account for new fiscal year
+//                         if (!account.fiscalYear.includes(newFiscalYear._id)) {
+//                             account.fiscalYear.push(newFiscalYear._id);
+//                         }
+
+//                         // Remove existing opening balance entry for this fiscal year if it exists
+//                         account.openingBalanceByFiscalYear = account.openingBalanceByFiscalYear.filter(
+//                             f => !f.fiscalYear.equals(newFiscalYear._id)
+//                         );
+
+//                         account.openingBalanceByFiscalYear.push({
+//                             fiscalYear: newFiscalYear._id,
+//                             amount: Number(newOpeningBalance.amount) || 0, // Ensure it's a number
+//                             type: newOpeningBalance.type,
+//                             date: new Date()
+//                         });
+
+//                         // Also update the main 'openingBalance' field of the account for the current active fiscal year
+//                         account.openingBalance = {
+//                             fiscalYear: newFiscalYear._id,
+//                             amount: Number(newOpeningBalance.amount) || 0, // Ensure it's a number
+//                             type: newOpeningBalance.type
+//                         };
+
+//                         // Remove existing closing balance entry for current fiscal year if it exists
+//                         account.closingBalanceByFiscalYear = account.closingBalanceByFiscalYear.filter(
+//                             f => !f.fiscalYear.equals(currentFiscalYear)
+//                         );
+
+//                         account.closingBalanceByFiscalYear.push({
+//                             fiscalYear: currentFiscalYear,
+//                             amount: Number(newOpeningBalance.amount) || 0, // Closing for current is opening for new
+//                             type: newOpeningBalance.type,
+//                             date: new Date() // Closing date of current fiscal year
+//                         });
+
+//                         await account.save({ session });
+//                         sendEvent('log', {
+//                             message: `Updated account: ${account.name} with new balance: ${newOpeningBalance.amount} ${newOpeningBalance.type}` +
+//                                 (isZeroBalanceAccount ? ' (reset to zero)' : '') +
+//                                 (isCashAccount ? ' (cash account)' : '') +
+//                                 (isSundryAccount ? ' (sundry account)' : '')
+//                         });
+//                     } catch (saveError) {
+//                         console.error(`Error processing account ${account.name}:`, saveError);
+//                         throw saveError;
+//                     }
+//                 }));
+//             };
+
+//             // Process accounts in batches of 50
+//             const BATCH_SIZE = 50;
+//             let accountsProcessed = 0;
+//             const totalAccounts = accounts.length;
+
+//             for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
+//                 const batch = accounts.slice(i, i + BATCH_SIZE);
+//                 await processAccountBatch(batch);
+//                 accountsProcessed += batch.length;
+
+//                 // Update progress
+//                 const progress = 66 + (accountsProcessed / totalAccounts * 34);
+//                 sendEvent('progress', { value: Math.min(progress, 100) });
+//             }
+
+//             sendEvent('log', { message: `Completed updating ${accountsProcessed} accounts` });
+
+//             // Initialize bill counters - Check for existing ones first
+//             sendEvent('log', { message: 'Initializing bill counters...' });
+//             const transactionTypes = [
+//                 'Sales', 'Purchase', 'SalesReturn', 'PurchaseReturn',
+//                 'Payment', 'Receipt', 'Journal', 'DebitNote', 'CreditNote', 'StockAdjustment', 'BankDeposit', 'BankWithdrawal'
+//             ];
+
+//             for (const transactionType of transactionTypes) {
+//                 const existingCounter = await BillCounter.findOne({
+//                     company: companyId,
+//                     fiscalYear: newFiscalYear._id,
+//                     transactionType
+//                 }).session(session);
+
+//                 if (!existingCounter) {
+//                     await BillCounter.create([{
+//                         company: companyId,
+//                         fiscalYear: newFiscalYear._id,
+//                         transactionType,
+//                         currentBillNumber: 0
+//                     }], { session });
+//                 }
+//             }
+
+//             // Update session
+//             req.session.currentFiscalYear = {
+//                 id: newFiscalYear._id.toString(),
+//                 startDate: newFiscalYear.startDate,
+//                 endDate: newFiscalYear.endDate,
+//                 name: newFiscalYear.name,
+//                 dateFormat: newFiscalYear.dateFormat,
+//                 isActive: true
+//             };
+
+//             // Mark transaction as committed
+//             transactionCommitted = true;
+
+//             sendEvent('progress', { value: 100 });
+//             sendEvent('complete', { message: `Fiscal year ${fiscalYearName} created successfully! Current fiscal year set to ${fiscalYearName}.` });
+//         }, transactionOptions); // End of withTransaction
+
+//     } catch (err) {
+//         console.error('Error in fiscal year creation:', err);
+
+//         // Only abort if transaction wasn't committed
+//         await safeAbortTransaction();
+
+//         sendEvent('error', {
+//             message: `Failed to create fiscal year: ${err.message}`,
+//             details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+//         });
+//     } finally {
+//         try {
+//             if (session.inTransaction()) { // Ensure session is not left hanging if transaction failed without explicit abort
+//                 await safeAbortTransaction();
+//             }
+//             await session.endSession();
+//         } catch (sessionError) {
+//             console.error('Error ending session:', sessionError);
+//         }
+//         res.end(); // Always end the response
+//     }
+
+//     // Handle client disconnect
+//     req.on('close', async () => {
+//         // Ensure that if the client disconnects mid-transaction, it's aborted
+//         await safeAbortTransaction();
+//         try {
+//             await session.endSession();
+//         } catch (sessionError) {
+//             console.error('Error ending session on client close:', sessionError);
+//         }
+//     });
+// });
+
 router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType !== 'retailer') {
         res.write(`data: ${JSON.stringify({ type: 'error', message: 'Unauthorized access' })}\n\n`);
@@ -1017,6 +1630,9 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
                 company: companyId,
                 fiscalYear: { $in: [currentFiscalYear] }
             }).session(session);
+
+            // Store total stock value for stock account update
+            let totalStockValue = 0;
 
             await processInBatches(items, async (item) => {
                 try {
@@ -1192,6 +1808,100 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
                 }
             });
 
+            // STEP 2.5: CALCULATE TOTAL STOCK VALUE FROM STOCK ENTRIES AND UPDATE STOCK ACCOUNT
+            sendEvent('log', { message: 'Calculating total stock value from stock entries...' });
+
+            // Recalculate total stock value from ALL stock entries (quantity * puPrice)
+            totalStockValue = 0;
+
+            // Process each item to calculate stock value from stockEntries
+            for (const item of items) {
+                let itemStockValue = 0;
+                
+                // Calculate stock value from stockEntries (quantity * puPrice)
+                item.stockEntries.forEach(entry => {
+                    const quantity = Number(entry.quantity) || 0;
+                    const puPrice = Number(entry.puPrice) || 0;
+                    const stockValue = quantity * puPrice;
+                    itemStockValue += stockValue;
+                });
+                
+                totalStockValue += itemStockValue;
+                
+                sendEvent('log', { 
+                    message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}` 
+                });
+            }
+
+            sendEvent('log', { message: `Total stock value from all items: ${totalStockValue.toFixed(2)}` });
+
+            // Find the Stock in hand company group
+            const stockGroup = await CompanyGroup.findOne({
+                name: 'Stock in hand',
+                company: companyId
+            }).session(session);
+
+            // Declare stockAccount variable at the proper scope
+            let stockAccount = null;
+
+            if (!stockGroup) {
+                sendEvent('log', { message: 'Warning: Stock in hand company group not found' });
+            } else {
+                // Find the Stock account
+                stockAccount = await Account.findOne({
+                    company: companyId,
+                    companyGroups: stockGroup._id,
+                    isActive: true
+                }).session(session);
+
+                if (!stockAccount) {
+                    sendEvent('log', { message: 'Warning: Stock account not found under Stock in hand group' });
+                } else {
+                    sendEvent('log', { message: `Found Stock account: ${stockAccount.name}, updating with total stock value: ${totalStockValue.toFixed(2)}` });
+
+                    // Ensure stock account has the new fiscal year
+                    if (!stockAccount.fiscalYear.includes(newFiscalYear._id)) {
+                        stockAccount.fiscalYear.push(newFiscalYear._id);
+                    }
+
+                    // Update openingBalanceByFiscalYear for NEW fiscal year
+                    stockAccount.openingBalanceByFiscalYear = stockAccount.openingBalanceByFiscalYear.filter(
+                        f => !f.fiscalYear.equals(newFiscalYear._id)
+                    );
+
+                    stockAccount.openingBalanceByFiscalYear.push({
+                        fiscalYear: newFiscalYear._id,
+                        amount: totalStockValue,
+                        type: 'Dr', // Stock is an asset, so debit balance
+                        date: new Date()
+                    });
+
+                    // Update closingBalanceByFiscalYear for CURRENT fiscal year
+                    stockAccount.closingBalanceByFiscalYear = stockAccount.closingBalanceByFiscalYear.filter(
+                        f => !f.fiscalYear.equals(currentFiscalYear)
+                    );
+
+                    stockAccount.closingBalanceByFiscalYear.push({
+                        fiscalYear: currentFiscalYear,
+                        amount: totalStockValue,
+                        type: 'Dr', // Stock is an asset, so debit balance
+                        date: new Date()
+                    });
+
+                    // Also update the main openingBalance field for the new fiscal year
+                    stockAccount.openingBalance = {
+                        fiscalYear: newFiscalYear._id,
+                        amount: totalStockValue,
+                        type: 'Dr'
+                    };
+
+                    await stockAccount.save({ session });
+                    sendEvent('log', { message: `Successfully updated Stock account with total stock value: ${totalStockValue.toFixed(2)}` });
+                }
+            }
+
+            sendEvent('progress', { value: 66 });
+
             // Step 3: Process accounts in batches
             sendEvent('log', { message: 'Updating accounts for new fiscal year...' });
             const accounts = await Account.find({
@@ -1202,22 +1912,20 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
             // Define account groups that should have zero opening balance (except cash accounts)
             const zeroBalanceGroups = await CompanyGroup.find({
                 name: {
-                    $in: ['Purchase', 'Sale', 'Fixed Assets', // Fixed Assets should actually carry balance, review this list
-                        'Reserves & Surplus', // These are usually P&L related and reset or adjusted
-                        'Secured Loans',      // Should carry balance
-                        'Securities & Deposits', // Should carry balance
-                        'Stock in hand',      // Handled by Item stock, typically zero for account
-                        'Unsecured Loans',    // Should carry balance
-                        'Expenses (Direct/Mfg.)', // Reset
-                        'Expenses (Indirect/Admn.)', // Reset
-                        'Income (Direct/Opr.)',     // Reset
-                        'Income (Indirect)',        // Reset
-                        'Loans & Advances',         // Should carry balance
-                        'Provisions/Expenses Payable', // Should carry balance
-                        'Profit & Loss',            // Reset/Adjusted
-                        'Current Assets',           // THIS IS TOO BROAD, many current assets carry balance (e.g., Debtors, Cash, Bank).
-                        // Re-evaluate your zeroBalanceGroups list carefully.
-                        // For demonstration, I'm assuming you intend these to be reset.
+                    $in: ['Purchase', 'Sale', 'Fixed Assets',
+                        'Reserves & Surplus',
+                        'Secured Loans',
+                        'Securities & Deposits',
+                        'Stock in hand',      // Already handled above, skip in regular processing
+                        'Unsecured Loans',
+                        'Expenses (Direct/Mfg.)',
+                        'Expenses (Indirect/Admn.)',
+                        'Income (Direct/Opr.)',
+                        'Income (Indirect)',
+                        'Loans & Advances',
+                        'Provisions/Expenses Payable',
+                        'Profit & Loss',
+                        'Current Assets',
                     ]
                 },
                 company: companyId
@@ -1239,6 +1947,12 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
             const processAccountBatch = async (batch) => {
                 return Promise.all(batch.map(async (account) => {
                     try {
+                        // Skip stock account as it's already processed (only if stockAccount exists)
+                        if (stockAccount && account._id.equals(stockAccount._id)) {
+                            sendEvent('log', { message: `Skipping Stock account ${account.name} as it was already processed` });
+                            return;
+                        }
+
                         const accountCompanyGroupId = account.companyGroups ? account.companyGroups.toString() : null;
 
                         // Determine account type based on their company group
@@ -1251,20 +1965,20 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
                             account: account._id,
                             company: companyId,
                             fiscalYear: currentFiscalYear,
-                            type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt', 'BnkDep', 'BnkWtd'] } // Added Bank Deposit/Withdrawal
+                            type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt', 'BnkDep', 'BnkWtd'] }
                         };
 
                         // For Sundry Debtors/Creditors, filter out cash transactions from 'Sale'/'Purc' etc.
                         if (isSundryAccount) {
                             transactionQuery.$or = [
-                                { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: { $ne: 'cash' } }, // Only non-cash
-                                { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt'] } } // Other types always affect
+                                { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: { $ne: 'cash' } },
+                                { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt'] } }
                             ];
                         } else if (isCashAccount) {
                             // For cash accounts, only consider transactions that involve cash
                             transactionQuery.$or = [
                                 { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: 'cash' },
-                                { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'BnkWtd', 'BnkDep'] } } // Payment/Receipt, Jrnl, Bank Withdrawals/Deposits
+                                { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'BnkWtd', 'BnkDep'] } }
                             ];
                         }
 
@@ -1276,7 +1990,7 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
                         if (isZeroBalanceAccount) {
                             newOpeningBalance = {
                                 amount: 0,
-                                type: 'Dr', // Default to Dr, though 0 has no type
+                                type: 'Dr',
                                 fiscalYear: newFiscalYear._id
                             };
                             sendEvent('log', { message: `Resetting balance to zero for ${account.name} (Zero Balance Group)` });
@@ -1293,7 +2007,7 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
                                 runningBalance = Number(currentFiscalYearOpeningBalanceEntry.amount) || 0;
                                 startingBalanceType = currentFiscalYearOpeningBalanceEntry.type || 'Dr';
                                 if (startingBalanceType === 'Cr') {
-                                    runningBalance = -runningBalance; // Represent Cr as negative for calculation
+                                    runningBalance = -runningBalance;
                                 }
                                 sendEvent('log', { message: `Using opening balance from openingBalanceByFiscalYear for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'}` });
                             } else {
@@ -1333,7 +2047,7 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
 
                         account.openingBalanceByFiscalYear.push({
                             fiscalYear: newFiscalYear._id,
-                            amount: Number(newOpeningBalance.amount) || 0, // Ensure it's a number
+                            amount: Number(newOpeningBalance.amount) || 0,
                             type: newOpeningBalance.type,
                             date: new Date()
                         });
@@ -1341,7 +2055,7 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
                         // Also update the main 'openingBalance' field of the account for the current active fiscal year
                         account.openingBalance = {
                             fiscalYear: newFiscalYear._id,
-                            amount: Number(newOpeningBalance.amount) || 0, // Ensure it's a number
+                            amount: Number(newOpeningBalance.amount) || 0,
                             type: newOpeningBalance.type
                         };
 
@@ -1352,9 +2066,9 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
 
                         account.closingBalanceByFiscalYear.push({
                             fiscalYear: currentFiscalYear,
-                            amount: Number(newOpeningBalance.amount) || 0, // Closing for current is opening for new
+                            amount: Number(newOpeningBalance.amount) || 0,
                             type: newOpeningBalance.type,
-                            date: new Date() // Closing date of current fiscal year
+                            date: new Date()
                         });
 
                         await account.save({ session });

@@ -22,13 +22,18 @@ const AddSalesOpen = () => {
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
-
+    const itemsTableRef = useRef(null);
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
         displayTransactionsForPurchase: false,
         displayTransactionsForSalesReturn: false,
         displayTransactionsForPurchaseReturn: false
     });
+
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSave') === 'true' || false
+    );
+
     const [showProductModal, setShowProductModal] = useState(false);
     const [quantityErrors, setQuantityErrors] = useState({});
     const [stockValidation, setStockValidation] = useState({
@@ -204,7 +209,7 @@ const AddSalesOpen = () => {
     //     }
     // }, [formData.isVatExempt, allItems]);
 
-    
+
     useEffect(() => {
         const fetchTransactionSettings = async () => {
             try {
@@ -232,12 +237,12 @@ const AddSalesOpen = () => {
     }, [showTransactionModal]);
 
     useEffect(() => {
-  return () => {
-    // Reset search memory when component unmounts
-    setLastSearchQuery('');
-    setShouldShowLastSearchResults(false);
-  };
-}, []);
+        return () => {
+            // Reset search memory when component unmounts
+            setLastSearchQuery('');
+            setShouldShowLastSearchResults(false);
+        };
+    }, []);
 
     useEffect(() => {
         if (allItems.length > 0) {
@@ -420,6 +425,9 @@ const AddSalesOpen = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        // Scroll to items table when search input is focused
+        scrollToItemsTable();
     };
 
     const showBatchModalForItem = (item) => {
@@ -1139,23 +1147,6 @@ const AddSalesOpen = () => {
             // Calculate all values before submission
             const calculatedValues = calculateTotal();
 
-            // const billData = {
-            //     ...formData,
-            //     items: items.map(item => ({
-            //         item: item.item,
-            //         batchNumber: item.batchNumber,
-            //         expiryDate: item.expiryDate,
-            //         quantity: item.quantity,
-            //         unit: item.unit?._id,
-            //         price: item.price,
-            //         puPrice: item.puPrice,
-            //         netPuPrice: item.netPuPrice || item.puPrice,
-            //         vatStatus: item.vatStatus,
-            //         uniqueUuId: item.uniqueUuId
-            //     })),
-            //     print
-            // };
-
             const billData = {
                 accountId: formData.accountId,
                 items: items.map(item => ({
@@ -1222,14 +1213,15 @@ const AddSalesOpen = () => {
             setItems([]);
             clearSalesOpenDraft();
 
-            if (print) {
+            if (print && response.data?.bill?._id) {
+                setItems([]);
                 setIsSaving(false);
-                navigate(`/bills/${response.data.data.bill._id}/direct-print/credit-open`);
+                resetForm()
+                await printImmediately(response.data.bill._id);
             } else {
                 setItems([]);
                 setIsSaving(false);
                 resetForm()
-                // Focus back to the first field
                 setTimeout(() => {
                     if (transactionDateRef.current) {
                         transactionDateRef.current.focus();
@@ -1338,6 +1330,293 @@ const AddSalesOpen = () => {
             document.removeEventListener('keydown', handleGlobalKeyDown);
         };
     }, [showTransactionModal, handleTransactionModalClose]);
+
+    const printImmediately = async (billId) => {
+        try {
+            const response = await api.get(`/api/retailer/sales/${billId}/print`);
+            const printData = response.data.data;
+
+            // Create a temporary div to hold the print content
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+
+            // Create the printable content
+            tempDiv.innerHTML = `
+            <div id="printableContent">
+                <div class="print-invoice-container">
+                    <div class="print-invoice-header">
+                        <div class="print-company-name">${printData.currentCompanyName}</div>
+                        <div class="print-company-details">
+                            ${printData.currentCompany.address} | Tel: ${printData.currentCompany.phone} | PAN: ${printData.currentCompany.pan}
+                        </div>
+                        <div class="print-invoice-title">${printData.firstBill ? 'TAX INVOICE' : 'INVOICE'}</div>
+                    </div>
+
+                    <div class="print-invoice-details">
+                        <div>
+                            <div><strong>M/S:</strong> ${printData.bill.account?.name || printData.bill.cashAccount || 'Account Not Found'}</div>
+                            <div><strong>Address:</strong> ${printData.bill.account?.address || printData.bill.cashAccountAddress || 'N/A'}</div>
+                            <div><strong>PAN:</strong> ${printData.bill.account?.pan || printData.bill.cashAccountPan || 'N/A'} | <strong>Tel:</strong> ${printData.bill.account?.phone || printData.bill.cashAccountPhone || 'N/A'}</div>
+                            <div><strong>Email:</strong> ${printData.bill.account?.email || printData.bill.cashAccountEmail || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div><strong>Invoice No:</strong> ${printData.bill.billNumber}</div>
+                            <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
+                            <div><strong>Invoice Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
+                            <div><strong>Mode of Payment:</strong> ${printData.bill.paymentMode}</div>
+                        </div>
+                    </div>
+
+                    <table class="print-invoice-table">
+                        <thead>
+                            <tr>
+                                <th>S.N.</th>
+                                <th>#</th>
+                                <th>HSN</th>
+                                <th>Description of Goods</th>
+                                <th>Unit</th>
+                                <th>Batch</th>
+                                <th>Expiry</th>
+                                <th>Qty</th>
+                                <th>Rate (Rs.)</th>
+                                <th>Total (Rs.)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${printData.bill.items.map((item, i) => `
+                                <tr key="${i}">
+                                    <td>${i + 1}</td>
+                                    <td>${item.item.uniqueNumber}</td>
+                                    <td>${item.item.hscode}</td>
+                                    <td>
+                                        ${item.item.vatStatus === 'vatExempt' ?
+                    `${item.item.name} *` :
+                    item.item.name
+                }
+                                    </td>
+                                    <td>${item.item.unit?.name || ''}</td>
+                                    <td>${item.batchNumber}</td>
+                                    <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${item.price.toFixed(2)}</td>
+                                    <td>${(item.quantity * item.price).toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tr>
+                            <td colSpan="10" style="border-bottom: 1px solid #000"></td>
+                        </tr>
+                    </table>
+
+                    <table class="print-totals-table">
+                        <tbody>
+                            <tr>
+                                <td><strong>Sub-Total:</strong></td>
+                                <td class="print-text-right">${printData.bill.subTotal.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Discount:</strong></td>
+                                <td class="print-text-right">${printData.bill.discountAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Non-Taxable:</strong></td>
+                                <td class="print-text-right">${printData.bill.nonVatSales.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Taxable Amount:</strong></td>
+                                <td class="print-text-right">${printData.bill.taxableAmount.toFixed(2)}</td>
+                            </tr>
+                            ${!printData.bill.isVatExempt ? `
+                                <tr>
+                                    <td><strong>VAT (${printData.bill.vatPercentage}%):</strong></td>
+                                    <td class="print-text-right">${(printData.bill.taxableAmount * printData.bill.vatPercentage / 100).toFixed(2)}</td>
+                                </tr>
+                            ` : ''}
+                            <tr>
+                                <td><strong>Round Off:</strong></td>
+                                <td class="print-text-right">${printData.bill.roundOffAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Grand Total:</strong></td>
+                                <td class="print-text-right">${printData.bill.totalAmount.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="print-amount-in-words">
+                        <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.bill.totalAmount)} Only.
+                    </div>
+
+                    <div class="print-signature-area">
+                        <div class="print-signature-box">Received By</div>
+                        <div class="print-signature-box">Prepared By: ${printData.bill.user.name}</div>
+                        <div class="print-signature-box">For: ${printData.currentCompanyName}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+            // Add print styles
+            const styles = `
+            @page {
+                size: A4;
+                margin: 5mm;
+            }
+            body {
+                font-family: 'Arial Narrow', Arial, sans-serif;
+                font-size: 9pt;
+                line-height: 1.2;
+                color: #000;
+                background: white;
+                margin: 0;
+                padding: 0;
+            }
+            .print-invoice-container {
+                width: 100%;
+                max-width: 210mm;
+                margin: 0 auto;
+                padding: 2mm;
+            }
+            .print-invoice-header {
+                text-align: center;
+                margin-bottom: 3mm;
+                border-bottom: 1px solid #000;
+                padding-bottom: 2mm;
+            }
+            .print-invoice-title {
+                font-size: 12pt;
+                font-weight: bold;
+                margin: 2mm 0;
+                text-transform: uppercase;
+            }
+            .print-company-name {
+                font-size: 16pt;
+                font-weight: bold;
+            }
+            .print-company-details {
+                font-size: 8pt;
+                margin: 1mm 0;
+                font-weight: bold;
+            }
+            .print-invoice-details {
+                display: flex;
+                justify-content: space-between;
+                margin: 2mm 0;
+                font-size: 8pt;
+            }
+            .print-invoice-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 3mm 0;
+                font-size: 8pt;
+                border: none;
+            }
+            .print-invoice-table thead {
+                border-top: 1px solid #000;
+                border-bottom: 1px solid #000;
+            }
+            .print-invoice-table th {
+                background-color: transparent;
+                border: none;
+                padding: 1mm;
+                text-align: left;
+                font-weight: bold;
+            }
+            .print-invoice-table td {
+                border: none;
+                padding: 1mm;
+                border-bottom: 1px solid #eee;
+            }
+            .print-text-right {
+                text-align: right;
+            }
+            .print-text-center {
+                text-align: center;
+            }
+            .print-amount-in-words {
+                font-size: 8pt;
+                margin: 2mm 0;
+                padding: 1mm;
+                border: 1px dashed #000;
+            }
+            .print-signature-area {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 5mm;
+                font-size: 8pt;
+            }
+            .print-signature-box {
+                text-align: center;
+                width: 30%;
+                border-top: 1px solid #000;
+                padding-top: 1mm;
+                font-weight: bold;
+            }
+            .print-totals-table {
+                width: 60%;
+                margin-left: auto;
+                border-collapse: collapse;
+                font-size: 8pt;
+            }
+            .print-totals-table td {
+                padding: 1mm;
+            }
+        `;
+
+            // Create print window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Sales_Invoice_${printData.bill.billNumber}</title>
+                    <style>${styles}</style>
+                </head>
+                <body>
+                    ${tempDiv.innerHTML}
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 200);
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+            printWindow.document.close();
+
+            // Clean up
+            document.body.removeChild(tempDiv);
+        } catch (error) {
+            console.error('Error fetching print data:', error);
+            setNotification({
+                show: true,
+                message: 'Bill saved but failed to load print data',
+                type: 'warning'
+            });
+        }
+    };
+
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
+    };
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSave', isChecked);
+    };
 
     // Memoized dropdown component
     const ItemDropdown = React.useMemo(() => {
@@ -1718,7 +1997,11 @@ const AddSalesOpen = () => {
                         </div>
                         <hr style={{ border: "1px solid gray" }} />
 
-                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }}>
+                        <div
+                            id="bill-details-container"
+                            style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }}
+                            ref={itemsTableRef}
+                        >
                             <table className="table table-bordered compact-table" id="itemsTable">
                                 <thead>
                                     <tr>
@@ -2102,46 +2385,48 @@ const AddSalesOpen = () => {
                             </div>
                         </div> */}
 
-                        <div className="form-group row">
-                            <div className="col">
+                        <div className="row mb-3">
+                            <div className="col-12">
                                 <label htmlFor="itemSearch">Search Item</label>
-                                <input
-                                    type="text"
-                                    id="itemSearch"
-                                    className="form-control"
-                                    placeholder="Search for an item"
-                                    autoComplete='off'
-                                    value={searchQuery}
-                                    onChange={handleItemSearch}
-                                    onFocus={handleSearchFocus}
-                                    ref={itemSearchRef}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const firstItem = document.querySelector('.dropdown-item');
-                                            if (firstItem) {
-                                                firstItem.classList.add('active');
-                                                firstItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const activeItem = document.querySelector('.dropdown-item.active');
-                                            if (activeItem) {
-                                                const index = parseInt(activeItem.getAttribute('data-index'));
-                                                const itemToAdd = memoizedFilteredItems[index];
-                                                if (itemToAdd) {
-                                                    showBatchModalForItem(itemToAdd);
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        id="itemSearch"
+                                        className="form-control"
+                                        placeholder="Search for an item"
+                                        autoComplete='off'
+                                        value={searchQuery}
+                                        onChange={handleItemSearch}
+                                        onFocus={handleSearchFocus}
+                                        ref={itemSearchRef}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                const firstItem = document.querySelector('.dropdown-item');
+                                                if (firstItem) {
+                                                    firstItem.classList.add('active');
+                                                    firstItem.focus();
                                                 }
-                                            } else if (!searchQuery && items.length > 0) {
-                                                setShowItemDropdown(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('discountPercentage')?.focus();
-                                                }, 0);
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const activeItem = document.querySelector('.dropdown-item.active');
+                                                if (activeItem) {
+                                                    const index = parseInt(activeItem.getAttribute('data-index'));
+                                                    const itemToAdd = memoizedFilteredItems[index];
+                                                    if (itemToAdd) {
+                                                        showBatchModalForItem(itemToAdd);
+                                                    }
+                                                } else if (!searchQuery && items.length > 0) {
+                                                    setShowItemDropdown(false);
+                                                    setTimeout(() => {
+                                                        document.getElementById('discountPercentage')?.focus();
+                                                    }, 0);
+                                                }
                                             }
-                                        }
-                                    }}
-                                />
-                                {ItemDropdown}
+                                        }}
+                                    />
+                                    {ItemDropdown}
+                                </div>
                             </div>
                         </div>
 
@@ -2276,7 +2561,7 @@ const AddSalesOpen = () => {
                             </table>
                         </div>
 
-                        <div className="d-flex justify-content-end mt-4">
+                        {/* <div className="d-flex justify-content-end mt-4">
                             <button
                                 type="submit"
                                 className="btn btn-primary mr-2 p-3"
@@ -2306,6 +2591,58 @@ const AddSalesOpen = () => {
                             >
                                 <i className="bi bi-printer"></i>
                             </button>
+                        </div> */}
+
+                        {/* Action Buttons */}
+                        <div className="d-flex justify-content-end gap-2">
+                            {/* Print After Save Checkbox */}
+                            <div className="form-check mb-3">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="printAfterSave"
+                                    checked={printAfterSave}
+                                    onChange={handlePrintAfterSaveChange}
+                                />
+                                <label className="form-check-label" htmlFor="printAfterSave">
+                                    Print after save
+                                </label>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="d-flex justify-content-end gap-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={resetForm}
+                                    disabled={isSaving}
+                                >
+                                    <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary btn-sm"
+                                    id="saveBill"
+                                    disabled={isSaving}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSubmit(e, printAfterSave);
+                                        }
+                                    }}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-save me-1"></i> Save
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -2487,7 +2824,7 @@ const AddSalesOpen = () => {
                                 </button>
                             </div>
                             <div className="modal-body p-0">
-                                <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }} ref={itemsTableRef}>
                                     <table className="table table-sm table-hover mb-0">
                                         <thead>
                                             <tr className="sticky-top bg-light" style={{ top: 0 }}>

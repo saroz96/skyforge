@@ -5,11 +5,15 @@ import NepaliDate from 'nepali-date-converter';
 import NotificationToast from '../../NotificationToast';
 import Header from '../Header';
 import AccountBalanceDisplay from '../payment/AccountBalanceDisplay';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const AddJournalVoucher = () => {
     const navigate = useNavigate();
     const accountSearchRef = useRef(null);
-
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSaveJournal') === 'true' || false
+    );
     const [isSaving, setIsSaving] = useState(false);
     const [notification, setNotification] = useState({
         show: false,
@@ -71,6 +75,20 @@ const AddJournalVoucher = () => {
 
         return totals;
     }, [formData.entries]);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
 
     useEffect(() => {
         const fetchJournalFormData = async () => {
@@ -220,6 +238,106 @@ const AddJournalVoucher = () => {
         }
     };
 
+    // const handleSubmit = async (print = false) => {
+    //     // Filter out empty rows and validate
+    //     const nonEmptyEntries = formData.entries.filter(entry =>
+    //         (entry.debitAccountId && entry.debitAmount) ||
+    //         (entry.creditAccountId && entry.creditAmount)
+    //     );
+
+    //     // Validate we have at least one debit and one credit entry
+    //     const hasDebit = nonEmptyEntries.some(entry => entry.debitAccountId && entry.debitAmount);
+    //     const hasCredit = nonEmptyEntries.some(entry => entry.creditAccountId && entry.creditAmount);
+
+    //     if (!hasDebit || !hasCredit) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'At least one debit and one credit entry is required',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     // Validate totals
+    //     const totalDebit = calculateTotal('debit');
+    //     const totalCredit = calculateTotal('credit');
+
+    //     if (totalDebit !== totalCredit) {
+    //         setNotification({
+    //             show: true,
+    //             message: 'Total debit and credit amounts must be equal',
+    //             type: 'error'
+    //         });
+    //         return;
+    //     }
+
+    //     setIsSaving(true);
+
+    //     try {
+    //         // Prepare debit and credit arrays for submission
+    //         const debitAccounts = [];
+    //         const creditAccounts = [];
+
+    //         formData.entries.forEach(entry => {
+    //             if (entry.debitAccountId && entry.debitAmount) {
+    //                 debitAccounts.push({
+    //                     account: entry.debitAccountId,
+    //                     debit: parseFloat(entry.debitAmount)
+    //                 });
+    //             }
+
+    //             if (entry.creditAccountId && entry.creditAmount) {
+    //                 creditAccounts.push({
+    //                     account: entry.creditAccountId,
+    //                     credit: parseFloat(entry.creditAmount)
+    //                 });
+    //             }
+    //         });
+
+    //         const payload = {
+    //             billDate: formData.billDate,
+    //             nepaliDate: formData.nepaliDate,
+    //             description: formData.description,
+    //             debitAccounts,
+    //             creditAccounts,
+    //             print
+    //         };
+
+    //         const response = await api.post('/api/retailer/journal', payload);
+
+    //         setNotification({
+    //             show: true,
+    //             message: 'Journal voucher saved successfully!',
+    //             type: 'success'
+    //         });
+
+    //         await resetForm();
+
+    //         // If print was requested, fetch print data and print immediately
+    //         if (print && response.data.data?.journalVoucher?._id) {
+    //             try {
+    //                 const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journalVoucher._id}/print`);
+    //                 printVoucherImmediately(printResponse.data.data);
+    //             } catch (printError) {
+    //                 console.error('Error fetching print data:', printError);
+    //                 setNotification({
+    //                     show: true,
+    //                     message: 'Journal voucher saved but failed to load print data',
+    //                     type: 'warning'
+    //                 });
+    //             }
+    //         }
+    //     } catch (err) {
+    //         setNotification({
+    //             show: true,
+    //             message: err.response?.data?.message || 'Failed to save journal voucher',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsSaving(false);
+    //     }
+    // };
+
     const handleSubmit = async (print = false) => {
         // Filter out empty rows and validate
         const nonEmptyEntries = formData.entries.filter(entry =>
@@ -282,7 +400,7 @@ const AddJournalVoucher = () => {
                 description: formData.description,
                 debitAccounts,
                 creditAccounts,
-                print
+                print: print || printAfterSave // Use the parameter or the saved preference
             };
 
             const response = await api.post('/api/retailer/journal', payload);
@@ -295,8 +413,8 @@ const AddJournalVoucher = () => {
 
             await resetForm();
 
-            // If print was requested, fetch print data and print immediately
-            if (print && response.data.data?.journalVoucher?._id) {
+            // If print was requested (either explicitly or via printAfterSave), fetch print data and print immediately
+            if ((print || printAfterSave) && response.data.data?.journalVoucher?._id) {
                 try {
                     const printResponse = await api.get(`/api/retailer/journal/${response.data.data.journalVoucher._id}/print`);
                     printVoucherImmediately(printResponse.data.data);
@@ -318,6 +436,12 @@ const AddJournalVoucher = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSaveJournal', isChecked);
     };
 
     const handleKeyDown = (e, currentFieldId) => {
@@ -633,6 +757,7 @@ const AddJournalVoucher = () => {
                                                 handleKeyDown(e, 'description');
                                             }
                                         }}
+                                        autoComplete='off'
                                     />
                                 </div>
                             </div>
@@ -789,7 +914,7 @@ const AddJournalVoucher = () => {
                             )}
 
                             {/* Action Buttons */}
-                            <div className="d-flex justify-content-between mt-4">
+                            {/* <div className="d-flex justify-content-between mt-4">
                                 <div className="text-muted small">
                                     <i className="fas fa-info-circle me-1"></i>
                                 </div>
@@ -819,6 +944,53 @@ const AddJournalVoucher = () => {
                                         disabled={isSaving || calculateTotal('debit') !== calculateTotal('credit')}
                                     >
                                         <i className="fas fa-print me-2"></i> Save & Print
+                                    </button>
+                                </div>
+                            </div> */}
+
+                            <div className="d-flex justify-content-end gap-2">
+                                {/* Print After Save Checkbox */}
+                                <div className="form-check mb-0">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id="printAfterSave"
+                                        checked={printAfterSave}
+                                        onChange={handlePrintAfterSaveChange}
+                                    />
+                                    <label className="form-check-label" htmlFor="printAfterSave">
+                                        Print after save
+                                    </label>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={resetForm}
+                                        disabled={isSaving}
+                                    >
+                                        <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
+                                    </button>
+
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary btn-sm"
+                                        id="saveBill"
+                                        onClick={(e) => handleSubmit(e, printAfterSave)}
+                                        disabled={isSaving}
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="bi bi-save me-1"></i> Save
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -1017,6 +1189,11 @@ const AddJournalVoucher = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
 
             <style jsx>{`
                 .hover-row:hover {

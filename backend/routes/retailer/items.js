@@ -33,6 +33,21 @@ const BarcodePreference = require('../../models/retailer/barcodePreference');
 // const { createCanvas, loadImage } = require('canvas');
 
 
+const fs = require('fs');
+
+// Configure Multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+
+const upload = multer({ storage });
+
+
 // router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
 //     try {
 //         const companyId = req.session.currentCompany;
@@ -1220,6 +1235,733 @@ router.put('/update-batch/:itemId/:batchIndex', ensureAuthenticated, async (req,
             message: 'Internal server error'
         });
     }
+});
+
+// Import items page - JSON response for React
+router.get('/items-import', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, async (req, res) => {
+    try {
+        if (req.tradeType !== 'retailer') {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied. Retailer trade type required.'
+            });
+        }
+
+        const companyId = req.session.currentCompany;
+
+        // Check if companyId is present
+        if (!companyId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Company ID not found in session.'
+            });
+        }
+
+        const company = await Company.findById(companyId)
+            .select('renewalDate fiscalYear dateFormat name')
+            .populate('fiscalYear');
+
+        const currentCompany = await Company.findById(new ObjectId(companyId))
+            .select('name tradeType address contactInfo');
+
+        // Check if fiscal year is already in the session or available in the company
+        let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+        let currentFiscalYear = null;
+
+        if (fiscalYear) {
+            // Fetch the fiscal year from the database if available in the session
+            currentFiscalYear = await FiscalYear.findById(fiscalYear);
+        }
+
+        // If no fiscal year is found in session or currentCompany, use company's fiscal year
+        if (!currentFiscalYear && company.fiscalYear) {
+            currentFiscalYear = company.fiscalYear;
+
+            // Set the fiscal year in the session for future requests
+            req.session.currentFiscalYear = {
+                id: currentFiscalYear._id.toString(),
+                startDate: currentFiscalYear.startDate,
+                endDate: currentFiscalYear.endDate,
+                name: currentFiscalYear.name,
+                dateFormat: currentFiscalYear.dateFormat,
+                isActive: currentFiscalYear.isActive
+            };
+
+            // Assign fiscal year ID for use
+            fiscalYear = req.session.currentFiscalYear.id;
+        }
+
+        if (!fiscalYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'No fiscal year found in session or company.'
+            });
+        }
+
+        // Return JSON response for React component
+        return res.json({
+            success: true,
+            data: {
+                company: {
+                    _id: company._id,
+                    name: company.name,
+                    renewalDate: company.renewalDate,
+                    dateFormat: company.dateFormat,
+                    tradeType: currentCompany.tradeType,
+                    address: currentCompany.address,
+                    contactInfo: currentCompany.contactInfo
+                },
+                fiscalYear: currentFiscalYear ? {
+                    _id: currentFiscalYear._id,
+                    startDate: currentFiscalYear.startDate,
+                    endDate: currentFiscalYear.endDate,
+                    name: currentFiscalYear.name,
+                    dateFormat: currentFiscalYear.dateFormat,
+                    isActive: currentFiscalYear.isActive
+                } : null,
+                userPreferences: {
+                    theme: req.user.preferences?.theme || 'light',
+                    isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                },
+                sessionInfo: {
+                    currentCompanyName: req.session.currentCompanyName,
+                    currentFiscalYearId: fiscalYear
+                }
+            },
+            pageInfo: {
+                title: 'Import Items',
+                module: 'items',
+                action: 'import'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in items import endpoint:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error while loading import page.'
+        });
+    }
+});
+
+// router.post('/items-import', upload.single('excelFile'), async (req, res) => {
+//     try {
+
+//         console.log('=== FILE UPLOAD DEBUG ===');
+//         console.log('File received:', req.file);
+//         console.log('File path:', req.file?.path);
+//         console.log('File size:', req.file?.size);
+//         console.log('Headers:', req.headers);
+//         console.log('=======================');
+
+        
+//         const fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//         const companyId = req.session.currentCompany;
+
+//         // Validate session data
+//         if (!companyId) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'COMPANY_NOT_SELECTED',
+//                 message: 'Company ID not found in session.',
+//                 code: 'SESSION_COMPANY_MISSING'
+//             });
+//         }
+
+//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+//         const currentCompany = await Company.findById(new ObjectId(companyId));
+
+//         // Check if fiscal year is available
+//         let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//         let currentFiscalYear = null;
+
+//         if (fiscalYear) {
+//             currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//         }
+
+//         // If no fiscal year is found in session, use company's fiscal year
+//         if (!currentFiscalYear && company.fiscalYear) {
+//             currentFiscalYear = company.fiscalYear;
+//             fiscalYear = currentFiscalYear._id.toString();
+
+//             // Update session
+//             req.session.currentFiscalYear = {
+//                 id: currentFiscalYear._id.toString(),
+//                 startDate: currentFiscalYear.startDate,
+//                 endDate: currentFiscalYear.endDate,
+//                 name: currentFiscalYear.name,
+//                 dateFormat: currentFiscalYear.dateFormat,
+//                 isActive: currentFiscalYear.isActive
+//             };
+//         }
+
+//         if (!fiscalYear) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'FISCAL_YEAR_MISSING',
+//                 message: 'No fiscal year found in session or company.',
+//                 code: 'FISCAL_YEAR_REQUIRED'
+//             });
+//         }
+
+//         // Validate file
+//         if (!req.file) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'NO_FILE_UPLOADED',
+//                 message: 'No Excel file uploaded.',
+//                 code: 'FILE_MISSING'
+//             });
+//         }
+
+//         // Process Excel file
+//         const rows = await readXlsxFile(req.file.path);
+
+//         // Validate Excel structure
+//         if (!rows || rows.length < 2) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'INVALID_EXCEL_FILE',
+//                 message: 'Excel file is empty or has no data rows.',
+//                 code: 'EMPTY_FILE'
+//             });
+//         }
+
+//         const headers = rows[0].map(h => h ? h.toString().trim().toLowerCase() : '');
+//         const dataRows = rows.slice(1);
+
+//         // Validate required columns
+//         const requiredColumns = ['name', 'hscode', 'itemscompany', 'category', 'mainunit', 'unit', 'vatstatus', 'company'];
+//         const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+
+//         if (missingColumns.length > 0) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'MISSING_COLUMNS',
+//                 message: `Required columns missing: ${missingColumns.join(', ')}`,
+//                 code: 'INVALID_TEMPLATE',
+//                 missingColumns
+//             });
+//         }
+
+//         const results = {
+//             total: dataRows.length,
+//             success: 0,
+//             errors: [],
+//             processed: 0,
+//             skipped: 0
+//         };
+
+//         // Process each row
+//         for (let i = 0; i < dataRows.length; i++) {
+//             const row = dataRows[i];
+//             results.processed++;
+
+//             // Skip empty rows
+//             if (row.every(cell => !cell || cell.toString().trim() === '')) {
+//                 results.skipped++;
+//                 continue;
+//             }
+
+//             const rowData = {};
+//             headers.forEach((header, index) => {
+//                 rowData[header] = row[index] ? row[index].toString().trim() : null;
+//             });
+
+//             try {
+//                 // Validate required fields
+//                 if (!rowData.name || rowData.name.trim() === '') {
+//                     throw new Error('Item name is required');
+//                 }
+
+//                 // Resolve relational references with exact match
+//                 const [itemscompany, category, mainunit, unit, company] = await Promise.all([
+//                     mongoose.model('itemsCompany').findOne({ name: new RegExp(`^${rowData.itemscompany}$`, 'i') }),
+//                     mongoose.model('Category').findOne({ name: new RegExp(`^${rowData.category}$`, 'i') }),
+//                     mongoose.model('MainUnit').findOne({ name: new RegExp(`^${rowData.mainunit}$`, 'i') }),
+//                     mongoose.model('Unit').findOne({ name: new RegExp(`^${rowData.unit}$`, 'i') }),
+//                     mongoose.model('Company').findOne({ name: rowData.company }),
+//                 ]);
+
+//                 // Validate references
+//                 if (!itemscompany) throw new Error(`Company of item not found: ${rowData.itemscompany}`);
+//                 if (!category) throw new Error(`Category not found: ${rowData.category}`);
+//                 if (!mainunit) throw new Error(`MainUnit not found: ${rowData.mainunit}`);
+//                 if (!unit) throw new Error(`Unit not found: ${rowData.unit}`);
+//                 if (!company) throw new Error(`Company not found: ${rowData.company}`);
+
+//                 // Create item with proper ObjectIds
+//                 const itemData = {
+//                     name: rowData.name.trim(),
+//                     hscode: rowData.hscode ? rowData.hscode.trim() : '',
+//                     itemsCompany: itemscompany._id,
+//                     category: category._id,
+//                     mainUnit: mainunit._id,
+//                     unit: unit._id,
+//                     vatStatus: rowData.vatstatus ? rowData.vatstatus.trim() : 'Taxable',
+//                     fiscalYear: fiscalYearId,
+//                     company: company._id,
+//                 };
+
+//                 // Check for existing item
+//                 const existingItem = await mongoose.model('Item').findOne({
+//                     name: itemData.name,
+//                     company: company._id,
+//                     fiscalYear: fiscalYearId
+//                 });
+
+//                 if (existingItem) {
+//                     throw new Error(`Item already exists: ${itemData.name}`);
+//                 }
+
+//                 const item = new Item(itemData);
+//                 await item.save();
+//                 results.success++;
+
+//             } catch (error) {
+//                 results.errors.push({
+//                     row: i + 2,
+//                     message: error.message,
+//                     data: {
+//                         name: rowData.name,
+//                         itemscompany: rowData.itemscompany,
+//                         category: rowData.category,
+//                         mainunit: rowData.mainunit,
+//                         unit: rowData.unit,
+//                         company: rowData.company
+//                     }
+//                 });
+//             }
+//         }
+
+//         // Clean up uploaded file
+//         try {
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+//         } catch (cleanupError) {
+//             console.error('Error cleaning up uploaded file:', cleanupError);
+//         }
+
+//         // Return JSON response
+//         return res.json({
+//             success: true,
+//             data: {
+//                 results: {
+//                     total: results.total,
+//                     success: results.success,
+//                     errors: results.errors,
+//                     processed: results.processed,
+//                     skipped: results.skipped,
+//                     successRate: results.total > 0 ? ((results.success / results.total) * 100).toFixed(2) : 0
+//                 },
+//                 summary: {
+//                     company: company.name,
+//                     fiscalYear: currentFiscalYear ? currentFiscalYear.name : 'N/A',
+//                     importDate: new Date().toISOString(),
+//                     fileName: req.file.originalname
+//                 }
+//             },
+//             metadata: {
+//                 timestamp: new Date().toISOString(),
+//                 processedIn: `${Date.now() - req.startTime}ms`
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Import error:', error);
+
+//         // Clean up uploaded file on error
+//         try {
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+//         } catch (cleanupError) {
+//             console.error('Error cleaning up uploaded file on error:', cleanupError);
+//         }
+
+//         return res.status(500).json({
+//             success: false,
+//             error: 'IMPORT_FAILED',
+//             message: 'Failed to process import file.',
+//             code: 'PROCESSING_ERROR',
+//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// });
+
+router.post('/items-import', upload.single('excelFile'), async (req, res) => {
+    // Add start time for performance tracking
+    req.startTime = Date.now();
+    
+    try {
+        console.log('=== FILE UPLOAD DEBUG ===');
+        console.log('File received:', req.file);
+        console.log('File path:', req.file?.path);
+        console.log('File size:', req.file?.size);
+        console.log('Headers:', req.headers);
+        console.log('=======================');
+
+        const fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+        const companyId = req.session.currentCompany;
+
+        // Validate session data
+        if (!companyId) {
+            return res.status(400).json({
+                success: false,
+                error: 'COMPANY_NOT_SELECTED',
+                message: 'Company ID not found in session.',
+                code: 'SESSION_COMPANY_MISSING'
+            });
+        }
+
+        const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+        const currentCompany = await Company.findById(new ObjectId(companyId));
+
+        // Check if fiscal year is available
+        let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+        let currentFiscalYear = null;
+
+        if (fiscalYear) {
+            currentFiscalYear = await FiscalYear.findById(fiscalYear);
+        }
+
+        // If no fiscal year is found in session, use company's fiscal year
+        if (!currentFiscalYear && company.fiscalYear) {
+            currentFiscalYear = company.fiscalYear;
+            fiscalYear = currentFiscalYear._id.toString();
+
+            // Update session
+            req.session.currentFiscalYear = {
+                id: currentFiscalYear._id.toString(),
+                startDate: currentFiscalYear.startDate,
+                endDate: currentFiscalYear.endDate,
+                name: currentFiscalYear.name,
+                dateFormat: currentFiscalYear.dateFormat,
+                isActive: currentFiscalYear.isActive
+            };
+        }
+
+        if (!fiscalYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'FISCAL_YEAR_MISSING',
+                message: 'No fiscal year found in session or company.',
+                code: 'FISCAL_YEAR_REQUIRED'
+            });
+        }
+
+        // Validate file
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'NO_FILE_UPLOADED',
+                message: 'No Excel file uploaded.',
+                code: 'FILE_MISSING'
+            });
+        }
+
+        // Process Excel file
+        const rows = await readXlsxFile(req.file.path);
+
+        // Validate Excel structure
+        if (!rows || rows.length < 2) {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+            
+            return res.status(400).json({
+                success: false,
+                error: 'INVALID_EXCEL_FILE',
+                message: 'Excel file is empty or has no data rows.',
+                code: 'EMPTY_FILE'
+            });
+        }
+
+        const headers = rows[0].map(h => h ? h.toString().trim().toLowerCase() : '');
+        const dataRows = rows.slice(1);
+
+        // Validate required columns
+        const requiredColumns = ['name', 'hscode', 'itemscompany', 'category', 'mainunit', 'unit', 'vatstatus', 'company'];
+        const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+
+        if (missingColumns.length > 0) {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+            
+            return res.status(400).json({
+                success: false,
+                error: 'MISSING_COLUMNS',
+                message: `Required columns missing: ${missingColumns.join(', ')}`,
+                code: 'INVALID_TEMPLATE',
+                missingColumns
+            });
+        }
+
+        const results = {
+            total: dataRows.length,
+            success: 0,
+            errors: [],
+            processed: 0,
+            skipped: 0
+        };
+
+        // Process each row
+        for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            results.processed++;
+
+            // Skip empty rows
+            if (row.every(cell => !cell || cell.toString().trim() === '')) {
+                results.skipped++;
+                continue;
+            }
+
+            const rowData = {};
+            headers.forEach((header, index) => {
+                rowData[header] = row[index] ? row[index].toString().trim() : null;
+            });
+
+            try {
+                // Validate required fields
+                if (!rowData.name || rowData.name.trim() === '') {
+                    throw new Error('Item name is required');
+                }
+
+                // Resolve relational references with exact match
+                const [itemscompany, category, mainunit, unit, company] = await Promise.all([
+                    mongoose.model('itemsCompany').findOne({ name: new RegExp(`^${rowData.itemscompany}$`, 'i') }),
+                    mongoose.model('Category').findOne({ name: new RegExp(`^${rowData.category}$`, 'i') }),
+                    mongoose.model('MainUnit').findOne({ name: new RegExp(`^${rowData.mainunit}$`, 'i') }),
+                    mongoose.model('Unit').findOne({ name: new RegExp(`^${rowData.unit}$`, 'i') }),
+                    mongoose.model('Company').findOne({ name: rowData.company }),
+                ]);
+
+                // Validate references
+                if (!itemscompany) throw new Error(`Company of item not found: ${rowData.itemscompany}`);
+                if (!category) throw new Error(`Category not found: ${rowData.category}`);
+                if (!mainunit) throw new Error(`MainUnit not found: ${rowData.mainunit}`);
+                if (!unit) throw new Error(`Unit not found: ${rowData.unit}`);
+                if (!company) throw new Error(`Company not found: ${rowData.company}`);
+
+                // Create item with proper ObjectIds
+                const itemData = {
+                    name: rowData.name.trim(),
+                    hscode: rowData.hscode ? rowData.hscode.trim() : '',
+                    itemsCompany: itemscompany._id,
+                    category: category._id,
+                    mainUnit: mainunit._id,
+                    unit: unit._id,
+                    vatStatus: rowData.vatstatus ? rowData.vatstatus.trim() : 'Taxable',
+                    fiscalYear: fiscalYearId,
+                    company: company._id,
+                };
+
+                // Check for existing item
+                const existingItem = await mongoose.model('Item').findOne({
+                    name: itemData.name,
+                    company: company._id,
+                    fiscalYear: fiscalYearId
+                });
+
+                if (existingItem) {
+                    throw new Error(`Item already exists: ${itemData.name}`);
+                }
+
+                const item = new Item(itemData);
+                await item.save();
+                results.success++;
+
+            } catch (error) {
+                results.errors.push({
+                    row: i + 2, // +2 because header is row 1 and we start from 0 index
+                    message: error.message,
+                    data: {
+                        name: rowData.name,
+                        itemscompany: rowData.itemscompany,
+                        category: rowData.category,
+                        mainunit: rowData.mainunit,
+                        unit: rowData.unit,
+                        company: rowData.company
+                    }
+                });
+            }
+        }
+
+        // Clean up uploaded file
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+        } catch (cleanupError) {
+            console.error('Error cleaning up uploaded file:', cleanupError);
+        }
+
+        // Determine overall success based on actual results
+        const hasSuccessfulImports = results.success > 0;
+        const hasErrors = results.errors.length > 0;
+        const allFailed = results.success === 0 && results.errors.length > 0;
+        const partialSuccess = results.success > 0 && results.errors.length > 0;
+        const allSkipped = results.success === 0 && results.errors.length === 0 && results.skipped > 0;
+
+        // Return appropriate response based on actual results
+        if (allFailed) {
+            return res.status(400).json({
+                success: false,
+                error: 'IMPORT_FAILED',
+                message: 'All items failed to import. Please check the error details below.',
+                code: 'ALL_ITEMS_FAILED',
+                data: {
+                    results: {
+                        total: results.total,
+                        success: results.success,
+                        errors: results.errors,
+                        processed: results.processed,
+                        skipped: results.skipped,
+                        successRate: results.total > 0 ? ((results.success / results.total) * 100).toFixed(2) : 0
+                    },
+                    summary: {
+                        company: company.name,
+                        fiscalYear: currentFiscalYear ? currentFiscalYear.name : 'N/A',
+                        importDate: new Date().toISOString(),
+                        fileName: req.file.originalname,
+                        status: 'failed'
+                    }
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processedIn: `${Date.now() - req.startTime}ms`
+                }
+            });
+        } else if (allSkipped) {
+            return res.status(400).json({
+                success: false,
+                error: 'NO_VALID_DATA',
+                message: 'No valid data found in the file. All rows were empty or skipped.',
+                code: 'ALL_ROWS_SKIPPED',
+                data: {
+                    results: {
+                        total: results.total,
+                        success: results.success,
+                        errors: results.errors,
+                        processed: results.processed,
+                        skipped: results.skipped,
+                        successRate: 0
+                    },
+                    summary: {
+                        company: company.name,
+                        fiscalYear: currentFiscalYear ? currentFiscalYear.name : 'N/A',
+                        importDate: new Date().toISOString(),
+                        fileName: req.file.originalname,
+                        status: 'no_data'
+                    }
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processedIn: `${Date.now() - req.startTime}ms`
+                }
+            });
+        } else if (partialSuccess) {
+            return res.json({
+                success: true, // Still true because some items were imported
+                warning: 'PARTIAL_IMPORT',
+                message: `${results.success} items imported successfully, ${results.errors.length} items failed.`,
+                code: 'PARTIAL_SUCCESS',
+                data: {
+                    results: {
+                        total: results.total,
+                        success: results.success,
+                        errors: results.errors,
+                        processed: results.processed,
+                        skipped: results.skipped,
+                        successRate: results.total > 0 ? ((results.success / results.total) * 100).toFixed(2) : 0
+                    },
+                    summary: {
+                        company: company.name,
+                        fiscalYear: currentFiscalYear ? currentFiscalYear.name : 'N/A',
+                        importDate: new Date().toISOString(),
+                        fileName: req.file.originalname,
+                        status: 'partial'
+                    }
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processedIn: `${Date.now() - req.startTime}ms`
+                }
+            });
+        } else if (hasSuccessfulImports && !hasErrors) {
+            // All items imported successfully
+            return res.json({
+                success: true,
+                message: `All ${results.success} items imported successfully!`,
+                code: 'SUCCESS',
+                data: {
+                    results: {
+                        total: results.total,
+                        success: results.success,
+                        errors: results.errors,
+                        processed: results.processed,
+                        skipped: results.skipped,
+                        successRate: results.total > 0 ? ((results.success / results.total) * 100).toFixed(2) : 0
+                    },
+                    summary: {
+                        company: company.name,
+                        fiscalYear: currentFiscalYear ? currentFiscalYear.name : 'N/A',
+                        importDate: new Date().toISOString(),
+                        fileName: req.file.originalname,
+                        status: 'success'
+                    }
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processedIn: `${Date.now() - req.startTime}ms`
+                }
+            });
+        } else {
+            // No items to process (edge case)
+            return res.status(400).json({
+                success: false,
+                error: 'NO_ITEMS_PROCESSED',
+                message: 'No valid items found in the file to import.',
+                code: 'EMPTY_DATA'
+            });
+        }
+
+    } catch (error) {
+        console.error('Import error:', error);
+
+        // Clean up uploaded file on error
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+        } catch (cleanupError) {
+            console.error('Error cleaning up uploaded file on error:', cleanupError);
+        }
+
+        return res.status(500).json({
+            success: false,
+            error: 'IMPORT_FAILED',
+            message: 'Failed to process import file.',
+            code: 'PROCESSING_ERROR',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+
+
+router.get('/import-template', (req, res) => {
+    const filePath = path.join(__dirname, '../../public/templates/items-import-template.xlsx');
+    res.download(filePath, 'Inventory-Import-Template.xlsx', (err) => {
+        if (err) {
+            console.error('Error downloading template:', err);
+            res.status(404).send('Template file not found');
+        }
+    });
 });
 
 module.exports = router;

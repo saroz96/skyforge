@@ -5,9 +5,13 @@ import Header from '../Header';
 import Loader from '../../Loader';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import * as XLSX from 'xlsx';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const StockStatus = () => {
     const { draftStockStatusSave, setDraftStockStatusSave } = usePageNotRefreshContext();
+
+    const [showProductModal, setShowProductModal] = useState(false);
+
     const [allItems, setAllItems] = useState(() => {
         if (draftStockStatusSave && draftStockStatusSave.stockStatusData) {
             return draftStockStatusSave.stockStatusData.allItems || [];
@@ -112,6 +116,20 @@ const StockStatus = () => {
         };
 
         fetchCompanyData();
+    }, []);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
     }, []);
 
     // Fetch all stock items on component mount
@@ -1101,6 +1119,11 @@ const StockStatus = () => {
                     )}
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
 
             <style>
                 {`

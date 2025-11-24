@@ -670,18 +670,18 @@ const Header = () => {
                       <Link to="#">Credit Note</Link>
                       <ul className="sub-menu">
                         <li className="menu-item">
-                          <Link to="/credit-note/new">Add</Link>
+                          <Link to="/retailer/credit-note">Add</Link>
                         </li>
                         {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
                           user?.isAdmin || user?.menuPermissions?.get('creditNoteModify')) && (
                             <li className="menu-item">
-                              <Link to="/creditnote/finds">Edit</Link>
+                              <Link to="/retailer/credit-note/finds">Edit</Link>
                             </li>
                           )}
                         {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
                           user?.isAdmin || user?.menuPermissions?.get('creditNoteRegister')) && (
                             <li className="menu-item">
-                              <Link to="/credit-note/list">List</Link>
+                              <Link to="/retailer/credit-note/register">List</Link>
                             </li>
                           )}
                       </ul>
@@ -844,10 +844,10 @@ const Header = () => {
                           user?.isAdmin || user?.menuPermissions?.get('itemsImport')) && (
                             <>
                               <li className="menu-item">
-                                <Link to="/items-import">Items Import</Link>
+                                <Link to="/retailer/items-import">Items Import</Link>
                               </li>
                               <li className="menu-item">
-                                <Link to="/accounts-import">Accounts Import</Link>
+                                <Link to="/retailer/accounts-import">Accounts Import</Link>
                               </li>
                             </>
                           )}

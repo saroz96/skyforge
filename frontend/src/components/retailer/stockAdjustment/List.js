@@ -5,6 +5,7 @@ import '../../../stylesheet/retailer/stockAdjustment/List.css';
 import Header from '../Header';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import Loader from '../../Loader';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const StockAdjustmentsList = () => {
     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
@@ -30,6 +31,7 @@ const StockAdjustmentsList = () => {
     const [totalQuantity, setTotalQuantity] = useState(0);
     const [selectedRowIndex, setSelectedRowIndex] = useState(0);
     const [filteredAdjustments, setFilteredAdjustments] = useState([]);
+    const [showProductModal, setShowProductModal] = useState(false);
 
     const searchInputRef = useRef(null);
     const adjustmentTypeFilterRef = useRef(null);
@@ -67,6 +69,20 @@ const StockAdjustmentsList = () => {
         };
 
         fetchData();
+    }, []);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
     }, []);
 
     // Filter adjustments based on search and adjustment type
@@ -317,7 +333,7 @@ const StockAdjustmentsList = () => {
     };
 
     if (loading) return <Loader />;
-    
+
     if (error) {
         return <div className="alert alert-danger text-center py-5">{error}</div>;
     }
@@ -488,6 +504,11 @@ const StockAdjustmentsList = () => {
                     )}
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

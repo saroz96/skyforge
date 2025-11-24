@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const ReceiptVoucherForm = () => {
     const [billNumber, setBillNumber] = useState('');
@@ -9,6 +10,7 @@ const ReceiptVoucherForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingLatest, setIsFetchingLatest] = useState(true);
     const navigate = useNavigate();
+    const [showProductModal, setShowProductModal] = useState(false);
 
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL,
@@ -35,6 +37,20 @@ const ReceiptVoucherForm = () => {
         };
 
         fetchLatestReceiptNumber();
+    }, []);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
     }, []);
 
     const handleSubmit = async (e) => {
@@ -67,7 +83,7 @@ const ReceiptVoucherForm = () => {
     };
 
     return (
-       <div className='Container-fluid'>
+        <div className='Container-fluid'>
             <Header />
             <div className="container mt-5 wow-form centered-container">
                 <div className="card shadow-lg p-4 animate__animated animate__fadeInUp expanded-card">
@@ -118,6 +134,11 @@ const ReceiptVoucherForm = () => {
                     </form>
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

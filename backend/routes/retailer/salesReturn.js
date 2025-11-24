@@ -686,21 +686,45 @@ router.post('/sales-return', ensureAuthenticated, ensureCompanySelected, ensureT
             await session.commitTransaction();
             session.endSession();
 
-            if (req.query.print === 'true') {
-                return res.status(200).json({
-                    success: true,
-                    message: 'Sales Return saved successfully!',
-                    billId: newBill._id,
-                    redirectUrl: `/sales-return/${newBill._id}/direct-print`
-                });
-            } else {
-                return res.status(200).json({
-                    success: true,
-                    message: 'Sales Return saved successfully!',
-                    billId: newBill._id,
-                    redirectUrl: '/sales-return'
-                });
-            }
+            // In your router.post('/sales-return', ...) route
+
+            // Replace the current response section with this:
+            const responseData = {
+                success: true,
+                message: 'Sales Return saved successfully!',
+                data: {
+                    bill: {
+                        _id: newBill._id,
+                        billNumber: newBill.billNumber,
+                        account: {
+                            _id: accounts._id,
+                            name: accounts.name,
+                            address: accounts.address,
+                            pan: accounts.pan,
+                            phone: accounts.phone,
+                            email: accounts.email
+                        },
+                        totalAmount: newBill.totalAmount,
+                        items: newBill.items,
+                        vatAmount: newBill.vatAmount,
+                        discountAmount: newBill.discountAmount,
+                        roundOffAmount: newBill.roundOffAmount,
+                        subTotal: newBill.subTotal,
+                        taxableAmount: newBill.taxableAmount,
+                        nonVatSalesReturn: newBill.nonVatSalesReturn,
+                        isVatExempt: newBill.isVatExempt,
+                        vatPercentage: newBill.vatPercentage,
+                        paymentMode: newBill.paymentMode,
+                        date: newBill.date,
+                        transactionDate: newBill.transactionDate,
+                        user: {
+                            name: req.user.name
+                        }
+                    }
+                }
+            };
+
+            return res.status(200).json(responseData);
         } catch (error) {
             console.error("Error creating sales return:", error);
             await session.abortTransaction();
@@ -796,17 +820,16 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
             // Get the latest stock entry (first item after sorting)
             const latestStockEntry = sortedStockEntries[0] || null;
 
-            // Get the latest puPrice (rounded to 2 decimal places)
-            const puPrice = latestStockEntry?.puPrice
-                ? Math.round(latestStockEntry.puPrice * 100) / 100
-                : item.puPrice
-                    ? Math.round(item.puPrice * 100) / 100
+            const price = latestStockEntry?.price
+                ? Math.round(latestStockEntry.price * 100) / 100
+                : item.price
+                    ? Math.round(item.price * 100) / 100
                     : 0;
 
             return {
                 ...item.toObject(),
                 stock: totalStock,
-                latestPuPrice: puPrice,
+                latestPrice: price,
                 latestStockEntry: latestStockEntry
             };
         });
@@ -1331,23 +1354,69 @@ router.post('/cash/sales-return', ensureAuthenticated, ensureCompanySelected, en
             await session.commitTransaction();
             session.endSession();
 
-            return res.status(201).json({
+            // return res.status(201).json({
+            //     success: true,
+            //     message: 'Sales Return saved successfully!',
+            //     bill: {
+            //         id: newBill._id,
+            //         billNumber: newBill.billNumber,
+            //         totalAmount: newBill.totalAmount,
+            //         date: newBill.date,
+            //         items: newBill.items.map(item => ({
+            //             itemId: item.item,
+            //             quantity: item.quantity,
+            //             price: item.price,
+            //             amount: item.quantity * item.price
+            //         }))
+            //     },
+            //     printUrl: `/sales-return/${newBill._id}/cash/direct-print`
+            // });
+
+            // In your router.post('/cash/sales-return', ...) route
+
+            // Replace the current response section with this:
+
+            const responseData = {
                 success: true,
                 message: 'Sales Return saved successfully!',
-                bill: {
-                    id: newBill._id,
-                    billNumber: newBill.billNumber,
-                    totalAmount: newBill.totalAmount,
-                    date: newBill.date,
-                    items: newBill.items.map(item => ({
-                        itemId: item.item,
-                        quantity: item.quantity,
-                        price: item.price,
-                        amount: item.quantity * item.price
-                    }))
-                },
-                printUrl: `/sales-return/${newBill._id}/cash/direct-print`
-            });
+                data: {
+                    bill: {
+                        _id: newBill._id,
+                        billNumber: newBill.billNumber,
+                        cashAccount: newBill.cashAccount,
+                        cashAccountAddress: newBill.cashAccountAddress,
+                        cashAccountPan: newBill.cashAccountPan,
+                        cashAccountEmail: newBill.cashAccountEmail,
+                        cashAccountPhone: newBill.cashAccountPhone,
+                        totalAmount: newBill.totalAmount,
+                        items: newBill.items.map(item => ({
+                            item: item.item,
+                            quantity: item.quantity,
+                            price: item.price,
+                            batchNumber: item.batchNumber,
+                            expiryDate: item.expiryDate,
+                            vatStatus: item.vatStatus
+                        })),
+                        vatAmount: newBill.vatAmount,
+                        discountAmount: newBill.discountAmount,
+                        roundOffAmount: newBill.roundOffAmount,
+                        subTotal: newBill.subTotal,
+                        taxableAmount: newBill.taxableAmount,
+                        nonVatSalesReturn: newBill.nonVatSalesReturn,
+                        isVatExempt: newBill.isVatExempt,
+                        vatPercentage: newBill.vatPercentage,
+                        paymentMode: newBill.paymentMode,
+                        date: newBill.date,
+                        transactionDate: newBill.transactionDate,
+                        user: {
+                            name: req.user.name
+                        }
+                    }
+                }
+            };
+
+            return res.status(201).json(responseData);
+
 
         } catch (error) {
             console.error("Error creating sales return:", error);

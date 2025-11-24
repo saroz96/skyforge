@@ -121,17 +121,15 @@ router.get('/credit-sales', isLoggedIn, ensureAuthenticated, ensureCompanySelect
             // Get the latest stock entry (first item after sorting)
             const latestStockEntry = sortedStockEntries[0] || null;
 
-            // Get the latest puPrice (rounded to 2 decimal places)
-            const puPrice = latestStockEntry?.puPrice
-                ? Math.round(latestStockEntry.puPrice * 100) / 100
-                : item.puPrice
-                    ? Math.round(item.puPrice * 100) / 100
+            const price = latestStockEntry?.price
+                ? Math.round(latestStockEntry.price * 100) / 100
+                : item.price
+                    ? Math.round(item.price * 100) / 100
                     : 0;
-
             return {
                 ...item.toObject(),
                 stock: totalStock,
-                latestPuPrice: puPrice,
+                latestPrice: price,
                 latestStockEntry: latestStockEntry
             };
         });
@@ -1414,17 +1412,15 @@ router.get('/credit-sales/open', isLoggedIn, ensureAuthenticated, ensureCompanyS
             // Get the latest stock entry (first item after sorting)
             const latestStockEntry = sortedStockEntries[0] || null;
 
-            // Get the latest puPrice (rounded to 2 decimal places)
-            const puPrice = latestStockEntry?.puPrice
-                ? Math.round(latestStockEntry.puPrice * 100) / 100
-                : item.puPrice
-                    ? Math.round(item.puPrice * 100) / 100
+            const price = latestStockEntry?.price
+                ? Math.round(latestStockEntry.price * 100) / 100
+                : item.price
+                    ? Math.round(item.price * 100) / 100
                     : 0;
-
             return {
                 ...item.toObject(),
                 stock: totalStock,
-                latestPuPrice: puPrice,
+                latestPrice: price,
                 latestStockEntry: latestStockEntry,
                 stockEntries: sortedStockEntries // Include all sorted stock entries
             };
@@ -1533,484 +1529,6 @@ router.get('/credit-sales/open', isLoggedIn, ensureAuthenticated, ensureCompanyS
         });
     }
 });
-
-// router.post('/credit-sales/open', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, checkFiscalYearDateRange, checkDemoPeriod, checkCreditLimit, async (req, res) => {
-//     if (req.tradeType !== 'retailer') {
-//         return res.status(403).json({ error: 'Access denied for this trade type' });
-//     }
-
-//     const session = await mongoose.startSession();
-//     session.startTransaction();
-//     try {
-//         const {
-//             accountId,
-//             items,
-//             vatPercentage,
-//             transactionDateRoman,
-//             transactionDateNepali,
-//             billDate,
-//             nepaliDate,
-//             isVatExempt,
-//             discountPercentage,
-//             paymentMode,
-//             roundOffAmount: manualRoundOffAmount,
-//         } = req.body;
-//         const companyId = req.session.currentCompany;
-//         const currentFiscalYear = req.session.currentFiscalYear.id;
-//         const fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//         const userId = req.user._id;
-
-//         // Validation checks
-//         if (!companyId) {
-//             await session.abortTransaction();
-//             session.endSession();
-//             return res.status(400).json({ error: 'Company ID is required.' });
-//         }
-//         if (!isVatExempt) {
-//             await session.abortTransaction();
-//             session.endSession();
-//             return res.status(400).json({ error: 'Invalid VAT selection.' });
-//         }
-//         if (!paymentMode) {
-//             await session.abortTransaction();
-//             session.endSession();
-//             return res.status(400).json({ error: 'Invalid payment mode.' });
-//         }
-
-//         const isVatExemptBool = isVatExempt === 'true' || isVatExempt === true;
-//         const isVatAll = isVatExempt === 'all';
-//         const discount = parseFloat(discountPercentage) || 0;
-
-//         let subTotal = 0;
-//         let vatAmount = 0;
-//         let totalTaxableAmount = 0;
-//         let totalNonTaxableAmount = 0;
-//         let hasVatableItems = false;
-//         let hasNonVatableItems = false;
-
-//         // Validate account
-//         const accounts = await Account.findOne({ _id: accountId, company: companyId }).session(session);
-//         if (!accounts) {
-//             await session.abortTransaction();
-//             session.endSession();
-//             return res.status(400).json({ error: 'Invalid account for this company' });
-//         }
-
-//         // Validate items
-//         for (let i = 0; i < items.length; i++) {
-//             const item = items[i];
-//             const product = await Item.findById(item.item).session(session);
-
-//             if (!product) {
-//                 await session.abortTransaction();
-//                 session.endSession();
-//                 return res.status(404).json({ error: `Item with id ${item.item} not found` });
-//             }
-
-//             const itemTotal = parseFloat(item.price) * parseFloat(item.quantity, 10);
-//             subTotal += itemTotal;
-
-//             if (product.vatStatus === 'vatable') {
-//                 hasVatableItems = true;
-//                 totalTaxableAmount += itemTotal;
-//             } else {
-//                 hasNonVatableItems = true;
-//                 totalNonTaxableAmount += itemTotal;
-//             }
-
-//             // Validate batch entry
-//             const batchEntry = product.stockEntries.find(entry => entry.batchNumber === item.batchNumber && entry.uniqueUuId === item.uniqueUuId);
-//             if (!batchEntry) {
-//                 await session.abortTransaction();
-//                 session.endSession();
-//                 return res.status(400).json({ error: `Batch number ${item.batchNumber} not found for item: ${product.name}` });
-//             }
-
-//             // Check stock quantity
-//             if (batchEntry.quantity < item.quantity) {
-//                 await session.abortTransaction();
-//                 session.endSession();
-//                 return res.status(400).json({
-//                     error: `Not enough stock for item: ${product.name}`,
-//                     details: {
-//                         available: batchEntry.quantity,
-//                         required: item.quantity
-//                     }
-//                 });
-//             }
-//         }
-
-//         // VAT validation
-//         if (isVatExempt !== 'all') {
-//             if (isVatExemptBool && hasVatableItems) {
-//                 await session.abortTransaction();
-//                 session.endSession();
-//                 return res.status(400).json({ error: 'Cannot save VAT exempt bill with vatable items' });
-//             }
-
-//             if (!isVatExemptBool && hasNonVatableItems) {
-//                 await session.abortTransaction();
-//                 session.endSession();
-//                 return res.status(400).json({ error: 'Cannot save bill with non-vatable items when VAT is applied' });
-//             }
-//         }
-
-//         const billNumber = await getNextBillNumber(companyId, fiscalYearId, 'sales', session);
-
-//         // Calculate amounts
-//         const discountForTaxable = (totalTaxableAmount * discount) / 100;
-//         const discountForNonTaxable = (totalNonTaxableAmount * discount) / 100;
-
-//         const finalTaxableAmount = totalTaxableAmount - discountForTaxable;
-//         const finalNonTaxableAmount = totalNonTaxableAmount - discountForNonTaxable;
-
-//         if (!isVatExemptBool || isVatAll || isVatExempt === 'all') {
-//             vatAmount = (finalTaxableAmount * vatPercentage) / 100;
-//         } else {
-//             vatAmount = 0;
-//         }
-
-//         let totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount;
-//         let finalAmount = totalAmount;
-
-//         // Handle round off
-//         let roundOffForSales = await Settings.findOne({
-//             company: companyId, userId, fiscalYear: currentFiscalYear
-//         }).session(session);
-
-//         if (!roundOffForSales) {
-//             roundOffForSales = { roundOffSales: false };
-//         }
-
-//         let roundOffAmount = 0;
-//         if (roundOffForSales.roundOffSales) {
-//             finalAmount = Math.round(finalAmount.toFixed(2));
-//             roundOffAmount = finalAmount - totalAmount;
-//         } else if (manualRoundOffAmount && !roundOffForSales.roundOffSales) {
-//             roundOffAmount = parseFloat(manualRoundOffAmount);
-//             finalAmount = totalAmount + roundOffAmount;
-//         }
-
-//         // Create new bill
-//         const newBill = new SalesBill({
-//             billNumber: billNumber,
-//             account: accountId,
-//             purchaseSalesType: 'Sales',
-//             items: [],
-//             isVatExempt: isVatExemptBool,
-//             isVatAll,
-//             vatPercentage: isVatExemptBool ? 0 : vatPercentage,
-//             subTotal,
-//             discountPercentage: discount,
-//             discountAmount: discountForTaxable + discountForNonTaxable,
-//             nonVatSales: finalNonTaxableAmount,
-//             taxableAmount: finalTaxableAmount,
-//             vatAmount,
-//             totalAmount: finalAmount,
-//             roundOffAmount: roundOffAmount,
-//             paymentMode,
-//             date: nepaliDate ? nepaliDate : new Date(billDate),
-//             transactionDate: transactionDateNepali ? transactionDateNepali : new Date(transactionDateRoman),
-//             company: companyId,
-//             user: userId,
-//             fiscalYear: currentFiscalYear
-//         });
-
-//         // Stock reduction function
-//         async function reduceStockBatchWise(product, batchNumber, quantity, uniqueUuId) {
-//             let remainingQuantity = quantity;
-//             const batchEntries = product.stockEntries.filter(entry =>
-//                 entry.batchNumber === batchNumber &&
-//                 entry.uniqueUuId === uniqueUuId
-//             );
-
-//             if (batchEntries.length === 0) {
-//                 throw new Error(`Batch number ${batchNumber} with ID ${uniqueUuId} not found for product: ${product.name}`);
-//             }
-
-//             const selectedBatchEntry = batchEntries[0];
-//             if (selectedBatchEntry.quantity <= remainingQuantity) {
-//                 remainingQuantity -= selectedBatchEntry.quantity;
-//                 selectedBatchEntry.quantity = 0;
-//                 product.stockEntries = product.stockEntries.filter(entry =>
-//                     !(entry.batchNumber === batchNumber &&
-//                         entry.uniqueUuId === uniqueUuId &&
-//                         entry.quantity === 0)
-//                 );
-//             } else {
-//                 selectedBatchEntry.quantity -= remainingQuantity;
-//                 remainingQuantity = 0;
-//             }
-
-//             if (remainingQuantity > 0) {
-//                 throw new Error(`Not enough stock in the selected stock entry for batch number ${batchNumber} of product: ${product.name}`);
-//             }
-
-//             product.stock = product.stockEntries.reduce((sum, entry) => sum + entry.quantity, 0);
-//             await product.save({ session });
-//         }
-
-//         // Process items
-//         const billItems = [];
-//         for (let i = 0; i < items.length; i++) {
-//             const item = items[i];
-//             const product = await Item.findById(item.item).session(session);
-
-//             if (!product) {
-//                 await session.abortTransaction();
-//                 session.endSession();
-//                 return res.status(404).json({ error: `Item with id ${item.item} not found` });
-//             }
-
-//             const itemTotal = parseFloat(item.price) * parseFloat(item.quantity);
-//             const itemDiscountPercentage = discount;
-//             const itemDiscountAmount = (itemTotal * discount) / 100;
-//             const netPrice = parseFloat(item.price) - (parseFloat(item.price) * discount / 100);
-
-//             await reduceStockBatchWise(product, item.batchNumber, item.quantity, item.uniqueUuId);
-//             product.stock -= item.quantity;
-//             await product.save({ session });
-
-//             billItems.push({
-//                 item: product._id,
-//                 quantity: item.quantity,
-//                 price: item.price,
-//                 netPrice: netPrice,
-//                 puPrice: item.puPrice,
-//                 netPuPrice: item.netPuPrice,
-//                 discountPercentagePerItem: itemDiscountPercentage,
-//                 discountAmountPerItem: itemDiscountAmount,
-//                 unit: item.unit,
-//                 batchNumber: item.batchNumber,
-//                 expiryDate: item.expiryDate,
-//                 vatStatus: product.vatStatus,
-//                 fiscalYear: fiscalYearId,
-//                 uniqueUuId: item.uniqueUuId,
-//             });
-//         }
-
-//         // Create transactions
-//         let previousBalance = 0;
-//         const accountTransaction = await Transaction.findOne({ account: accountId }).sort({ transactionDate: -1 }).session(session);
-//         if (accountTransaction) {
-//             previousBalance = accountTransaction.balance;
-//         }
-
-//         const correctTotalAmount = newBill.totalAmount;
-
-//         for (let i = 0; i < items.length; i++) {
-//             const item = items[i];
-//             const product = await Item.findById(item.item).session(session);
-//             if (!product) continue;
-//             const itemTotal = parseFloat(item.price) * parseFloat(item.quantity);
-//             const itemDiscountPercentage = discount;
-//             const itemDiscountAmount = (itemTotal * discount) / 100;
-//             const netPrice = parseFloat(item.price) - (parseFloat(item.price) * discount / 100);
-
-//             const transaction = new Transaction({
-//                 item: product,
-//                 account: accountId,
-//                 billNumber: billNumber,
-//                 quantity: item.quantity,
-//                 price: item.price,
-//                 puPrice: item.puPrice,
-//                 netPuPrice: item.netPuPrice,
-//                 discountPercentagePerItem: itemDiscountPercentage,
-//                 discountAmountPerItem: itemDiscountAmount,
-//                 netPrice: netPrice,
-//                 unit: items[0].unit,
-//                 isType: 'Sale',
-//                 type: 'Sale',
-//                 billId: newBill._id,
-//                 purchaseSalesType: 'Sales',
-//                 debit: correctTotalAmount,
-//                 credit: 0,
-//                 paymentMode: paymentMode,
-//                 balance: previousBalance - correctTotalAmount,
-//                 date: nepaliDate ? nepaliDate : new Date(billDate),
-//                 company: companyId,
-//                 user: userId,
-//                 fiscalYear: currentFiscalYear
-//             });
-
-//             await transaction.save({ session });
-//         }
-
-//         // Sales account transaction
-//         const salesAmount = finalTaxableAmount + finalNonTaxableAmount;
-//         if (salesAmount > 0) {
-//             const salesAccount = await Account.findOne({ name: 'Sales', company: companyId }).session(session);
-//             if (salesAccount) {
-//                 const partyAccount = await Account.findById(accountId).session(session);
-//                 if (!partyAccount) {
-//                     await session.abortTransaction();
-//                     session.endSession();
-//                     return res.status(400).json({ error: 'Party account not found.' });
-//                 }
-//                 const salesTransaction = new Transaction({
-//                     account: salesAccount._id,
-//                     billNumber: billNumber,
-//                     type: 'Sale',
-//                     billId: newBill._id,
-//                     purchaseSalesType: partyAccount.name,
-//                     debit: 0,
-//                     credit: salesAmount,
-//                     paymentMode: paymentMode,
-//                     balance: previousBalance + salesAmount,
-//                     date: nepaliDate ? nepaliDate : new Date(billDate),
-//                     company: companyId,
-//                     user: userId,
-//                     fiscalYear: currentFiscalYear
-//                 });
-//                 await salesTransaction.save({ session });
-//             }
-//         }
-
-//         // VAT transaction
-//         if (vatAmount > 0) {
-//             const vatAccount = await Account.findOne({ name: 'VAT', company: companyId }).session(session);
-//             if (vatAccount) {
-//                 const partyAccount = await Account.findById(accountId).session(session);
-//                 if (!partyAccount) {
-//                     await session.abortTransaction();
-//                     session.endSession();
-//                     return res.status(400).json({ error: 'Party account not found.' });
-//                 }
-//                 const vatTransaction = new Transaction({
-//                     account: vatAccount._id,
-//                     billNumber: billNumber,
-//                     isType: 'VAT',
-//                     type: 'Sale',
-//                     billId: newBill._id,
-//                     purchaseSalesType: partyAccount.name,
-//                     debit: 0,
-//                     credit: vatAmount,
-//                     paymentMode: paymentMode,
-//                     balance: previousBalance + vatAmount,
-//                     date: nepaliDate ? nepaliDate : new Date(billDate),
-//                     company: companyId,
-//                     user: userId,
-//                     fiscalYear: currentFiscalYear
-//                 });
-//                 await vatTransaction.save({ session });
-//             }
-//         }
-
-//         // Round-off transactions
-//         if (roundOffAmount > 0) {
-//             const roundOffAccount = await Account.findOne({ name: 'Rounded Off', company: companyId }).session(session);
-//             if (roundOffAccount) {
-//                 const partyAccount = await Account.findById(accountId).session(session);
-//                 if (!partyAccount) {
-//                     await session.abortTransaction();
-//                     session.endSession();
-//                     return res.status(400).json({ error: 'Party account not found.' });
-//                 }
-//                 const roundOffTransaction = new Transaction({
-//                     account: roundOffAccount._id,
-//                     billNumber: billNumber,
-//                     isType: 'RoundOff',
-//                     type: 'Sale',
-//                     billId: newBill._id,
-//                     purchaseSalesType: partyAccount.name,
-//                     debit: 0,
-//                     credit: roundOffAmount,
-//                     paymentMode: paymentMode,
-//                     balance: previousBalance + roundOffAmount,
-//                     date: nepaliDate ? nepaliDate : new Date(billDate),
-//                     company: companyId,
-//                     user: userId,
-//                     fiscalYear: currentFiscalYear
-//                 });
-//                 await roundOffTransaction.save({ session });
-//             }
-//         }
-
-//         if (roundOffAmount < 0) {
-//             const roundOffAccount = await Account.findOne({ name: 'Rounded Off', company: companyId }).session(session);
-//             if (roundOffAccount) {
-//                 const partyAccount = await Account.findById(accountId).session(session);
-//                 if (!partyAccount) {
-//                     await session.abortTransaction();
-//                     session.endSession();
-//                     return res.status(400).json({ error: 'Party account not found.' });
-//                 }
-//                 const roundOffTransaction = new Transaction({
-//                     account: roundOffAccount._id,
-//                     billNumber: billNumber,
-//                     isType: 'RoundOff',
-//                     type: 'Sale',
-//                     billId: newBill._id,
-//                     purchaseSalesType: partyAccount.name,
-//                     debit: Math.abs(roundOffAmount),
-//                     credit: 0,
-//                     paymentMode: paymentMode,
-//                     balance: previousBalance + roundOffAmount,
-//                     date: nepaliDate ? nepaliDate : new Date(billDate),
-//                     company: companyId,
-//                     user: userId,
-//                     fiscalYear: currentFiscalYear
-//                 });
-//                 await roundOffTransaction.save({ session });
-//             }
-//         }
-
-//         // Cash payment transaction
-//         if (paymentMode === 'cash') {
-//             const cashAccount = await Account.findOne({ name: 'Cash in Hand', company: companyId }).session(session);
-//             if (cashAccount) {
-//                 const cashTransaction = new Transaction({
-//                     account: cashAccount._id,
-//                     billNumber: billNumber,
-//                     type: 'Sale',
-//                     billId: newBill._id,
-//                     purchaseSalesType: 'Sales',
-//                     debit: finalAmount,
-//                     credit: 0,
-//                     paymentMode: paymentMode,
-//                     balance: previousBalance + finalAmount,
-//                     date: nepaliDate ? nepaliDate : new Date(billDate),
-//                     company: companyId,
-//                     user: userId,
-//                     fiscalYear: currentFiscalYear
-//                 });
-//                 await cashTransaction.save({ session });
-//             }
-//         }
-
-//         // Update bill with items
-//         newBill.items = billItems;
-//         await newBill.save({ session });
-
-//         // Commit transaction
-//         await session.commitTransaction();
-//         session.endSession();
-
-//         // Return success response
-//         return res.status(201).json({
-//             success: true,
-//             message: 'Bill created successfully',
-//             bill: {
-//                 _id: newBill._id,
-//                 billNumber: newBill.billNumber,
-//                 account: newBill.account,
-//                 totalAmount: newBill.totalAmount,
-//                 date: newBill.date,
-//                 transactionDate: newBill.transactionDate
-//             },
-//             printUrl: req.query.print === 'true' ? `/bills/${newBill._id}/direct-print/credit-open` : null
-//         });
-
-//     } catch (error) {
-//         console.error("Error creating bill:", error);
-//         await session.abortTransaction();
-//         session.endSession();
-//         return res.status(500).json({
-//             error: 'Error creating bill',
-//             details: error.message
-//         });
-//     }
-// });
 
 router.post('/credit-sales/open', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, checkFiscalYearDateRange, checkDemoPeriod, checkCreditLimit, async (req, res) => {
     if (req.tradeType !== 'retailer') {
@@ -2940,17 +2458,15 @@ router.get('/cash-sales', isLoggedIn, ensureAuthenticated, ensureCompanySelected
             // Get the latest stock entry (first item after sorting)
             const latestStockEntry = sortedStockEntries[0] || null;
 
-            // Get the latest puPrice (rounded to 2 decimal places)
-            const puPrice = latestStockEntry?.puPrice
-                ? Math.round(latestStockEntry.puPrice * 100) / 100
-                : item.puPrice
-                    ? Math.round(item.puPrice * 100) / 100
+            const price = latestStockEntry?.price
+                ? Math.round(latestStockEntry.price * 100) / 100
+                : item.price
+                    ? Math.round(item.price * 100) / 100
                     : 0;
-
             return {
                 ...item.toObject(),
                 stock: totalStock,
-                latestPuPrice: puPrice,
+                latestPrice: price,
                 latestStockEntry: latestStockEntry
             };
         });
@@ -3693,17 +3209,16 @@ router.get('/cash-sales/open', isLoggedIn, ensureAuthenticated, ensureCompanySel
             // Get the latest stock entry (first item after sorting)
             const latestStockEntry = sortedStockEntries[0] || null;
 
-            // Get the latest puPrice (rounded to 2 decimal places)
-            const puPrice = latestStockEntry?.puPrice
-                ? Math.round(latestStockEntry.puPrice * 100) / 100
-                : item.puPrice
-                    ? Math.round(item.puPrice * 100) / 100
+            const price = latestStockEntry?.price
+                ? Math.round(latestStockEntry.price * 100) / 100
+                : item.price
+                    ? Math.round(item.price * 100) / 100
                     : 0;
 
             return {
                 ...item.toObject(),
                 stock: totalStock,
-                latestPuPrice: puPrice,
+                latestPrice: price,
                 latestStockEntry: latestStockEntry
             };
         });
@@ -4318,24 +3833,32 @@ router.post('/cash-sales/open', isLoggedIn, ensureAuthenticated, ensureCompanySe
             await session.commitTransaction();
             session.endSession();
 
-            if (req.query.print === 'true') {
-                // Return print information
-                return res.status(200).json({
-                    success: true,
-                    message: 'Bill created successfully',
-                    data: {
-                        billId: newBill._id,
-                        printUrl: `/bills/${newBill._id}/direct-print/cash-open`
+            const response = {
+                success: true,
+                message: 'Sales bill saved successfully!',
+                data: {
+                    bill: {
+                        _id: newBill._id,
+                        billNumber: newBill.billNumber,
+                        account: newBill.account,
+                        totalAmount: newBill.totalAmount,
+                        date: newBill.date,
+                        transactionDate: newBill.transactionDate,
+                        items: newBill.items.map(item => ({
+                            item: item.item,
+                            quantity: item.quantity,
+                            price: item.price,
+                            batchNumber: item.batchNumber
+                        })),
+                        vatAmount: newBill.vatAmount,
+                        discountAmount: newBill.discountAmount,
+                        roundOffAmount: newBill.roundOffAmount,
+                        paymentMode: newBill.paymentMode
                     }
-                });
-            } else {
-                // Return success response
-                return res.status(200).json({
-                    success: true,
-                    message: 'Bill saved successfully!',
-                    data: newBill
-                });
-            }
+                }
+            };
+            return res.json(response);
+
         } catch (error) {
             console.error("Error creating bill:", error);
             await session.abortTransaction();
@@ -4396,6 +3919,35 @@ router.get('/credit-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureComp
 
             const companyDateFormat = company.dateFormat || 'english';
             const currentCompanyName = req.session.currentCompanyName;
+
+            const [items] = await Promise.all([Item.find({ company: companyId, status: 'active' }).populate('category').populate('unit').populate('mainUnit').populate('stockEntries')]);
+            // Process items with stock information
+            const itemsWithStock = items.map(item => {
+                const totalStock = item.stockEntries.reduce((sum, entry) => {
+                    return sum + (entry.quantity || 0);
+                }, 0);
+
+                // Sort stock entries by date in descending order (newest first)
+                const sortedStockEntries = [...item.stockEntries].sort((a, b) => {
+                    return new Date(b.date) - new Date(a.date);
+                });
+
+                // Get the latest stock entry (first item after sorting)
+                const latestStockEntry = sortedStockEntries[0] || null;
+
+                const price = latestStockEntry?.price
+                    ? Math.round(latestStockEntry.price * 100) / 100
+                    : item.price
+                        ? Math.round(item.price * 100) / 100
+                        : 0;
+
+                return {
+                    ...item.toObject(),
+                    stock: totalStock,
+                    latestPrice: price,
+                    latestStockEntry: latestStockEntry
+                };
+            });
 
             // Find the bill by ID and populate relevant data
             const salesBill = await SalesBill.findOne({
@@ -4520,6 +4072,7 @@ router.get('/credit-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureComp
                         name: currentCompanyName,
                         fiscalYear: currentFiscalYear
                     },
+                    items: itemsWithStock,
                     salesBill: {
                         ...salesBill,
                         items: processedItems,
@@ -5253,17 +4806,44 @@ router.put('/credit-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureComp
             await session.commitTransaction();
             session.endSession();
 
-            if (req.query.print === 'true') {
-                return res.json({
-                    success: true,
-                    redirect: `/bills/${billId}/direct-print-edit`,
-                    message: 'Bill updated successfully'
-                });
-            } else {
-                return res.json({
-                    success: true,
-                    data: {
-                        billId: existingBill._id,
+            // if (req.query.print === 'true') {
+            //     return res.json({
+            //         success: true,
+            //         redirect: `/bills/${billId}/direct-print-edit`,
+            //         message: 'Bill updated successfully'
+            //     });
+            // } else {
+            //     return res.json({
+            //         success: true,
+            //         data: {
+            //             billId: existingBill._id,
+            //             billNumber: existingBill.billNumber,
+            //             account: {
+            //                 _id: account._id,
+            //                 name: account.name
+            //             },
+            //             totalAmount: existingBill.totalAmount,
+            //             items: existingBill.items.map(item => ({
+            //                 itemId: item.item,
+            //                 quantity: item.quantity,
+            //                 price: item.price,
+            //                 batchNumber: item.batchNumber
+            //             })),
+            //             vatAmount: existingBill.vatAmount,
+            //             discountAmount: existingBill.discountAmount,
+            //             roundOffAmount: existingBill.roundOffAmount
+            //         },
+            //         message: 'Bill updated successfully'
+            //     });
+            // }
+
+            // Prepare response data
+            const responseData = {
+                success: true,
+                message: 'Sales bill updated successfully!',
+                data: {
+                    bill: {
+                        _id: existingBill._id,
                         billNumber: existingBill.billNumber,
                         account: {
                             _id: account._id,
@@ -5279,10 +4859,12 @@ router.put('/credit-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureComp
                         vatAmount: existingBill.vatAmount,
                         discountAmount: existingBill.discountAmount,
                         roundOffAmount: existingBill.roundOffAmount
-                    },
-                    message: 'Bill updated successfully'
-                });
-            }
+                    }
+                }
+            };
+
+            return res.json(responseData);
+
         } catch (error) {
             console.error("Error updating bill:", error);
             await session.abortTransaction();
@@ -5732,17 +5314,53 @@ router.put('/cash-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureCompan
             await session.commitTransaction();
             session.endSession();
 
-            if (req.query.print === 'true') {
-                return res.json({
-                    success: true,
-                    redirect: `/bills/${billId}/direct-print-edit`,
-                    message: 'Bill updated successfully'
-                });
-            } else {
-                return res.json({
-                    success: true,
-                    data: {
-                        billId: existingBill._id,
+            // if (req.query.print === 'true') {
+            //     return res.json({
+            //         success: true,
+            //         redirect: `/bills/${billId}/direct-print-edit`,
+            //         message: 'Bill updated successfully'
+            //     });
+            // } else {
+            //     return res.json({
+            //         success: true,
+            //         data: {
+            //             billId: existingBill._id,
+            //             billNumber: existingBill.billNumber,
+            //             cashAccount: {
+            //                 name: cashAccount,
+            //                 address: cashAccountAddress,
+            //                 pan: cashAccountPan,
+            //                 email: cashAccountEmail,
+            //                 phone: cashAccountPhone
+            //             },
+            //             totalAmount: existingBill.totalAmount,
+            //             items: existingBill.items.map(item => ({
+            //                 itemId: item.item,
+            //                 quantity: item.quantity,
+            //                 price: item.price,
+            //                 batchNumber: item.batchNumber
+            //             })),
+            //             vatAmount: existingBill.vatAmount,
+            //             discountAmount: existingBill.discountAmount,
+            //             roundOffAmount: existingBill.roundOffAmount,
+            //             subTotal: existingBill.subTotal,
+            //             taxableAmount: existingBill.taxableAmount,
+            //             nonVatSales: existingBill.nonVatSales
+            //         },
+            //         message: 'Bill updated successfully'
+            //     });
+            // }
+
+            // In your router.put('/cash-sales/edit/:id', ...) route
+
+            // Replace the current response section with this:
+
+            const responseData = {
+                success: true,
+                message: 'Cash sales bill updated successfully!',
+                data: {
+                    bill: {
+                        _id: existingBill._id,
                         billNumber: existingBill.billNumber,
                         cashAccount: {
                             name: cashAccount,
@@ -5764,10 +5382,13 @@ router.put('/cash-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureCompan
                         subTotal: existingBill.subTotal,
                         taxableAmount: existingBill.taxableAmount,
                         nonVatSales: existingBill.nonVatSales
-                    },
-                    message: 'Bill updated successfully'
-                });
-            }
+                    }
+                }
+            };
+
+            return res.json(responseData);
+
+
         } catch (error) {
             console.error("Error updating bill:", error);
             await session.abortTransaction();

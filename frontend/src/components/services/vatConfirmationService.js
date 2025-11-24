@@ -1,7 +1,7 @@
 // services/vatConfirmationService.js
 import axios from 'axios';
 
-const API_URL = '/api/vat-confirmation';
+const API_URL = '/api/retailer/vat-confirmation';
 
 export const getParties = (params = {}) =>
     axios.get(`${API_URL}/parties`, { params });

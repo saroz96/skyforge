@@ -25,6 +25,11 @@ const AddPurchase = () => {
         displayTransactionsForSalesReturn: false,
         displayTransactionsForPurchaseReturn: false
     });
+    const itemsTableRef = useRef(null);
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSavePurchase') === 'true' || false
+    );
+
     const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
     const [showItemsModal, setShowItemsModal] = useState(false);
     const [pollInterval, setPollInterval] = useState(null);
@@ -558,6 +563,8 @@ const AddPurchase = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        scrollToItemsTable();
     };
 
 
@@ -602,6 +609,18 @@ const AddPurchase = () => {
     const removeItem = (index) => {
         const updatedItems = items.filter((_, i) => i !== index);
         setItems(updatedItems);
+    };
+
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
     };
 
     useEffect(() => {
@@ -1214,12 +1233,16 @@ const AddPurchase = () => {
             setDuplicateInvoiceInfo({ exists: false, partyName: '' });
             clearDraft();
 
-            if (print) {
-                window.open(`/purchase-bills/${response.data.data.bill._id}/print`, '_blank');
+            // Handle print after save
+            if ((print || printAfterSave) && response.data.data?.bill?._id) {
+                setItems([]);
+                setIsSaving(false);
+                resetForm();
+                await printImmediately(response.data.data.bill._id);
+            } else {
+                // Reset form after successful submission
+                resetForm();
             }
-
-            // Reset form after successful submission
-            resetForm();
         } catch (error) {
             console.error('Full error details:', {
                 message: error.message,
@@ -1237,6 +1260,294 @@ const AddPurchase = () => {
             setIsSaving(false);
         }
     };
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSavePurchase', isChecked);
+    };
+
+    const printImmediately = async (billId) => {
+        try {
+            const response = await api.get(`/api/retailer/purchase/${billId}/print`);
+            const printData = response.data.data;
+
+            // Create a temporary div to hold the print content
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+
+            // Create the printable content
+            tempDiv.innerHTML = `
+      <div id="printableContent">
+        <div class="print-invoice-container">
+          <div class="print-invoice-header">
+            <div class="print-company-name">${printData.currentCompanyName}</div>
+            <div class="print-company-details">
+              ${printData.currentCompany.address} ${printData.currentCompany.city} |
+              Tel: ${printData.currentCompany.phone} | PAN: ${printData.currentCompany.pan}
+            </div>
+            <div class="print-invoice-title">PURCHASE INVOICE</div>
+          </div>
+
+          <div class="print-invoice-details">
+            <div>
+              <div><strong>Supplier:</strong> ${printData.bill.account.name}</div>
+              <div><strong>Address:</strong> ${printData.bill.account.address || 'N/A'}</div>
+              <div><strong>PAN:</strong> ${printData.bill.account.pan || 'N/A'}</div>
+              <div><strong>Payment Mode:</strong> ${printData.bill.paymentMode}</div>
+            </div>
+            <div>
+              <div><strong>Invoice No:</strong> ${printData.bill.billNumber}</div>
+              <div><strong>Supplier Inv No:</strong> ${printData.bill.partyBillNumber || 'N/A'}</div>
+              <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
+              <div><strong>Inv. Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
+            </div>
+          </div>
+
+          <table class="print-invoice-table">
+            <thead>
+              <tr>
+                <th>SN</th>
+                <th>Code</th>
+                <th>HSN</th>
+                <th>Description of Goods</th>
+                <th>Unit</th>
+                <th>Batch</th>
+                <th>Expiry</th>
+                <th>Qty</th>
+                <th>Free</th>
+                <th>Rate</th>
+                <th>MRP</th>
+                <th>%</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${printData.bill.items.map((item, i) => `
+                <tr key="${i}">
+                  <td>${i + 1}</td>
+                  <td>${item.item.uniqueNumber}</td>
+                  <td>${item.item.hscode}</td>
+                  <td>
+                    ${item.item.vatStatus === 'vatExempt' ?
+                    `${item.item.name} <span style="color: red">*</span>` :
+                    item.item.name
+                }
+                  </td>
+                  <td>${item.item.unit.name}</td>
+                  <td>${item.batchNumber}</td>
+                  <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+                  <td>${item.Altquantity}</td>
+                  <td>${item.Altbonus}</td>
+                  <td>${formatTo2Decimal(item.AltpuPrice)}</td>
+                  <td>${formatTo2Decimal(item.mrp)}</td>
+                  <td>${formatTo2Decimal(item.marginPercentage)}</td>
+                  <td>${formatTo2Decimal(item.Altquantity * item.AltpuPrice)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tr>
+              <td colSpan="13" style="border-bottom: 1px dashed #000"></td>
+            </tr>
+          </table>
+
+          <table class="print-totals-table">
+            <tbody>
+              <tr>
+                <td><strong>Sub Total:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.subTotal)}</td>
+              </tr>
+              <tr>
+                <td><strong>Discount (${printData.bill.discountPercentage}%):</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.discountAmount)}</td>
+              </tr>
+              <tr>
+                <td><strong>CC Charge:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.totalCCAmount)}</td>
+              </tr>
+              ${!printData.bill.isVatExempt && `
+                <tr>
+                  <td><strong>Taxable Amount:</strong></td>
+                  <td class="print-text-right">${formatTo2Decimal(printData.bill.taxableAmount)}</td>
+                </tr>
+                <tr>
+                  <td><strong>VAT (${printData.bill.vatPercentage}%):</strong></td>
+                  <td class="print-text-right">${formatTo2Decimal(printData.bill.taxableAmount * printData.bill.vatPercentage / 100)}</td>
+                </tr>
+              `}
+              <tr>
+                <td><strong>Round Off:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.roundOffAmount)}</td>
+              </tr>
+              <tr>
+                <td><strong>Grand Total:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.totalAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="print-amount-in-words">
+            <strong>In Words:</strong> ${convertToRupeesAndPaisa(printData.bill.totalAmount)} Only.
+          </div>
+
+          <div class="print-signature-area">
+            <div class="print-signature-box">Prepared By</div>
+            <div class="print-signature-box">Checked By</div>
+            <div class="print-signature-box">Approved By</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+            // Add print styles (same as in your PurchaseBillPrint component)
+            const styles = `
+      @page {
+        size: A4;
+        margin: 5mm;
+      }
+      body {
+        font-family: 'Arial Narrow', Arial, sans-serif;
+        font-size: 9pt;
+        line-height: 1.2;
+        color: #000;
+        background: white;
+        margin: 0;
+        padding: 0;
+      }
+      .print-invoice-container {
+        width: 100%;
+        max-width: 210mm;
+        margin: 0 auto;
+        padding: 2mm;
+      }
+      .print-invoice-header {
+        text-align: center;
+        margin-bottom: 3mm;
+        border-bottom: 1px solid #000;
+        padding-bottom: 2mm;
+      }
+      .print-invoice-title {
+        font-size: 12pt;
+        font-weight: bold;
+        margin: 2mm 0;
+        text-transform: uppercase;
+      }
+      .print-company-name {
+        font-size: 16pt;
+        font-weight: bold;
+      }
+      .print-company-details {
+        font-size: 8pt;
+        margin: 1mm 0;
+        font-weight: bold;
+      }
+      .print-invoice-details {
+        display: flex;
+        justify-content: space-between;
+        margin: 2mm 0;
+        font-size: 8pt;
+      }
+      .print-invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 3mm 0;
+        font-size: 8pt;
+        border: none;
+      }
+      .print-invoice-table thead {
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+      }
+      .print-invoice-table th {
+        background-color: transparent;
+        border: none;
+        padding: 1mm;
+        text-align: left;
+        font-weight: bold;
+      }
+      .print-invoice-table td {
+        border: none;
+        padding: 1mm;
+        border-bottom: 1px solid #eee;
+      }
+      .print-text-right {
+        text-align: right;
+      }
+      .print-amount-in-words {
+        font-size: 8pt;
+        margin: 2mm 0;
+        padding: 1mm;
+        border: 1px dashed #000;
+      }
+      .print-signature-area {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 5mm;
+        font-size: 8pt;
+      }
+      .print-signature-box {
+        text-align: center;
+        width: 30%;
+        border-top: 1px solid #000;
+        padding-top: 1mm;
+        font-weight: bold;
+      }
+      .print-totals-table {
+        width: 60%;
+        margin-left: auto;
+        border-collapse: collapse;
+        font-size: 8pt;
+      }
+      .print-totals-table td {
+        padding: 1mm;
+      }
+    `;
+
+            // Create print window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+      <html>
+        <head>
+          <title>Purchase_Invoice_${printData.bill.billNumber}</title>
+          <style>${styles}</style>
+        </head>
+        <body>
+          ${tempDiv.innerHTML}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 200);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+            printWindow.document.close();
+
+            // Clean up
+            document.body.removeChild(tempDiv);
+        } catch (error) {
+            console.error('Error fetching print data:', error);
+            setNotification({
+                show: true,
+                message: 'Bill saved but failed to load print data',
+                type: 'warning'
+            });
+        }
+    };
+
+    function formatTo2Decimal(num) {
+        const rounded = Math.round(num * 100) / 100;
+        const parts = rounded.toString().split(".");
+        if (!parts[1]) return parts[0] + ".00";
+        if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
+        return rounded.toString();
+    }
+
     const totals = calculateTotal();
 
     useEffect(() => {
@@ -1783,7 +2094,7 @@ const AddPurchase = () => {
 
                         <hr style={{ border: "1px solid gray" }} />
 
-                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }}>
+                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }} ref={itemsTableRef}>
                             <table className="table table-bordered compact-table" id="itemsTable">
                                 <thead>
                                     <tr>
@@ -2021,49 +2332,50 @@ const AddPurchase = () => {
                             </table>
                         </div>
 
-                        <div className="form-group row">
-                            <div className="col">
-                                <label htmlFor="itemSearch">Search Item</label>
-                                <input
-                                    type="text"
-                                    id="itemSearch"
-                                    className="form-control"
-                                    placeholder="Search item (Press F6 to create new item)"
-                                    autoComplete='off'
-                                    value={searchQuery}
-                                    onChange={handleItemSearch}
-                                    onFocus={handleSearchFocus}
-                                    ref={itemSearchRef}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const firstItem = document.querySelector('.dropdown-item');
-                                            if (firstItem) {
-                                                firstItem.classList.add('active');
-                                                firstItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const activeItem = document.querySelector('.dropdown-item.active');
-                                            if (activeItem) {
-                                                const index = parseInt(activeItem.getAttribute('data-index'));
-                                                const itemToAdd = memoizedFilteredItems[index];
-                                                if (itemToAdd) {
-                                                    addItemToBill(itemToAdd);
+                        <div className="row mb-3">
+                            <div className="col-12">
+                                <label htmlFor="itemSearch" className="form-label">Search Item</label>
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        id="itemSearch"
+                                        className="form-control"
+                                        placeholder="Search item (Press F6 to create new item)"
+                                        autoComplete='off'
+                                        value={searchQuery}
+                                        onChange={handleItemSearch}
+                                        onFocus={handleSearchFocus}
+                                        ref={itemSearchRef}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                const firstItem = document.querySelector('.dropdown-item');
+                                                if (firstItem) {
+                                                    firstItem.classList.add('active');
+                                                    firstItem.focus();
                                                 }
-                                            } else if (!searchQuery && items.length > 0) {
-                                                setShowItemDropdown(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('discountPercentage')?.focus();
-                                                }, 0);
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const activeItem = document.querySelector('.dropdown-item.active');
+                                                if (activeItem) {
+                                                    const index = parseInt(activeItem.getAttribute('data-index'));
+                                                    const itemToAdd = memoizedFilteredItems[index];
+                                                    if (itemToAdd) {
+                                                        addItemToBill(itemToAdd);
+                                                    }
+                                                } else if (!searchQuery && items.length > 0) {
+                                                    setShowItemDropdown(false);
+                                                    setTimeout(() => {
+                                                        document.getElementById('discountPercentage')?.focus();
+                                                    }, 0);
+                                                }
                                             }
-                                        }
-                                    }}
-                                />
-                                {ItemDropdown}
+                                        }}
+                                    />
+                                    {ItemDropdown}
+                                </div>
                             </div>
                         </div>
-
                         <hr style={{ border: "1px solid gray" }} />
 
                         <div className="table-responsive">
@@ -2268,7 +2580,7 @@ const AddPurchase = () => {
                             </table>
                         </div>
 
-                        <div className="d-flex justify-content-end mt-4">
+                        {/* <div className="d-flex justify-content-end mt-4">
                             <button
                                 type="submit"
                                 className="btn btn-primary mr-2 p-3"
@@ -2298,6 +2610,54 @@ const AddPurchase = () => {
                             >
                                 <i className="bi bi-printer"></i>
                             </button>
+                        </div> */}
+
+                        {/* Action Buttons */}
+                        <div className="d-flex justify-content-end mt-4">
+                            {/* Add Print After Save Checkbox */}
+                            <div className="form-check me-3 align-self-center">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="printAfterSave"
+                                    checked={printAfterSave}
+                                    onChange={handlePrintAfterSaveChange}
+                                />
+                                <label className="form-check-label" htmlFor="printAfterSave">
+                                    Print after save
+                                </label>
+                            </div>
+
+                            <div className="d-flex justify-content-end gap-2">
+                                {/* Add Reset Button */}
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={resetForm}
+                                    disabled={isSaving}
+                                >
+                                    <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary btn-sm"
+                                    id="saveBill"
+                                    onClick={(e) => handleSubmit(e, printAfterSave)}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-save me-1"></i> Save
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

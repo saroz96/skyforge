@@ -17,6 +17,18 @@ const fs = require('fs');
 const exceljs = require('exceljs');
 const multer = require('multer');
 
+// Configure Multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'accountuploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+
+const upload = multer({ storage });
+
 router.get('/contacts', async (req, res) => {
     try {
         const companyId = req.session.currentCompany;
@@ -728,6 +740,1803 @@ router.delete('/companies/:id', isLoggedIn, ensureAuthenticated, ensureCompanySe
             details: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
     }
+});
+
+// GET route for accounts import page
+router.get('/accounts-import', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, async (req, res) => {
+    try {
+        if (req.tradeType === 'retailer') {
+            const companyId = req.session.currentCompany;
+
+            if (!companyId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'COMPANY_NOT_SELECTED',
+                    message: 'Company ID not found in session.',
+                    code: 'SESSION_COMPANY_MISSING'
+                });
+            }
+
+            const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+            const currentCompanyName = req.session.currentCompanyName;
+            const currentCompany = await Company.findById(new ObjectId(companyId));
+
+            // Get available company groups
+            const companyGroups = await CompanyGroup.find({ company: companyId }).select('name _id');
+
+            let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+            let currentFiscalYear = null;
+
+            if (fiscalYear) {
+                currentFiscalYear = await FiscalYear.findById(fiscalYear);
+            }
+
+            if (!currentFiscalYear && company.fiscalYear) {
+                currentFiscalYear = company.fiscalYear;
+                fiscalYear = currentFiscalYear._id.toString();
+
+                // Update session
+                req.session.currentFiscalYear = {
+                    id: currentFiscalYear._id.toString(),
+                    startDate: currentFiscalYear.startDate,
+                    endDate: currentFiscalYear.endDate,
+                    name: currentFiscalYear.name,
+                    dateFormat: currentFiscalYear.dateFormat,
+                    isActive: currentFiscalYear.isActive
+                };
+            }
+
+            if (!fiscalYear) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'FISCAL_YEAR_MISSING',
+                    message: 'No fiscal year found in session or company.',
+                    code: 'FISCAL_YEAR_REQUIRED'
+                });
+            }
+
+            // Return JSON response for React component
+            return res.json({
+                success: true,
+                data: {
+                    company: {
+                        id: company._id,
+                        name: company.name,
+                        renewalDate: company.renewalDate,
+                        dateFormat: company.dateFormat,
+                        fiscalYear: company.fiscalYear ? {
+                            id: company.fiscalYear._id,
+                            name: company.fiscalYear.name,
+                            startDate: company.fiscalYear.startDate,
+                            endDate: company.fiscalYear.endDate,
+                            isActive: company.fiscalYear.isActive
+                        } : null
+                    },
+                    currentCompany: {
+                        id: currentCompany._id,
+                        name: currentCompany.name,
+                        renewalDate: currentCompany.renewalDate,
+                        dateFormat: currentCompany.dateFormat
+                    },
+                    currentCompanyName: currentCompanyName,
+                    currentFiscalYear: currentFiscalYear ? {
+                        id: currentFiscalYear._id,
+                        name: currentFiscalYear.name,
+                        startDate: currentFiscalYear.startDate,
+                        endDate: currentFiscalYear.endDate,
+                        dateFormat: currentFiscalYear.dateFormat,
+                        isActive: currentFiscalYear.isActive
+                    } : null,
+                    fiscalYear: fiscalYear,
+                    companyGroups: companyGroups.map(group => ({
+                        id: group._id,
+                        name: group.name
+                    })),
+                    user: {
+                        preferences: {
+                            theme: req.user.preferences?.theme || 'light'
+                        },
+                        isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor',
+                        role: req.user.role,
+                        isAdmin: req.user.isAdmin
+                    }
+                },
+                metadata: {
+                    title: 'Import Accounts',
+                    timestamp: new Date().toISOString(),
+                    tradeType: req.tradeType
+                }
+            });
+        } else {
+            return res.status(403).json({
+                success: false,
+                error: 'ACCESS_DENIED',
+                message: 'Access denied for this trade type.',
+                code: 'INVALID_TRADE_TYPE'
+            });
+        }
+    } catch (error) {
+        console.error('Error in accounts import route:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'SERVER_ERROR',
+            message: 'Failed to load import page data.',
+            code: 'LOAD_ERROR',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// POST route for importing accounts
+// router.post('/accounts-import', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, upload.single('excelFile'), async (req, res) => {
+//     // Add start time for performance tracking
+//     req.startTime = Date.now();
+
+//     try {
+//         if (req.tradeType !== 'retailer') {
+//             return res.status(403).json({
+//                 success: false,
+//                 error: 'ACCESS_DENIED',
+//                 message: 'This feature is only available for retailers.',
+//                 code: 'INVALID_TRADE_TYPE'
+//             });
+//         }
+
+//         if (!req.file) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'NO_FILE_UPLOADED',
+//                 message: 'No file uploaded.',
+//                 code: 'FILE_MISSING'
+//             });
+//         }
+
+//         const companyId = req.session.currentCompany;
+//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+//         const fiscalYearId = req.session.currentFiscalYear.id;
+
+//         // Validate file type
+//         const extname = path.extname(req.file.originalname).toLowerCase();
+//         if (extname !== '.xlsx') {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'INVALID_FILE_TYPE',
+//                 message: 'Only .xlsx files are allowed.',
+//                 code: 'FILE_TYPE_INVALID'
+//             });
+//         }
+
+//         // Validate file size (5MB max)
+//         if (req.file.size > 5 * 1024 * 1024) {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'FILE_TOO_LARGE',
+//                 message: 'File size exceeds 5MB limit.',
+//                 code: 'FILE_SIZE_EXCEEDED'
+//             });
+//         }
+
+//         // Process the Excel file
+//         const workbook = new exceljs.Workbook();
+//         await workbook.xlsx.readFile(req.file.path);
+//         const worksheet = workbook.worksheets[0];
+
+//         // Validate worksheet headers
+//         const expectedHeaders = ['Name', 'Company Group', 'Address', 'Ward', 'Phone', 'PAN', 'Contact Person', 'Email', 'Opening Balance', 'Balance Type'];
+//         const actualHeaders = [];
+//         worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
+//             actualHeaders.push(cell.value?.toString().trim());
+//         });
+
+//         // Check if all required headers are present
+//         const requiredHeaders = ['Name', 'Company Group'];
+//         const missingHeaders = requiredHeaders.filter(header => !actualHeaders.includes(header));
+//         if (missingHeaders.length > 0) {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'INVALID_EXCEL_FORMAT',
+//                 message: `Invalid Excel format. Missing required headers: ${missingHeaders.join(', ')}`,
+//                 code: 'MISSING_REQUIRED_HEADERS',
+//                 data: {
+//                     missingHeaders,
+//                     expectedHeaders,
+//                     actualHeaders
+//                 }
+//             });
+//         }
+
+//         // Get all company groups for validation
+//         const companyGroups = await CompanyGroup.find({ company: companyId });
+//         const groupNameToIdMap = new Map();
+//         companyGroups.forEach(group => {
+//             groupNameToIdMap.set(group.name.toLowerCase(), {
+//                 id: group._id,
+//                 name: group.name
+//             });
+//         });
+
+//         // Process each row
+//         const accounts = [];
+//         const errors = [];
+//         const fiscalYear = await FiscalYear.findById(fiscalYearId);
+
+//         if (!fiscalYear) {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'FISCAL_YEAR_NOT_FOUND',
+//                 message: 'Fiscal year not found.',
+//                 code: 'FISCAL_YEAR_INVALID'
+//             });
+//         }
+
+//         // Generate a unique number for each account
+//         const lastAccount = await mongoose.model('Account').findOne({ company: companyId })
+//             .sort({ uniqueNumber: -1 })
+//             .select('uniqueNumber');
+
+//         let nextUniqueNumber = (lastAccount?.uniqueNumber || 0) + 1;
+
+//         // Track processed rows
+//         let totalRows = 0;
+//         let skippedRows = 0;
+//         let processedRows = 0;
+
+//         // Start from row 2 (skip header)
+//         for (let i = 2; i <= worksheet.rowCount; i++) {
+//             const row = worksheet.getRow(i);
+//             totalRows++;
+
+//             // Skip empty rows
+//             if (!row.getCell(1).value) {
+//                 skippedRows++;
+//                 continue;
+//             }
+
+//             processedRows++;
+
+//             try {
+//                 const rowData = {};
+//                 actualHeaders.forEach((header, index) => {
+//                     const cellValue = row.getCell(index + 1).value;
+//                     rowData[header.toLowerCase().replace(' ', '')] = cellValue ? cellValue.toString().trim() : '';
+//                 });
+
+//                 // Validate required fields
+//                 if (!rowData.name || rowData.name.trim() === '') {
+//                     throw new Error('Account name is required');
+//                 }
+
+//                 if (!rowData.companygroup || rowData.companygroup.trim() === '') {
+//                     throw new Error('Company Group is required');
+//                 }
+
+//                 // Get company group ID
+//                 const groupInfo = groupNameToIdMap.get(rowData.companygroup.toLowerCase());
+//                 if (!groupInfo) {
+//                     const availableGroups = Array.from(groupNameToIdMap.values()).map(g => g.name);
+//                     throw new Error(`Company Group "${rowData.companygroup}" not found. Available groups: ${availableGroups.join(', ')}`);
+//                 }
+
+//                 // Prepare account data with uniqueNumber
+//                 const accountData = {
+//                     name: rowData.name.trim(),
+//                     companyGroups: groupInfo.id,
+//                     company: companyId,
+//                     fiscalYear: [fiscalYearId],
+//                     originalFiscalYear: fiscalYearId,
+//                     isActive: true,
+//                     uniqueNumber: nextUniqueNumber++
+//                 };
+
+//                 // Add optional fields if they exist
+//                 if (rowData.address && rowData.address.trim() !== '') {
+//                     accountData.address = rowData.address.trim();
+//                 }
+//                 if (rowData.ward && rowData.ward.trim() !== '') {
+//                     const ward = parseInt(rowData.ward);
+//                     if (!isNaN(ward)) {
+//                         accountData.ward = ward;
+//                     }
+//                 }
+//                 if (rowData.phone && rowData.phone.trim() !== '') {
+//                     accountData.phone = rowData.phone.trim();
+//                 }
+//                 if (rowData.pan && rowData.pan.trim() !== '') {
+//                     const pan = parseInt(rowData.pan);
+//                     if (isNaN(pan) || pan.toString().length !== 9) {
+//                         throw new Error('PAN must be exactly 9 digits');
+//                     }
+//                     accountData.pan = pan;
+//                 }
+//                 if (rowData.contactperson && rowData.contactperson.trim() !== '') {
+//                     accountData.contactperson = rowData.contactperson.trim();
+//                 }
+//                 if (rowData.email && rowData.email.trim() !== '') {
+//                     // Basic email validation
+//                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//                     if (!emailRegex.test(rowData.email)) {
+//                         throw new Error('Invalid email format');
+//                     }
+//                     accountData.email = rowData.email.trim();
+//                 }
+
+//                 // Handle opening balance if provided
+//                 if (rowData.openingbalance && rowData.openingbalance.trim() !== '') {
+//                     const amount = parseFloat(rowData.openingbalance);
+//                     if (isNaN(amount)) {
+//                         throw new Error('Opening Balance must be a valid number');
+//                     }
+
+//                     const type = (rowData.balancetype || 'Dr').trim() === 'Cr' ? 'Cr' : 'Dr';
+
+//                     accountData.openingBalance = {
+//                         fiscalYear: fiscalYearId,
+//                         amount: Math.abs(amount), // Ensure positive amount
+//                         type,
+//                         date: new Date()
+//                     };
+
+//                     accountData.openingBalanceByFiscalYear = [{
+//                         fiscalYear: fiscalYearId,
+//                         amount: Math.abs(amount),
+//                         type,
+//                         date: new Date()
+//                     }];
+//                 }
+
+//                 // Check for duplicate account name in this company and fiscal year
+//                 const existingAccount = await mongoose.model('Account').findOne({
+//                     name: accountData.name,
+//                     company: companyId,
+//                     fiscalYear: { $in: [fiscalYearId] }
+//                 });
+
+//                 if (existingAccount) {
+//                     throw new Error(`Account "${accountData.name}" already exists in this fiscal year`);
+//                 }
+
+//                 accounts.push(accountData);
+//             } catch (error) {
+//                 errors.push({
+//                     row: i,
+//                     message: error.message,
+//                     data: {
+//                         name: row.getCell(1).value?.toString().trim() || 'N/A',
+//                         companyGroup: row.getCell(2).value?.toString().trim() || 'N/A',
+//                         address: row.getCell(3).value?.toString().trim() || '',
+//                         phone: row.getCell(5).value?.toString().trim() || '',
+//                         email: row.getCell(8).value?.toString().trim() || ''
+//                     }
+//                 });
+//             }
+//         }
+
+//         // Determine overall success based on actual results
+//         const hasSuccessfulImports = accounts.length > 0;
+//         const hasErrors = errors.length > 0;
+//         const allFailed = accounts.length === 0 && errors.length > 0;
+//         const partialSuccess = accounts.length > 0 && errors.length > 0;
+//         const allSkipped = accounts.length === 0 && errors.length === 0 && skippedRows > 0;
+//         const noData = totalRows === 0;
+
+//         // Clean up uploaded file
+//         try {
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+//         } catch (cleanupError) {
+//             console.error('Error cleaning up uploaded file:', cleanupError);
+//         }
+
+//         // If there are errors and no successful imports, return error response
+//         if (allFailed) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'IMPORT_FAILED',
+//                 message: 'All accounts failed to import. Please check the error details below.',
+//                 code: 'ALL_ACCOUNTS_FAILED',
+//                 data: {
+//                     results: {
+//                         total: totalRows,
+//                         success: accounts.length,
+//                         errors: errors,
+//                         processed: processedRows,
+//                         skipped: skippedRows,
+//                         successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+//                     },
+//                     summary: {
+//                         company: company.name,
+//                         fiscalYear: fiscalYear.name,
+//                         importDate: new Date().toISOString(),
+//                         fileName: req.file.originalname,
+//                         status: 'failed',
+//                         availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                     }
+//                 },
+//                 metadata: {
+//                     timestamp: new Date().toISOString(),
+//                     processedIn: `${Date.now() - req.startTime}ms`
+//                 }
+//             });
+//         }
+
+//         // If no valid accounts found
+//         if (noData || allSkipped) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'NO_VALID_DATA',
+//                 message: 'No valid accounts found in the Excel file.',
+//                 code: 'EMPTY_DATA',
+//                 data: {
+//                     results: {
+//                         total: totalRows,
+//                         success: accounts.length,
+//                         errors: errors,
+//                         processed: processedRows,
+//                         skipped: skippedRows,
+//                         successRate: 0
+//                     },
+//                     summary: {
+//                         company: company.name,
+//                         fiscalYear: fiscalYear.name,
+//                         importDate: new Date().toISOString(),
+//                         fileName: req.file.originalname,
+//                         status: 'no_data',
+//                         availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                     }
+//                 },
+//                 metadata: {
+//                     timestamp: new Date().toISOString(),
+//                     processedIn: `${Date.now() - req.startTime}ms`
+//                 }
+//             });
+//         }
+
+//         // Insert all valid accounts in a transaction to ensure atomicity
+//         const session = await mongoose.startSession();
+//         session.startTransaction();
+
+//         try {
+//             const createdAccounts = await mongoose.model('Account').insertMany(accounts, { session });
+//             await session.commitTransaction();
+//             session.endSession();
+
+//             // Prepare response based on success type
+//             if (partialSuccess) {
+//                 return res.json({
+//                     success: true,
+//                     warning: 'PARTIAL_IMPORT',
+//                     message: `${accounts.length} accounts imported successfully, ${errors.length} accounts failed.`,
+//                     code: 'PARTIAL_SUCCESS',
+//                     data: {
+//                         results: {
+//                             total: totalRows,
+//                             success: accounts.length,
+//                             errors: errors,
+//                             processed: processedRows,
+//                             skipped: skippedRows,
+//                             successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+//                         },
+//                         summary: {
+//                             company: company.name,
+//                             fiscalYear: fiscalYear.name,
+//                             importDate: new Date().toISOString(),
+//                             fileName: req.file.originalname,
+//                             status: 'partial',
+//                             availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                         },
+//                         importedAccounts: createdAccounts.map(acc => ({
+//                             id: acc._id,
+//                             name: acc.name,
+//                             uniqueNumber: acc.uniqueNumber,
+//                             companyGroup: Array.from(groupNameToIdMap.values()).find(g => g.id.equals(acc.companyGroups))?.name || 'Unknown',
+//                             address: acc.address,
+//                             phone: acc.phone,
+//                             email: acc.email
+//                         }))
+//                     },
+//                     metadata: {
+//                         timestamp: new Date().toISOString(),
+//                         processedIn: `${Date.now() - req.startTime}ms`
+//                     }
+//                 });
+//             } else {
+//                 // All successful
+//                 return res.json({
+//                     success: true,
+//                     message: `Successfully imported ${accounts.length} accounts`,
+//                     code: 'SUCCESS',
+//                     data: {
+//                         results: {
+//                             total: totalRows,
+//                             success: accounts.length,
+//                             errors: errors,
+//                             processed: processedRows,
+//                             skipped: skippedRows,
+//                             successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+//                         },
+//                         summary: {
+//                             company: company.name,
+//                             fiscalYear: fiscalYear.name,
+//                             importDate: new Date().toISOString(),
+//                             fileName: req.file.originalname,
+//                             status: 'success',
+//                             availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                         },
+//                         importedAccounts: createdAccounts.map(acc => ({
+//                             id: acc._id,
+//                             name: acc.name,
+//                             uniqueNumber: acc.uniqueNumber,
+//                             companyGroup: Array.from(groupNameToIdMap.values()).find(g => g.id.equals(acc.companyGroups))?.name || 'Unknown',
+//                             address: acc.address,
+//                             phone: acc.phone,
+//                             email: acc.email
+//                         }))
+//                     },
+//                     metadata: {
+//                         timestamp: new Date().toISOString(),
+//                         processedIn: `${Date.now() - req.startTime}ms`
+//                     }
+//                 });
+//             }
+//         } catch (insertError) {
+//             await session.abortTransaction();
+//             session.endSession();
+//             throw insertError;
+//         }
+
+//     } catch (error) {
+//         console.error('Error importing accounts:', error);
+
+//         // Clean up uploaded file on error
+//         try {
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+//         } catch (cleanupError) {
+//             console.error('Error cleaning up uploaded file on error:', cleanupError);
+//         }
+
+//         return res.status(500).json({
+//             success: false,
+//             error: 'IMPORT_FAILED',
+//             message: 'An error occurred while importing accounts',
+//             code: 'PROCESSING_ERROR',
+//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// });
+
+
+// // POST route for importing accounts - CORRECTED VERSION
+// router.post('/accounts-import', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, upload.single('excelFile'), async (req, res) => {
+//     // Add start time for performance tracking
+//     req.startTime = Date.now();
+
+//     try {
+//         console.log('=== ACCOUNTS IMPORT PROCESS STARTED ===');
+
+//         if (req.tradeType !== 'retailer') {
+//             return res.status(403).json({
+//                 success: false,
+//                 error: 'ACCESS_DENIED',
+//                 message: 'This feature is only available for retailers.',
+//                 code: 'INVALID_TRADE_TYPE'
+//             });
+//         }
+
+//         if (!req.file) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'NO_FILE_UPLOADED',
+//                 message: 'No file uploaded.',
+//                 code: 'FILE_MISSING'
+//             });
+//         }
+
+//         const companyId = req.session.currentCompany;
+//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+//         const fiscalYearId = req.session.currentFiscalYear.id;
+
+//         console.log('Processing import for company:', company?.name, 'Fiscal Year:', fiscalYearId);
+
+//         // Validate file type
+//         const extname = path.extname(req.file.originalname).toLowerCase();
+//         if (extname !== '.xlsx') {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'INVALID_FILE_TYPE',
+//                 message: 'Only .xlsx files are allowed.',
+//                 code: 'FILE_TYPE_INVALID'
+//             });
+//         }
+
+//         // Validate file size (5MB max)
+//         if (req.file.size > 5 * 1024 * 1024) {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'FILE_TOO_LARGE',
+//                 message: 'File size exceeds 5MB limit.',
+//                 code: 'FILE_SIZE_EXCEEDED'
+//             });
+//         }
+
+//         // Process the Excel file
+//         const workbook = new exceljs.Workbook();
+//         await workbook.xlsx.readFile(req.file.path);
+//         const worksheet = workbook.worksheets[0];
+
+//         console.log('Excel file loaded successfully. Total rows:', worksheet.rowCount);
+
+//         // Validate worksheet headers
+//         const expectedHeaders = ['Name', 'Company Group', 'Address', 'Ward', 'Phone', 'PAN', 'Contact Person', 'Email', 'Opening Balance', 'Balance Type'];
+//         const actualHeaders = [];
+//         worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
+//             actualHeaders.push(cell.value?.toString().trim());
+//         });
+
+//         console.log('Found headers:', actualHeaders);
+
+//         // Check if all required headers are present
+//         const requiredHeaders = ['Name', 'Company Group'];
+//         const missingHeaders = requiredHeaders.filter(header => !actualHeaders.includes(header));
+//         if (missingHeaders.length > 0) {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'INVALID_EXCEL_FORMAT',
+//                 message: `Invalid Excel format. Missing required headers: ${missingHeaders.join(', ')}`,
+//                 code: 'MISSING_REQUIRED_HEADERS',
+//                 data: {
+//                     missingHeaders,
+//                     expectedHeaders,
+//                     actualHeaders
+//                 }
+//             });
+//         }
+
+//         // Get all company groups for validation
+//         const companyGroups = await CompanyGroup.find({ company: companyId });
+//         const groupNameToIdMap = new Map();
+//         companyGroups.forEach(group => {
+//             groupNameToIdMap.set(group.name.toLowerCase(), {
+//                 id: group._id,
+//                 name: group.name
+//             });
+//         });
+
+//         console.log('Available company groups:', Array.from(groupNameToIdMap.values()).map(g => g.name));
+
+//         // Process each row
+//         const accounts = [];
+//         const errors = [];
+//         const fiscalYear = await FiscalYear.findById(fiscalYearId);
+
+//         if (!fiscalYear) {
+//             // Clean up file
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//             }
+
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'FISCAL_YEAR_NOT_FOUND',
+//                 message: 'Fiscal year not found.',
+//                 code: 'FISCAL_YEAR_INVALID'
+//             });
+//         }
+
+//         // Generate a unique number for each account
+//         const lastAccount = await mongoose.model('Account').findOne({ company: companyId })
+//             .sort({ uniqueNumber: -1 })
+//             .select('uniqueNumber');
+
+//         let nextUniqueNumber = (lastAccount?.uniqueNumber || 0) + 1;
+
+//         console.log('Starting unique number:', nextUniqueNumber);
+
+//         // Track processed rows
+//         let totalRows = 0;
+//         let skippedRows = 0;
+//         let processedRows = 0;
+
+//         // Start from row 2 (skip header)
+//         for (let i = 2; i <= worksheet.rowCount; i++) {
+//             const row = worksheet.getRow(i);
+//             totalRows++;
+
+//             // Skip empty rows
+//             if (!row.getCell(1).value) {
+//                 skippedRows++;
+//                 continue;
+//             }
+
+//             processedRows++;
+
+//             try {
+//                 const rowData = {};
+
+//                 // CORRECTED: Proper cell value extraction with better error handling
+//                 actualHeaders.forEach((header, index) => {
+//                     const cell = row.getCell(index + 1);
+//                     let cellValue = '';
+
+//                     // Use cell.text for display value or fallback to cell.value
+//                     if (cell.text && cell.text.toString().trim() !== '') {
+//                         cellValue = cell.text.toString().trim();
+//                     } else if (cell.value) {
+//                         // Handle different value types
+//                         if (typeof cell.value === 'object') {
+//                             if (cell.value.text) {
+//                                 cellValue = cell.value.text.toString().trim();
+//                             } else if (cell.value.result) {
+//                                 cellValue = cell.value.result.toString().trim();
+//                             } else if (cell.value.hyperlink) {
+//                                 cellValue = cell.value.toString().trim();
+//                             } else {
+//                                 // Fallback: stringify and clean
+//                                 cellValue = JSON.stringify(cell.value).replace(/[{}"']/g, '').trim();
+//                             }
+//                         } else {
+//                             cellValue = cell.value.toString().trim();
+//                         }
+//                     }
+
+//                     const cleanHeader = header.toLowerCase().replace(/\s+/g, '');
+//                     rowData[cleanHeader] = cellValue;
+//                 });
+
+//                 // Debug logging for email values
+//                 if (rowData.email) {
+//                     console.log(`Row ${i} - Email extracted: "${rowData.email}"`);
+//                 }
+
+//                 // Validate required fields
+//                 if (!rowData.name || rowData.name.trim() === '') {
+//                     throw new Error('Account name is required');
+//                 }
+
+//                 if (!rowData.companygroup || rowData.companygroup.trim() === '') {
+//                     throw new Error('Company Group is required');
+//                 }
+
+//                 // Get company group ID
+//                 const groupInfo = groupNameToIdMap.get(rowData.companygroup.toLowerCase());
+//                 if (!groupInfo) {
+//                     const availableGroups = Array.from(groupNameToIdMap.values()).map(g => g.name);
+//                     throw new Error(`Company Group "${rowData.companygroup}" not found. Available groups: ${availableGroups.join(', ')}`);
+//                 }
+
+//                 // Prepare account data with uniqueNumber
+//                 const accountData = {
+//                     name: rowData.name.trim(),
+//                     companyGroups: groupInfo.id,
+//                     company: companyId,
+//                     fiscalYear: [fiscalYearId],
+//                     originalFiscalYear: fiscalYearId,
+//                     isActive: true,
+//                     uniqueNumber: nextUniqueNumber++
+//                 };
+
+//                 // Add optional fields if they exist
+//                 if (rowData.address && rowData.address.trim() !== '') {
+//                     accountData.address = rowData.address.trim();
+//                 }
+
+//                 if (rowData.ward && rowData.ward.trim() !== '') {
+//                     const ward = parseInt(rowData.ward);
+//                     if (!isNaN(ward)) {
+//                         accountData.ward = ward;
+//                     }
+//                 }
+
+//                 if (rowData.phone && rowData.phone.trim() !== '') {
+//                     accountData.phone = rowData.phone.trim();
+//                 }
+
+//                 if (rowData.pan && rowData.pan.trim() !== '') {
+//                     const pan = parseInt(rowData.pan);
+//                     if (isNaN(pan) || pan.toString().length !== 9) {
+//                         throw new Error('PAN must be exactly 9 digits');
+//                     }
+//                     accountData.pan = pan;
+//                 }
+
+//                 if (rowData.contactperson && rowData.contactperson.trim() !== '') {
+//                     accountData.contactperson = rowData.contactperson.trim();
+//                 }
+
+//                 // CORRECTED: Email handling with proper validation
+//                 if (rowData.email && rowData.email.trim() !== '') {
+//                     let emailValue = rowData.email.trim();
+
+//                     // Final cleanup of email value
+//                     if (emailValue === '[object Object]') {
+//                         throw new Error('Email cell contains invalid data. Please ensure it contains a valid email address.');
+//                     }
+
+//                     // Basic email validation
+//                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//                     if (!emailRegex.test(emailValue)) {
+//                         throw new Error(`Invalid email format: "${emailValue}"`);
+//                     }
+//                     accountData.email = emailValue;
+//                 }
+
+//                 // Handle opening balance if provided
+//                 if (rowData.openingbalance && rowData.openingbalance.trim() !== '') {
+//                     const amount = parseFloat(rowData.openingbalance);
+//                     if (isNaN(amount)) {
+//                         throw new Error('Opening Balance must be a valid number');
+//                     }
+
+//                     const type = (rowData.balancetype || 'Dr').trim() === 'Cr' ? 'Cr' : 'Dr';
+
+//                     accountData.openingBalance = {
+//                         fiscalYear: fiscalYearId,
+//                         amount: Math.abs(amount),
+//                         type,
+//                         date: new Date()
+//                     };
+
+//                     accountData.openingBalanceByFiscalYear = [{
+//                         fiscalYear: fiscalYearId,
+//                         amount: Math.abs(amount),
+//                         type,
+//                         date: new Date()
+//                     }];
+//                 }
+
+//                 // Check for duplicate account name in this company and fiscal year
+//                 const existingAccount = await mongoose.model('Account').findOne({
+//                     name: accountData.name,
+//                     company: companyId,
+//                     fiscalYear: { $in: [fiscalYearId] }
+//                 });
+
+//                 if (existingAccount) {
+//                     throw new Error(`Account "${accountData.name}" already exists in this fiscal year`);
+//                 }
+
+//                 accounts.push(accountData);
+//                 console.log(`✓ Row ${i} - Account prepared: ${accountData.name}`);
+
+//             } catch (error) {
+//                 console.log(`✗ Row ${i} - Error: ${error.message}`);
+
+//                 // Helper function to safely extract cell values for error reporting
+//                 const getSafeCellValue = (cellIndex) => {
+//                     try {
+//                         const cell = row.getCell(cellIndex);
+//                         return cell.text ? cell.text.toString().trim() : 
+//                                cell.value ? cell.value.toString().trim() : 'N/A';
+//                     } catch (e) {
+//                         return 'N/A';
+//                     }
+//                 };
+
+//                 errors.push({
+//                     row: i,
+//                     message: error.message,
+//                     data: {
+//                         name: getSafeCellValue(1),
+//                         companyGroup: getSafeCellValue(2),
+//                         address: getSafeCellValue(3),
+//                         phone: getSafeCellValue(5),
+//                         email: getSafeCellValue(8)
+//                     }
+//                 });
+//             }
+//         }
+
+//         console.log('Processing completed:');
+//         console.log('- Total rows:', totalRows);
+//         console.log('- Processed rows:', processedRows);
+//         console.log('- Skipped rows:', skippedRows);
+//         console.log('- Valid accounts:', accounts.length);
+//         console.log('- Errors:', errors.length);
+
+//         // Determine overall success based on actual results
+//         const hasSuccessfulImports = accounts.length > 0;
+//         const hasErrors = errors.length > 0;
+//         const allFailed = accounts.length === 0 && errors.length > 0;
+//         const partialSuccess = accounts.length > 0 && errors.length > 0;
+//         const allSkipped = accounts.length === 0 && errors.length === 0 && skippedRows > 0;
+//         const noData = totalRows === 0;
+
+//         // Clean up uploaded file
+//         try {
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//                 console.log('Uploaded file cleaned up');
+//             }
+//         } catch (cleanupError) {
+//             console.error('Error cleaning up uploaded file:', cleanupError);
+//         }
+
+//         // If there are errors and no successful imports, return error response
+//         if (allFailed) {
+//             console.log('All accounts failed to import');
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'IMPORT_FAILED',
+//                 message: 'All accounts failed to import. Please check the error details below.',
+//                 code: 'ALL_ACCOUNTS_FAILED',
+//                 data: {
+//                     results: {
+//                         total: totalRows,
+//                         success: accounts.length,
+//                         errors: errors,
+//                         processed: processedRows,
+//                         skipped: skippedRows,
+//                         successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+//                     },
+//                     summary: {
+//                         company: company.name,
+//                         fiscalYear: fiscalYear.name,
+//                         importDate: new Date().toISOString(),
+//                         fileName: req.file.originalname,
+//                         status: 'failed',
+//                         availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                     }
+//                 },
+//                 metadata: {
+//                     timestamp: new Date().toISOString(),
+//                     processedIn: `${Date.now() - req.startTime}ms`
+//                 }
+//             });
+//         }
+
+//         // If no valid accounts found
+//         if (noData || allSkipped) {
+//             console.log('No valid data found');
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'NO_VALID_DATA',
+//                 message: 'No valid accounts found in the Excel file.',
+//                 code: 'EMPTY_DATA',
+//                 data: {
+//                     results: {
+//                         total: totalRows,
+//                         success: accounts.length,
+//                         errors: errors,
+//                         processed: processedRows,
+//                         skipped: skippedRows,
+//                         successRate: 0
+//                     },
+//                     summary: {
+//                         company: company.name,
+//                         fiscalYear: fiscalYear.name,
+//                         importDate: new Date().toISOString(),
+//                         fileName: req.file.originalname,
+//                         status: 'no_data',
+//                         availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                     }
+//                 },
+//                 metadata: {
+//                     timestamp: new Date().toISOString(),
+//                     processedIn: `${Date.now() - req.startTime}ms`
+//                 }
+//             });
+//         }
+
+//         console.log('Starting database insertion...');
+
+//         // Insert all valid accounts in a transaction to ensure atomicity
+//         const session = await mongoose.startSession();
+//         session.startTransaction();
+
+//         try {
+//             const createdAccounts = await mongoose.model('Account').insertMany(accounts, { session });
+//             await session.commitTransaction();
+//             session.endSession();
+
+//             console.log('Accounts inserted successfully:', createdAccounts.length);
+
+//             // Prepare response based on success type
+//             if (partialSuccess) {
+//                 console.log('Partial success response');
+//                 return res.json({
+//                     success: true,
+//                     warning: 'PARTIAL_IMPORT',
+//                     message: `${accounts.length} accounts imported successfully, ${errors.length} accounts failed.`,
+//                     code: 'PARTIAL_SUCCESS',
+//                     data: {
+//                         results: {
+//                             total: totalRows,
+//                             success: accounts.length,
+//                             errors: errors,
+//                             processed: processedRows,
+//                             skipped: skippedRows,
+//                             successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+//                         },
+//                         summary: {
+//                             company: company.name,
+//                             fiscalYear: fiscalYear.name,
+//                             importDate: new Date().toISOString(),
+//                             fileName: req.file.originalname,
+//                             status: 'partial',
+//                             availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                         },
+//                         importedAccounts: createdAccounts.map(acc => ({
+//                             id: acc._id,
+//                             name: acc.name,
+//                             uniqueNumber: acc.uniqueNumber,
+//                             companyGroup: Array.from(groupNameToIdMap.values()).find(g => g.id.equals(acc.companyGroups))?.name || 'Unknown',
+//                             address: acc.address,
+//                             phone: acc.phone,
+//                             email: acc.email
+//                         }))
+//                     },
+//                     metadata: {
+//                         timestamp: new Date().toISOString(),
+//                         processedIn: `${Date.now() - req.startTime}ms`
+//                     }
+//                 });
+//             } else {
+//                 // All successful
+//                 console.log('Full success response');
+//                 return res.json({
+//                     success: true,
+//                     message: `Successfully imported ${accounts.length} accounts`,
+//                     code: 'SUCCESS',
+//                     data: {
+//                         results: {
+//                             total: totalRows,
+//                             success: accounts.length,
+//                             errors: errors,
+//                             processed: processedRows,
+//                             skipped: skippedRows,
+//                             successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+//                         },
+//                         summary: {
+//                             company: company.name,
+//                             fiscalYear: fiscalYear.name,
+//                             importDate: new Date().toISOString(),
+//                             fileName: req.file.originalname,
+//                             status: 'success',
+//                             availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name)
+//                         },
+//                         importedAccounts: createdAccounts.map(acc => ({
+//                             id: acc._id,
+//                             name: acc.name,
+//                             uniqueNumber: acc.uniqueNumber,
+//                             companyGroup: Array.from(groupNameToIdMap.values()).find(g => g.id.equals(acc.companyGroups))?.name || 'Unknown',
+//                             address: acc.address,
+//                             phone: acc.phone,
+//                             email: acc.email
+//                         }))
+//                     },
+//                     metadata: {
+//                         timestamp: new Date().toISOString(),
+//                         processedIn: `${Date.now() - req.startTime}ms`
+//                     }
+//                 });
+//             }
+//         } catch (insertError) {
+//             await session.abortTransaction();
+//             session.endSession();
+//             console.error('Database insertion error:', insertError);
+//             throw insertError;
+//         }
+
+//     } catch (error) {
+//         console.error('=== ACCOUNTS IMPORT ERROR ===');
+//         console.error('Error message:', error.message);
+//         console.error('Error stack:', error.stack);
+//         console.error('=== END ERROR ===');
+
+//         // Clean up uploaded file on error
+//         try {
+//             if (req.file && req.file.path) {
+//                 fs.unlinkSync(req.file.path);
+//                 console.log('File cleaned up after error');
+//             }
+//         } catch (cleanupError) {
+//             console.error('Error cleaning up uploaded file on error:', cleanupError);
+//         }
+
+//         return res.status(500).json({
+//             success: false,
+//             error: 'IMPORT_FAILED',
+//             message: 'An error occurred while importing accounts',
+//             code: 'PROCESSING_ERROR',
+//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// });
+
+router.post('/accounts-import', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, upload.single('excelFile'), async (req, res) => {
+    // Add start time for performance tracking
+    req.startTime = Date.now();
+
+    try {
+        console.log('=== ACCOUNTS IMPORT PROCESS STARTED ===');
+
+        if (req.tradeType !== 'retailer') {
+            return res.status(403).json({
+                success: false,
+                error: 'ACCESS_DENIED',
+                message: 'This feature is only available for retailers.',
+                code: 'INVALID_TRADE_TYPE'
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'NO_FILE_UPLOADED',
+                message: 'No file uploaded.',
+                code: 'FILE_MISSING'
+            });
+        }
+
+        const companyId = req.session.currentCompany;
+        const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+        const fiscalYearId = req.session.currentFiscalYear.id;
+
+        console.log('Processing import for company:', company?.name, 'Fiscal Year:', fiscalYearId);
+
+        // Validate file type
+        const extname = path.extname(req.file.originalname).toLowerCase();
+        if (extname !== '.xlsx') {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+
+            return res.status(400).json({
+                success: false,
+                error: 'INVALID_FILE_TYPE',
+                message: 'Only .xlsx files are allowed.',
+                code: 'FILE_TYPE_INVALID'
+            });
+        }
+
+        // Validate file size (5MB max)
+        if (req.file.size > 5 * 1024 * 1024) {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+
+            return res.status(400).json({
+                success: false,
+                error: 'FILE_TOO_LARGE',
+                message: 'File size exceeds 5MB limit.',
+                code: 'FILE_SIZE_EXCEEDED'
+            });
+        }
+
+        // Process the Excel file
+        const workbook = new exceljs.Workbook();
+        await workbook.xlsx.readFile(req.file.path);
+        const worksheet = workbook.worksheets[0];
+
+        console.log('Excel file loaded successfully. Total rows:', worksheet.rowCount);
+
+        // Validate worksheet headers
+        const expectedHeaders = ['Name', 'Company Group', 'Address', 'Ward', 'Phone', 'PAN', 'Contact Person', 'Email', 'Opening Balance', 'Balance Type'];
+        const actualHeaders = [];
+        worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
+            actualHeaders.push(cell.value?.toString().trim());
+        });
+
+        console.log('Found headers:', actualHeaders);
+
+        // Check if all required headers are present
+        const requiredHeaders = ['Name', 'Company Group'];
+        const missingHeaders = requiredHeaders.filter(header => !actualHeaders.includes(header));
+        if (missingHeaders.length > 0) {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+
+            return res.status(400).json({
+                success: false,
+                error: 'INVALID_EXCEL_FORMAT',
+                message: `Invalid Excel format. Missing required headers: ${missingHeaders.join(', ')}`,
+                code: 'MISSING_REQUIRED_HEADERS',
+                data: {
+                    missingHeaders,
+                    expectedHeaders,
+                    actualHeaders
+                }
+            });
+        }
+
+        // Get all company groups for validation
+        const companyGroups = await CompanyGroup.find({ company: companyId });
+        const groupNameToIdMap = new Map();
+        companyGroups.forEach(group => {
+            groupNameToIdMap.set(group.name.toLowerCase(), {
+                id: group._id,
+                name: group.name
+            });
+        });
+
+        console.log('Available company groups:', Array.from(groupNameToIdMap.values()).map(g => g.name));
+
+        // Process each row
+        const accounts = [];
+        const errors = [];
+        const fiscalYear = await FiscalYear.findById(fiscalYearId);
+
+        if (!fiscalYear) {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+
+            return res.status(400).json({
+                success: false,
+                error: 'FISCAL_YEAR_NOT_FOUND',
+                message: 'Fiscal year not found.',
+                code: 'FISCAL_YEAR_INVALID'
+            });
+        }
+
+        // Get the initial fiscal year for opening balance validation
+        const initialFiscalYear = await FiscalYear.findOne({ company: companyId })
+            .sort({ startDate: 1 })
+            .limit(1);
+
+        if (!initialFiscalYear) {
+            // Clean up file
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+            }
+
+            return res.status(400).json({
+                success: false,
+                error: 'INITIAL_FISCAL_YEAR_NOT_FOUND',
+                message: 'Initial fiscal year not found.',
+                code: 'INITIAL_FISCAL_YEAR_MISSING'
+            });
+        }
+
+        const isInitialYear = fiscalYear._id.toString() === initialFiscalYear._id.toString();
+        console.log('Is initial fiscal year:', isInitialYear);
+
+        // Generate a unique number for each account
+        const lastAccount = await mongoose.model('Account').findOne({ company: companyId })
+            .sort({ uniqueNumber: -1 })
+            .select('uniqueNumber');
+
+        let nextUniqueNumber = (lastAccount?.uniqueNumber || 0) + 1;
+
+        console.log('Starting unique number:', nextUniqueNumber);
+
+        // Track processed rows
+        let totalRows = 0;
+        let skippedRows = 0;
+        let processedRows = 0;
+
+        // Start from row 2 (skip header)
+        for (let i = 2; i <= worksheet.rowCount; i++) {
+            const row = worksheet.getRow(i);
+            totalRows++;
+
+            // Skip empty rows
+            if (!row.getCell(1).value) {
+                skippedRows++;
+                continue;
+            }
+
+            processedRows++;
+
+            try {
+                const rowData = {};
+
+                // CORRECTED: Proper cell value extraction with better error handling
+                actualHeaders.forEach((header, index) => {
+                    const cell = row.getCell(index + 1);
+                    let cellValue = '';
+
+                    // Use cell.text for display value or fallback to cell.value
+                    if (cell.text && cell.text.toString().trim() !== '') {
+                        cellValue = cell.text.toString().trim();
+                    } else if (cell.value) {
+                        // Handle different value types
+                        if (typeof cell.value === 'object') {
+                            if (cell.value.text) {
+                                cellValue = cell.value.text.toString().trim();
+                            } else if (cell.value.result) {
+                                cellValue = cell.value.result.toString().trim();
+                            } else if (cell.value.hyperlink) {
+                                cellValue = cell.value.toString().trim();
+                            } else {
+                                // Fallback: stringify and clean
+                                cellValue = JSON.stringify(cell.value).replace(/[{}"']/g, '').trim();
+                            }
+                        } else {
+                            cellValue = cell.value.toString().trim();
+                        }
+                    }
+
+                    const cleanHeader = header.toLowerCase().replace(/\s+/g, '');
+                    rowData[cleanHeader] = cellValue;
+                });
+
+                // Debug logging for email values
+                if (rowData.email) {
+                    console.log(`Row ${i} - Email extracted: "${rowData.email}"`);
+                }
+
+                // Validate required fields
+                if (!rowData.name || rowData.name.trim() === '') {
+                    throw new Error('Account name is required');
+                }
+
+                if (!rowData.companygroup || rowData.companygroup.trim() === '') {
+                    throw new Error('Company Group is required');
+                }
+
+                // Get company group ID
+                const groupInfo = groupNameToIdMap.get(rowData.companygroup.toLowerCase());
+                if (!groupInfo) {
+                    const availableGroups = Array.from(groupNameToIdMap.values()).map(g => g.name);
+                    throw new Error(`Company Group "${rowData.companygroup}" not found. Available groups: ${availableGroups.join(', ')}`);
+                }
+
+                // Prepare account data with uniqueNumber
+                const accountData = {
+                    name: rowData.name.trim(),
+                    companyGroups: groupInfo.id,
+                    company: companyId,
+                    fiscalYear: [fiscalYearId],
+                    originalFiscalYear: fiscalYearId,
+                    isActive: true,
+                    uniqueNumber: nextUniqueNumber++,
+                    createdAt: new Date()
+                };
+
+                // Add optional fields if they exist
+                if (rowData.address && rowData.address.trim() !== '') {
+                    accountData.address = rowData.address.trim();
+                }
+
+                if (rowData.ward && rowData.ward.trim() !== '') {
+                    const ward = parseInt(rowData.ward);
+                    if (!isNaN(ward)) {
+                        accountData.ward = ward;
+                    }
+                }
+
+                if (rowData.phone && rowData.phone.trim() !== '') {
+                    accountData.phone = rowData.phone.trim();
+                }
+
+                if (rowData.pan && rowData.pan.trim() !== '') {
+                    const pan = parseInt(rowData.pan);
+                    if (isNaN(pan) || pan.toString().length !== 9) {
+                        throw new Error('PAN must be exactly 9 digits');
+                    }
+                    accountData.pan = pan;
+                }
+
+                if (rowData.contactperson && rowData.contactperson.trim() !== '') {
+                    accountData.contactperson = rowData.contactperson.trim();
+                }
+
+                // CORRECTED: Email handling with proper validation
+                if (rowData.email && rowData.email.trim() !== '') {
+                    let emailValue = rowData.email.trim();
+
+                    // Final cleanup of email value
+                    if (emailValue === '[object Object]') {
+                        throw new Error('Email cell contains invalid data. Please ensure it contains a valid email address.');
+                    }
+
+                    // Basic email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(emailValue)) {
+                        throw new Error(`Invalid email format: "${emailValue}"`);
+                    }
+                    accountData.email = emailValue;
+                }
+
+                // CORRECTED: Handle opening balance with proper validation (matching your company creation logic)
+                if (rowData.openingbalance && rowData.openingbalance.trim() !== '') {
+                    const amount = parseFloat(rowData.openingbalance);
+
+                    // Validate opening balance amount
+                    if (isNaN(amount)) {
+                        throw new Error('Opening Balance must be a valid number');
+                    }
+
+                    // Check if opening balance is only allowed in initial fiscal year
+                    if (!isInitialYear && amount !== 0) {
+                        throw new Error('Opening balance can only be set in the initial fiscal year');
+                    }
+
+                    const type = (rowData.balancetype || 'Dr').trim() === 'Cr' ? 'Cr' : 'Dr';
+
+                    // Set all opening balance fields as per your company creation logic
+                    const openingBalanceAmount = isInitialYear ? Math.abs(amount) : 0;
+                    const openingBalanceType = isInitialYear ? type : 'Dr';
+
+                    // Set initial opening balance (only for initial fiscal year)
+                    if (isInitialYear) {
+                        accountData.initialOpeningBalance = {
+                            date: fiscalYear.startDate,
+                            amount: openingBalanceAmount,
+                            type: openingBalanceType,
+                            initialFiscalYear: fiscalYearId
+                        };
+                    }
+
+                    // Set current opening balance
+                    accountData.openingBalance = {
+                        date: fiscalYear.startDate,
+                        amount: openingBalanceAmount,
+                        type: openingBalanceType,
+                        fiscalYear: fiscalYearId
+                    };
+
+                    // Set opening balance by fiscal year array
+                    accountData.openingBalanceByFiscalYear = [{
+                        amount: openingBalanceAmount,
+                        type: openingBalanceType,
+                        date: fiscalYear.startDate,
+                        fiscalYear: fiscalYearId
+                    }];
+
+                    // Set opening balance date
+                    accountData.openingBalanceDate = fiscalYear.startDate;
+
+                    console.log(`Row ${i} - Opening balance set: ${openingBalanceAmount} ${openingBalanceType}`);
+                } else {
+                    // Set default opening balance values when no opening balance provided
+                    accountData.initialOpeningBalance = {
+                        date: fiscalYear.startDate,
+                        amount: 0,
+                        type: 'Dr',
+                        initialFiscalYear: fiscalYearId
+                    };
+
+                    accountData.openingBalance = {
+                        date: fiscalYear.startDate,
+                        amount: 0,
+                        type: 'Dr',
+                        fiscalYear: fiscalYearId
+                    };
+
+                    accountData.openingBalanceByFiscalYear = [{
+                        amount: 0,
+                        type: 'Dr',
+                        date: fiscalYear.startDate,
+                        fiscalYear: fiscalYearId
+                    }];
+
+                    accountData.openingBalanceDate = fiscalYear.startDate;
+                }
+
+                // Check for duplicate account name in this company and fiscal year
+                const existingAccount = await mongoose.model('Account').findOne({
+                    name: accountData.name,
+                    company: companyId,
+                    fiscalYear: { $in: [fiscalYearId] }
+                });
+
+                if (existingAccount) {
+                    throw new Error(`Account "${accountData.name}" already exists in this fiscal year`);
+                }
+
+                accounts.push(accountData);
+                console.log(`✓ Row ${i} - Account prepared: ${accountData.name}`);
+
+            } catch (error) {
+                console.log(`✗ Row ${i} - Error: ${error.message}`);
+
+                // Helper function to safely extract cell values for error reporting
+                const getSafeCellValue = (cellIndex) => {
+                    try {
+                        const cell = row.getCell(cellIndex);
+                        return cell.text ? cell.text.toString().trim() :
+                            cell.value ? cell.value.toString().trim() : 'N/A';
+                    } catch (e) {
+                        return 'N/A';
+                    }
+                };
+
+                errors.push({
+                    row: i,
+                    message: error.message,
+                    data: {
+                        name: getSafeCellValue(1),
+                        companyGroup: getSafeCellValue(2),
+                        address: getSafeCellValue(3),
+                        phone: getSafeCellValue(5),
+                        email: getSafeCellValue(8),
+                        openingBalance: getSafeCellValue(9),
+                        balanceType: getSafeCellValue(10)
+                    }
+                });
+            }
+        }
+
+        console.log('Processing completed:');
+        console.log('- Total rows:', totalRows);
+        console.log('- Processed rows:', processedRows);
+        console.log('- Skipped rows:', skippedRows);
+        console.log('- Valid accounts:', accounts.length);
+        console.log('- Errors:', errors.length);
+
+        // Determine overall success based on actual results
+        const hasSuccessfulImports = accounts.length > 0;
+        const hasErrors = errors.length > 0;
+        const allFailed = accounts.length === 0 && errors.length > 0;
+        const partialSuccess = accounts.length > 0 && errors.length > 0;
+        const allSkipped = accounts.length === 0 && errors.length === 0 && skippedRows > 0;
+        const noData = totalRows === 0;
+
+        // Clean up uploaded file
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+                console.log('Uploaded file cleaned up');
+            }
+        } catch (cleanupError) {
+            console.error('Error cleaning up uploaded file:', cleanupError);
+        }
+
+        // If there are errors and no successful imports, return error response
+        if (allFailed) {
+            console.log('All accounts failed to import');
+            return res.status(400).json({
+                success: false,
+                error: 'IMPORT_FAILED',
+                message: 'All accounts failed to import. Please check the error details below.',
+                code: 'ALL_ACCOUNTS_FAILED',
+                data: {
+                    results: {
+                        total: totalRows,
+                        success: accounts.length,
+                        errors: errors,
+                        processed: processedRows,
+                        skipped: skippedRows,
+                        successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+                    },
+                    summary: {
+                        company: company.name,
+                        fiscalYear: fiscalYear.name,
+                        importDate: new Date().toISOString(),
+                        fileName: req.file.originalname,
+                        status: 'failed',
+                        availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name),
+                        isInitialFiscalYear: isInitialYear
+                    }
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processedIn: `${Date.now() - req.startTime}ms`
+                }
+            });
+        }
+
+        // If no valid accounts found
+        if (noData || allSkipped) {
+            console.log('No valid data found');
+            return res.status(400).json({
+                success: false,
+                error: 'NO_VALID_DATA',
+                message: 'No valid accounts found in the Excel file.',
+                code: 'EMPTY_DATA',
+                data: {
+                    results: {
+                        total: totalRows,
+                        success: accounts.length,
+                        errors: errors,
+                        processed: processedRows,
+                        skipped: skippedRows,
+                        successRate: 0
+                    },
+                    summary: {
+                        company: company.name,
+                        fiscalYear: fiscalYear.name,
+                        importDate: new Date().toISOString(),
+                        fileName: req.file.originalname,
+                        status: 'no_data',
+                        availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name),
+                        isInitialFiscalYear: isInitialYear
+                    }
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    processedIn: `${Date.now() - req.startTime}ms`
+                }
+            });
+        }
+
+        console.log('Starting database insertion...');
+
+        // Insert all valid accounts in a transaction to ensure atomicity
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const createdAccounts = await mongoose.model('Account').insertMany(accounts, { session });
+            await session.commitTransaction();
+            session.endSession();
+
+            console.log('Accounts inserted successfully:', createdAccounts.length);
+
+            // Prepare response based on success type
+            if (partialSuccess) {
+                console.log('Partial success response');
+                return res.json({
+                    success: true,
+                    warning: 'PARTIAL_IMPORT',
+                    message: `${accounts.length} accounts imported successfully, ${errors.length} accounts failed.`,
+                    code: 'PARTIAL_SUCCESS',
+                    data: {
+                        results: {
+                            total: totalRows,
+                            success: accounts.length,
+                            errors: errors,
+                            processed: processedRows,
+                            skipped: skippedRows,
+                            successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+                        },
+                        summary: {
+                            company: company.name,
+                            fiscalYear: fiscalYear.name,
+                            importDate: new Date().toISOString(),
+                            fileName: req.file.originalname,
+                            status: 'partial',
+                            availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name),
+                            isInitialFiscalYear: isInitialYear
+                        },
+                        importedAccounts: createdAccounts.map(acc => ({
+                            id: acc._id,
+                            name: acc.name,
+                            uniqueNumber: acc.uniqueNumber,
+                            companyGroup: Array.from(groupNameToIdMap.values()).find(g => g.id.equals(acc.companyGroups))?.name || 'Unknown',
+                            address: acc.address,
+                            phone: acc.phone,
+                            email: acc.email,
+                            openingBalance: acc.openingBalance?.amount || 0,
+                            balanceType: acc.openingBalance?.type || 'Dr'
+                        }))
+                    },
+                    metadata: {
+                        timestamp: new Date().toISOString(),
+                        processedIn: `${Date.now() - req.startTime}ms`
+                    }
+                });
+            } else {
+                // All successful
+                console.log('Full success response');
+                return res.json({
+                    success: true,
+                    message: `Successfully imported ${accounts.length} accounts`,
+                    code: 'SUCCESS',
+                    data: {
+                        results: {
+                            total: totalRows,
+                            success: accounts.length,
+                            errors: errors,
+                            processed: processedRows,
+                            skipped: skippedRows,
+                            successRate: totalRows > 0 ? ((accounts.length / totalRows) * 100).toFixed(2) : 0
+                        },
+                        summary: {
+                            company: company.name,
+                            fiscalYear: fiscalYear.name,
+                            importDate: new Date().toISOString(),
+                            fileName: req.file.originalname,
+                            status: 'success',
+                            availableGroups: Array.from(groupNameToIdMap.values()).map(g => g.name),
+                            isInitialFiscalYear: isInitialYear
+                        },
+                        importedAccounts: createdAccounts.map(acc => ({
+                            id: acc._id,
+                            name: acc.name,
+                            uniqueNumber: acc.uniqueNumber,
+                            companyGroup: Array.from(groupNameToIdMap.values()).find(g => g.id.equals(acc.companyGroups))?.name || 'Unknown',
+                            address: acc.address,
+                            phone: acc.phone,
+                            email: acc.email,
+                            openingBalance: acc.openingBalance?.amount || 0,
+                            balanceType: acc.openingBalance?.type || 'Dr'
+                        }))
+                    },
+                    metadata: {
+                        timestamp: new Date().toISOString(),
+                        processedIn: `${Date.now() - req.startTime}ms`
+                    }
+                });
+            }
+        } catch (insertError) {
+            await session.abortTransaction();
+            session.endSession();
+            console.error('Database insertion error:', insertError);
+
+            // Handle duplicate key errors specifically
+            if (insertError.code === 11000) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'DUPLICATE_ACCOUNTS',
+                    message: 'Some accounts already exist in the system.',
+                    code: 'DUPLICATE_KEY_ERROR',
+                    details: 'Please check for duplicate account names'
+                });
+            }
+
+            throw insertError;
+        }
+
+    } catch (error) {
+        console.error('=== ACCOUNTS IMPORT ERROR ===');
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('=== END ERROR ===');
+
+        // Clean up uploaded file on error
+        try {
+            if (req.file && req.file.path) {
+                fs.unlinkSync(req.file.path);
+                console.log('File cleaned up after error');
+            }
+        } catch (cleanupError) {
+            console.error('Error cleaning up uploaded file on error:', cleanupError);
+        }
+
+        return res.status(500).json({
+            success: false,
+            error: 'IMPORT_FAILED',
+            message: 'An error occurred while importing accounts',
+            code: 'PROCESSING_ERROR',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Update the route handler
+router.get('/accounts-import-template', (req, res) => {
+    const filePath = path.join(__dirname, '../../public/templates/accounts-import-template.xlsx');
+    res.download(filePath, 'accounts-import-template.xlsx', (err) => {
+        if (err) {
+            console.error('Error downloading template:', err);
+            res.status(404).send('Template file not found');
+        }
+    });
 });
 
 module.exports = router;

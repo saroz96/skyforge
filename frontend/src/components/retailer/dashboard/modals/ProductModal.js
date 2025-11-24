@@ -220,16 +220,6 @@ const ProductModal = ({ onClose }) => {
                         )}
                     </div>
                 </Modal.Body>
-                {/* <Modal.Footer className="d-flex justify-content-between">
-                    <div className="expiry-summary">
-                        <small>
-                            <span className="expiry-status expired me-2">Expired</span>
-                            <span className="expiry-status danger me-2">Critical (≤30 days)</span>
-                            <span className="expiry-status warning me-2">Warning (≤90 days)</span>
-                        </small>
-                    </div>
-                    <button type="button" className="btn btn-danger" onClick={onClose}>Close</button>
-                </Modal.Footer> */}
             </Modal>
 
             {showDetailsModal && selectedProduct && (

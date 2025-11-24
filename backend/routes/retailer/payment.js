@@ -1552,6 +1552,29 @@ router.put('/payments/:id', ensureAuthenticated, ensureCompanySelected, ensureTr
         session.endSession();
 
         // Prepare response data
+        // const responseData = {
+        //     success: true,
+        //     message: 'Payment updated successfully!',
+        //     data: {
+        //         payment: {
+        //             _id: existingPayment._id,
+        //             billNumber: existingPayment.billNumber,
+        //             date: existingPayment.date,
+        //             account: existingPayment.account,
+        //             debit: existingPayment.debit,
+        //             paymentAccount: existingPayment.paymentAccount,
+        //             description: existingPayment.description
+        //         },
+        //         printUrl: `/api/retailer/payments/${existingPayment._id}/direct-print`
+        //     }
+        // };
+
+        // if (req.query.print === 'true') {
+        //     responseData.redirectUrl = `/api/retailer/payments/${existingPayment._id}/direct-print`;
+        // }
+
+        // res.json(responseData);
+
         const responseData = {
             success: true,
             message: 'Payment updated successfully!',
@@ -1569,6 +1592,7 @@ router.put('/payments/:id', ensureAuthenticated, ensureCompanySelected, ensureTr
             }
         };
 
+        // Add redirect URL for printing if requested
         if (req.query.print === 'true') {
             responseData.redirectUrl = `/api/retailer/payments/${existingPayment._id}/direct-print`;
         }

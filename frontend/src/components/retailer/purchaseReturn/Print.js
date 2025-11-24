@@ -515,9 +515,9 @@ const PurchaseReturnPrint = () => {
                                     <th>Code</th>
                                     <th>HSN</th>
                                     <th>Description of Goods</th>
+                                    <th>Unit</th>
                                     <th>Batch</th>
                                     <th>Expiry</th>
-                                    <th>Unit</th>
                                     <th>Qty</th>
                                     <th>Rate</th>
                                     <th>MRP</th>
@@ -531,9 +531,9 @@ const PurchaseReturnPrint = () => {
                                         <td>{item.item.uniqueNumber}</td>
                                         <td>{item.item.hscode}</td>
                                         <td>{item.item.name}</td>
+                                        <td>{item.item.unit.name}</td>
                                         <td>{item.batchNumber}</td>
                                         <td>{new Date(item.expiryDate).toLocaleDateString()}</td>
-                                        <td>{item.item.unit.name}</td>
                                         <td>{item.quantity}</td>
                                         <td>{item.puPrice.toFixed(2)}</td>
                                         <td>{item.mrp.toFixed(2)}</td>
@@ -625,9 +625,9 @@ const PurchaseReturnPrint = () => {
                                 <th>Code</th>
                                 <th>HSN</th>
                                 <th>Description of Goods</th>
+                                <th>Unit</th>
                                 <th>Batch</th>
                                 <th>Expiry</th>
-                                <th>Unit</th>
                                 <th>Qty</th>
                                 <th>Rate</th>
                                 <th>MRP</th>
@@ -641,9 +641,9 @@ const PurchaseReturnPrint = () => {
                                     <td>{item.item.uniqueNumber}</td>
                                     <td>{item.item.hscode}</td>
                                     <td>{item.item.name}</td>
+                                    <td>{item.item.unit.name}</td>
                                     <td>{item.batchNumber}</td>
                                     <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                    <td>{item.item.unit.name}</td>
                                     <td>{item.quantity}</td>
                                     <td>{item.puPrice.toFixed(2)}</td>
                                     <td>{item.mrp.toFixed(2)}</td>

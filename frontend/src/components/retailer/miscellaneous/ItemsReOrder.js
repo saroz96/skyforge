@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiPrinter, FiFileText, FiInbox } from 'react-icons/fi';
 import { FaSearch } from 'react-icons/fa';
 import Header from '../Header';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const ItemsReOrderLevel = () => {
     const [stockData, setStockData] = useState({
@@ -13,6 +14,8 @@ const ItemsReOrderLevel = () => {
         currentFiscalYear: null,
         isAdminOrSupervisor: false
     });
+
+    const [showProductModal, setShowProductModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [filterType, setFilterType] = useState('reorderLevel');
@@ -46,7 +49,7 @@ const ItemsReOrderLevel = () => {
                             overStock: item.overStock || 0 // Ensure overStock exists
                         };
                     });
-                    
+
                     setStockData({
                         ...response.data.data,
                         items: processedItems
@@ -63,6 +66,22 @@ const ItemsReOrderLevel = () => {
 
         fetchStockData();
     }, []);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
+
+
 
     const filteredItems = stockData.items.filter(item => {
         // Apply filter type
@@ -269,7 +288,7 @@ const ItemsReOrderLevel = () => {
 
     return (
         <div className="container-fluid">
-            <Header/>
+            <Header />
             <div className="card mt-4 shadow">
                 <div className="card-header bg-primary text-white">
                     <div className="d-flex justify-content-between align-items-center">
@@ -419,7 +438,13 @@ const ItemsReOrderLevel = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
+
     );
 };
 

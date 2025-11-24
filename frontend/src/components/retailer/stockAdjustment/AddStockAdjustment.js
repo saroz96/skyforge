@@ -9,12 +9,14 @@ import NotificationToast from '../../NotificationToast';
 import '../../../stylesheet/noDateIcon.css'
 import VirtualizedItemList from '../../VirtualizedItemList';
 import useDebounce from '../../../hooks/useDebounce';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const AddStockAdjustment = () => {
     const navigate = useNavigate();
     const transactionDateRef = useRef(null);
     const nepaliDateRef = useRef(null);
     const marginPercentageRef = useRef(null);
+    const [showProductModal, setShowProductModal] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -119,6 +121,20 @@ const AddStockAdjustment = () => {
     useEffect(() => {
         calculateTotal();
     }, [items, formData]);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
 
     // useEffect(() => {
     //     if (itemSearchRef.current?.value) {
@@ -1834,6 +1850,11 @@ const AddStockAdjustment = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

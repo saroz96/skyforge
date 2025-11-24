@@ -7,6 +7,7 @@ import NotificationToast from '../../NotificationToast';
 import Header from '../Header';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const EditReceipt = () => {
     const { id } = useParams();
@@ -14,6 +15,13 @@ const EditReceipt = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [showProductModal, setShowProductModal] = useState(false);
+
+    // Add print after save state
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSaveReceiptEdit') === 'true' || false
+    );
+
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -59,6 +67,20 @@ const EditReceipt = () => {
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
 
     useEffect(() => {
         const fetchReceiptData = async () => {
@@ -129,13 +151,56 @@ const EditReceipt = () => {
         navigate(-1);
     };
 
+    // const handleSubmit = async (print = false) => {
+    //     setIsSaving(true);
+
+    //     try {
+    //         const payload = {
+    //             ...formData,
+    //             print
+    //         };
+
+    //         const response = await api.put(`/api/retailer/receipts/${id}`, payload);
+
+    //         setNotification({
+    //             show: true,
+    //             message: 'Receipt updated successfully!',
+    //             type: 'success'
+    //         });
+
+    //         // If print was requested, fetch print data and print immediately
+    //         if (print && response.data.data?.receipt?._id) {
+    //             try {
+    //                 const printResponse = await api.get(`/api/retailer/receipts/${response.data.data.receipt._id}/print`);
+    //                 printReceiptImmediately(printResponse.data.data);
+    //             } catch (printError) {
+    //                 console.error('Error fetching print data:', printError);
+    //                 setNotification({
+    //                     show: true,
+    //                     message: 'Receipt updated but failed to load print data',
+    //                     type: 'warning'
+    //                 });
+    //             }
+    //         }
+
+    //     } catch (err) {
+    //         setNotification({
+    //             show: true,
+    //             message: err.response?.data?.message || 'Failed to update receipt',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsSaving(false);
+    //     }
+    // };
+
     const handleSubmit = async (print = false) => {
         setIsSaving(true);
 
         try {
             const payload = {
                 ...formData,
-                print
+                print: print || printAfterSave // Use the parameter or the saved preference
             };
 
             const response = await api.put(`/api/retailer/receipts/${id}`, payload);
@@ -146,11 +211,12 @@ const EditReceipt = () => {
                 type: 'success'
             });
 
-            // If print was requested, fetch print data and print immediately
-            if (print && response.data.data?.receipt?._id) {
+            // If print was requested (either explicitly or via printAfterSave), fetch print data and print immediately
+            if ((print || printAfterSave) && response.data.data?.receipt?._id) {
                 try {
                     const printResponse = await api.get(`/api/retailer/receipts/${response.data.data.receipt._id}/print`);
                     printReceiptImmediately(printResponse.data.data);
+                    handleBack(); // Navigate back after successful print
                 } catch (printError) {
                     console.error('Error fetching print data:', printError);
                     setNotification({
@@ -158,7 +224,10 @@ const EditReceipt = () => {
                         message: 'Receipt updated but failed to load print data',
                         type: 'warning'
                     });
+                    handleBack(); // Still navigate back even if print fails
                 }
+            } else {
+                handleBack(); // Navigate back if no print was requested
             }
 
         } catch (err) {
@@ -170,6 +239,13 @@ const EditReceipt = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSaveReceiptEdit', isChecked);
     };
 
     const handleCancelVoucher = async () => {
@@ -845,7 +921,7 @@ const EditReceipt = () => {
                                 </div>
                             </div>
 
-                            <div className="d-flex justify-content-between">
+                            {/* <div className="d-flex justify-content-between">
                                 <div className="col">
                                     <input
                                         type="text"
@@ -894,6 +970,70 @@ const EditReceipt = () => {
                                     >
                                         <i className="fas fa-print"></i> Update & Print
                                     </button>
+                                </div>
+                            </div> */}
+
+                            <div className="d-flex justify-content-between align-items-center">
+                                <div className="col-md-8 col-12">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        name="description"
+                                        id="description"
+                                        placeholder="Description"
+                                        value={formData.description}
+                                        onChange={handleInputChange}
+                                        disabled={formData.status === 'canceled'}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                document.getElementById('saveBill')?.focus();
+                                            }
+                                        }}
+                                        autoComplete='off'
+                                    />
+                                </div>
+
+                                <div className="d-flex align-items-center gap-3">
+                                    {/* Print After Save Checkbox */}
+                                    <div className="form-check mb-0">
+                                        <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            id="printAfterSave"
+                                            checked={printAfterSave}
+                                            onChange={handlePrintAfterSaveChange}
+                                            disabled={formData.status === 'canceled'}
+                                        />
+                                        <label className="form-check-label" htmlFor="printAfterSave">
+                                            Print after update
+                                        </label>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="d-flex gap-2">
+                                        <Button variant="secondary" onClick={handleBack}>
+                                            <BiArrowBack /> Back
+                                        </Button>
+
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            id="saveBill"
+                                            disabled={isSaving || formData.status === 'canceled'}
+                                        >
+                                            {isSaving ? (
+                                                <>
+                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    Updating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fas fa-save"></i> Update
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -1073,6 +1213,11 @@ const EditReceipt = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

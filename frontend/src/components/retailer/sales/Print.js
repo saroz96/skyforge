@@ -516,11 +516,10 @@ const SalesBillPrint = () => {
                                     <th>Code</th>
                                     <th>HSN</th>
                                     <th>Description of Goods</th>
+                                    <th>Unit</th>
                                     <th>Batch</th>
                                     <th>Expiry</th>
-                                    <th>Unit</th>
-                                    <th>Quantity</th>
-                                    <th>Unit</th>
+                                    <th>Qty</th>
                                     <th>Price (Rs.)</th>
                                     <th>Total (Rs.)</th>
                                 </tr>
@@ -540,11 +539,10 @@ const SalesBillPrint = () => {
                                                 item.item.name
                                             )}
                                         </td>
+                                        <td>{item.item.unit?.name || ''}</td>
                                         <td>{item.batchNumber}</td>
                                         <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td>{item.item.unit.name}</td>
                                         <td>{item.quantity}</td>
-                                        <td>{item.item.unit?.name || ''}</td>
                                         <td>{formatTo2Decimal(item.price)}</td>
                                         <td>{formatTo2Decimal(item.quantity * item.price)}</td>
                                     </tr>
@@ -636,11 +634,10 @@ const SalesBillPrint = () => {
                                 <th>Code</th>
                                 <th>HSN</th>
                                 <th>Description of Goods</th>
+                                <th>Unit</th>
                                 <th>Batch</th>
                                 <th>Expiry</th>
-                                <th>Unit</th>
                                 <th>Qty</th>
-                                <th>Unit</th>
                                 <th>Price (Rs.)</th>
                                 <th>Total (Rs.)</th>
                             </tr>
@@ -658,11 +655,10 @@ const SalesBillPrint = () => {
                                             item.item.name
                                         )}
                                     </td>
+                                    <td>{item.item.unit?.name || ''}</td>
                                     <td>{item.batchNumber}</td>
                                     <td>{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
-                                    <td>{item.item.unit.name}</td>
                                     <td>{item.quantity}</td>
-                                    <td>{item.item.unit?.name || ''}</td>
                                     <td>{formatTo2Decimal(item.price)}</td>
                                     <td>{formatTo2Decimal(item.quantity * item.price)}</td>
                                 </tr>
@@ -716,11 +712,6 @@ const SalesBillPrint = () => {
                         <div className="print-signature-box">Received By</div>
                         <div className="print-signature-box">Prepared By: {billData.bill.user.name}</div>
                         <div className="print-signature-box">For: {billData.currentCompanyName}</div>
-                    </div>
-
-                    <div className="print-footer">
-                        <div>This is a computer generated invoice</div>
-                        <div>Thank you for your business!</div>
                     </div>
                 </div>
             </div>

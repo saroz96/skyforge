@@ -1205,7 +1205,7 @@ const VATConfirmationLetter = () => {
                                         className="d-flex align-items-center justify-content-center"
                                     >
                                         <FiFileText className="me-2" />
-                                        Generate Confirmation Letter
+                                        Generate
                                     </Button>
                                 </div>
                             </Card.Body>

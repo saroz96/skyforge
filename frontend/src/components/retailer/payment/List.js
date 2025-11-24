@@ -5,11 +5,13 @@ import Header from '../Header';
 import NepaliDate from 'nepali-date-converter';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import Loader from '../../Loader';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const PaymentsList = () => {
     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
+    const [showProductModal, setShowProductModal] = useState(false);
 
     const [company, setCompany] = useState({
         dateFormat: 'nepali',
@@ -172,8 +174,8 @@ const PaymentsList = () => {
                 paymentAccountFilter,
                 selectedRowIndex,
                 // Include date filters in search state for easy access
-            fromDate: data.fromDate,
-            toDate: data.toDate
+                fromDate: data.fromDate,
+                toDate: data.toDate
             }
         });
     }, [data, searchQuery, paymentAccountFilter, selectedRowIndex, data.fromDate, data.toDate]);
@@ -208,33 +210,33 @@ const PaymentsList = () => {
     // }, [shouldFetch, data.fromDate, data.toDate]);
 
     // Fetch data when generate report is clicked
-useEffect(() => {
-    const fetchData = async () => {
-        if (!shouldFetch) return;
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!shouldFetch) return;
 
-        try {
-            setLoading(true);
-            const params = new URLSearchParams();
-            if (data.fromDate) params.append('fromDate', data.fromDate);
-            if (data.toDate) params.append('toDate', data.toDate);
+            try {
+                setLoading(true);
+                const params = new URLSearchParams();
+                if (data.fromDate) params.append('fromDate', data.fromDate);
+                if (data.toDate) params.append('toDate', data.toDate);
 
-            const response = await api.get(`/api/retailer/payments/register?${params.toString()}`);
-            setData(response.data.data);
-            setError(null);
-            // Don't reset selection when new data loads if we have a saved position
-            if (!draftSave?.paymentsSearch?.selectedRowIndex) {
-                setSelectedRowIndex(0);
+                const response = await api.get(`/api/retailer/payments/register?${params.toString()}`);
+                setData(response.data.data);
+                setError(null);
+                // Don't reset selection when new data loads if we have a saved position
+                if (!draftSave?.paymentsSearch?.selectedRowIndex) {
+                    setSelectedRowIndex(0);
+                }
+            } catch (err) {
+                setError(err.response?.data?.error || 'Failed to fetch payments');
+            } finally {
+                setLoading(false);
+                setShouldFetch(false);
             }
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to fetch payments');
-        } finally {
-            setLoading(false);
-            setShouldFetch(false);
-        }
-    };
+        };
 
-    fetchData();
-}, [shouldFetch, data.fromDate, data.toDate]);
+        fetchData();
+    }, [shouldFetch, data.fromDate, data.toDate]);
 
     // Filter payments based on search and payment account
     // useEffect(() => {
@@ -259,27 +261,27 @@ useEffect(() => {
     // }, [data.payments, searchQuery, paymentAccountFilter]);
 
     // Filter payments based on search and payment account
-useEffect(() => {
-    const filtered = data.payments.filter(payment => {
-        const matchesSearch =
-            payment.billNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            payment.account?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            payment.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    useEffect(() => {
+        const filtered = data.payments.filter(payment => {
+            const matchesSearch =
+                payment.billNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                payment.account?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                payment.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
-        const matchesPaymentAccount =
-            paymentAccountFilter === '' ||
-            (payment.paymentAccount?.name?.toLowerCase() === paymentAccountFilter.toLowerCase());
+            const matchesPaymentAccount =
+                paymentAccountFilter === '' ||
+                (payment.paymentAccount?.name?.toLowerCase() === paymentAccountFilter.toLowerCase());
 
-        return matchesSearch && matchesPaymentAccount;
-    });
+            return matchesSearch && matchesPaymentAccount;
+        });
 
-    setFilteredPayments(filtered);
-    
-    // Reset selected row when filters change, but only if we don't have a saved position
-    if (!draftSave?.paymentsSearch?.selectedRowIndex) {
-        setSelectedRowIndex(0);
-    }
-}, [data.payments, searchQuery, paymentAccountFilter]);
+        setFilteredPayments(filtered);
+
+        // Reset selected row when filters change, but only if we don't have a saved position
+        if (!draftSave?.paymentsSearch?.selectedRowIndex) {
+            setSelectedRowIndex(0);
+        }
+    }, [data.payments, searchQuery, paymentAccountFilter]);
 
     // Calculate totals when filtered payments change
     useEffect(() => {
@@ -336,6 +338,20 @@ useEffect(() => {
             }
         }
     }, [selectedRowIndex, filteredPayments]);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
+    }, []);
 
     const handleDateChange = (e) => {
         const { name, value } = e.target;
@@ -667,28 +683,28 @@ useEffect(() => {
                                 className="btn btn-primary"
                                 onClick={() => navigate('/retailer/payments')}
                             >
-                                <i className="fas fa-receipt me-2"></i>New Voucher
+                                New Voucher
                             </button>
                             <button
                                 className="btn btn-secondary"
                                 onClick={() => handlePrint(false)}
                                 disabled={data.payments.length === 0}
                             >
-                                <i className="fas fa-print"></i>Print All
+                                Print All
                             </button>
                             <button
                                 className="btn btn-secondary"
                                 onClick={() => handlePrint(true)}
                                 disabled={data.payments.length === 0}
                             >
-                                <i className="fas fa-filter"></i>Print Filtered
+                                Print Filtered
                             </button>
                             <button
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={() => window.location.reload()}
                             >
-                                <i className="fas fa-sync-alt me-2"></i>Refresh
+                                Refresh
                             </button>
                         </div>
                     </div>
@@ -773,6 +789,11 @@ useEffect(() => {
                     )}
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

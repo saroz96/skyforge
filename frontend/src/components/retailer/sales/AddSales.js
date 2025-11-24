@@ -22,7 +22,7 @@ const AddSales = () => {
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
-
+    const itemsTableRef = useRef(null);
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
         displayTransactionsForPurchase: false,
@@ -341,6 +341,9 @@ const AddSales = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        // Scroll to items table when search input is focused
+        scrollToItemsTable();
     };
 
     const addItemToBill = async (item) => {
@@ -571,24 +574,6 @@ const AddSales = () => {
 
         setItems(updatedItems);
 
-        // if (formData.discountPercentage || formData.discountAmount) {
-        //     const subTotal = calculateTotal(updatedItems).subTotal;
-
-        //     if (formData.discountPercentage) {
-        //         const discountAmount = (subTotal * formData.discountPercentage) / 100;
-        //         setFormData(prev => ({
-        //             ...prev,
-        //             discountAmount: discountAmount.toFixed(2)
-        //         }));
-        //     } else if (formData.discountAmount) {
-        //         const discountPercentage = subTotal > 0 ? (formData.discountAmount / subTotal) * 100 : 0;
-        //         setFormData(prev => ({
-        //             ...prev,
-        //             discountPercentage: discountPercentage.toFixed(2)
-        //         }));
-        //     }
-        // }
-
         // Recalculate discounts if they have values
         if (formData.discountPercentage || formData.discountAmount) {
             const subTotal = calculateTotal(updatedItems).subTotal;
@@ -620,6 +605,17 @@ const AddSales = () => {
         }, 0);
     };
 
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
+    };
 
     const validateAllQuantities = (itemsToValidate = items) => {
         const newErrors = {};
@@ -656,47 +652,6 @@ const AddSales = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
-
-    // const calculateTotal = (itemsToCalculate = items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         subTotal += parseFloat(item.amount) || 0;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += parseFloat(item.amount) || 0;
-    //         } else {
-    //             nonTaxableAmount += parseFloat(item.amount) || 0;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     const discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //     const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
-    //     }
-
-    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
-
-    //     return {
-    //         subTotal,
-    //         taxableAmount: finalTaxableAmount,
-    //         nonTaxableAmount: finalNonTaxableAmount,
-    //         vatAmount,
-    //         totalAmount
-    //     };
-    // };
 
     const calculateTotal = (itemsToCalculate = items) => {
         // Initialize all amounts with proper precision
@@ -772,30 +727,6 @@ const AddSales = () => {
             roundOffAmount: preciseRound(roundOffAmount, 2)
         };
     };
-
-    // const handleDiscountPercentageChange = (e) => {
-    //     const value = parseFloat(e.target.value) || 0;
-    //     const subTotal = calculateTotal().subTotal;
-    //     const discountAmount = (subTotal * value) / 100;
-
-    //     setFormData({
-    //         ...formData,
-    //         discountPercentage: value,
-    //         discountAmount: discountAmount.toFixed(2)
-    //     });
-    // };
-
-    // const handleDiscountAmountChange = (e) => {
-    //     const value = parseFloat(e.target.value) || 0;
-    //     const subTotal = calculateTotal().subTotal;
-    //     const discountPercentage = subTotal > 0 ? (value / subTotal) * 100 : 0;
-
-    //     setFormData({
-    //         ...formData,
-    //         discountAmount: value,
-    //         discountPercentage: discountPercentage.toFixed(2)
-    //     });
-    // };
 
     const handleDiscountPercentageChange = (e) => {
         const value = parseFloat(e.target.value) || 0;
@@ -999,22 +930,6 @@ const AddSales = () => {
             // Calculate all values before submission
             const calculatedValues = calculateTotal();
 
-            // const billData = {
-            //     ...formData,
-            //     items: items.map(item => ({
-            //         item: item.item,
-            //         batchNumber: item.batchNumber,
-            //         expiryDate: item.expiryDate,
-            //         quantity: item.quantity,
-            //         unit: item.unit?._id,
-            //         price: item.price,
-            //         puPrice: item.puPrice,
-            //         netPuPrice: item.netPuPrice || item.puPrice,
-            //         vatStatus: item.vatStatus,
-            //         uniqueUuId: item.uniqueUuId
-            //     })),
-            //     print
-            // };
             const billData = {
                 accountId: formData.accountId,
                 items: items.map(item => ({
@@ -1229,10 +1144,10 @@ const AddSales = () => {
                                 <th>#</th>
                                 <th>HSN</th>
                                 <th>Description of Goods</th>
+                                <th>Unit</th>
                                 <th>Batch</th>
                                 <th>Expiry</th>
                                 <th>Qty</th>
-                                <th>Unit</th>
                                 <th>Rate (Rs.)</th>
                                 <th>Total (Rs.)</th>
                             </tr>
@@ -1249,10 +1164,10 @@ const AddSales = () => {
                     item.item.name
                 }
                                     </td>
+                                    <td>${item.item.unit?.name || ''}</td>
                                     <td>${item.batchNumber}</td>
                                     <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
                                     <td>${item.quantity}</td>
-                                    <td>${item.item.unit?.name || ''}</td>
                                     <td>${item.price.toFixed(2)}</td>
                                     <td>${(item.quantity * item.price).toFixed(2)}</td>
                                 </tr>
@@ -1835,19 +1750,8 @@ const AddSales = () => {
                                 />
                             </div>
                         </div>
-                        {/* Add Account Balance Display here
-                        <div className="form-group row mb-3">
-                            <div className="col-12">
-                                <AccountBalanceDisplay
-                                    accountId={formData.accountId}
-                                    api={api}
-                                    compact={true}
-                                    dateFormat={company.dateFormat}
-                                />
-                            </div>
-                        </div> */}
                         <hr style={{ border: "1px solid gray" }} />
-                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }}>
+                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }} ref={itemsTableRef}>
                             <table className="table table-bordered compact-table" id="itemsTable">
                                 <thead>
                                     <tr>
@@ -2014,223 +1918,6 @@ const AddSales = () => {
                         </div>
 
                         <hr style={{ border: "1px solid gray" }} />
-
-                        {/* <div className="form-group row">
-                            <div className="col">
-                                <label htmlFor="itemSearch">Search Item</label>
-                                <input
-                                    type="text"
-                                    id="itemSearch"
-                                    className="form-control"
-                                    placeholder="Search for an item"
-                                    autoComplete='off'
-                                    onChange={(e) => {
-                                        handleItemSearch(e);
-                                        setShowItemDropdown(true);
-                                    }}
-                                    onFocus={() => {
-                                        setShowItemDropdown(true);
-                                        document.querySelectorAll('.dropdown-item').forEach(item => {
-                                            item.classList.remove('active');
-                                        });
-                                    }}
-                                    ref={itemSearchRef}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const firstItem = document.querySelector('.dropdown-item');
-                                            if (firstItem) {
-                                                firstItem.classList.add('active');
-                                                firstItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const activeItem = document.querySelector('.dropdown-item.active');
-                                            if (activeItem) {
-                                                const index = parseInt(activeItem.getAttribute('data-index'));
-                                                const filteredItem = filteredItems.length > 0 ? filteredItems[index] : allItems[index];
-                                                if (filteredItem) {
-                                                    addItemToBill(filteredItem);
-                                                }
-                                            } else if (!e.target.value && items.length > 0) {
-                                                setShowItemDropdown(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('discountPercentage')?.focus();
-                                                }, 0);
-                                            }
-                                        }
-                                    }}
-                                />
-                                {showItemDropdown && (
-                                    <div
-                                        id="dropdownMenu"
-                                        className="dropdown-menu show"
-                                        style={{
-                                            maxHeight: '280px',
-                                            height: '280px',
-                                            overflowY: 'auto',
-                                            position: 'absolute',
-                                            width: '100%',
-                                            zIndex: 1000,
-                                            border: '1px solid #ddd',
-                                            borderRadius: '4px'
-                                        }}
-                                        ref={itemDropdownRef}
-                                    >
-                                        <div className="dropdown-header" style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(7, 1fr)',
-                                            alignItems: 'center',
-                                            padding: '0 10px',
-                                            height: '40px',
-                                            background: '#f0f0f0',
-                                            fontWeight: 'bold',
-                                            borderBottom: '1px solid #dee2e6'
-                                        }}>
-                                            <div><strong>#</strong></div>
-                                            <div><strong>HSN</strong></div>
-                                            <div><strong>Description</strong></div>
-                                            <div><strong>Category</strong></div>
-                                            <div><strong>Qty</strong></div>
-                                            <div><strong>Unit</strong></div>
-                                            <div><strong>Rate</strong></div>
-                                        </div>
-
-                                        {filteredItems.length > 0 ? (
-                                            filteredItems.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    data-index={index}
-                                                    className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'} expiry-${calculateExpiryStatus(item)}`}
-                                                    style={{
-                                                        height: '40px',
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'repeat(7, 1fr)',
-                                                        alignItems: 'center',
-                                                        padding: '0 10px',
-                                                        borderBottom: '1px solid #eee',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    onClick={() => addItemToBill(item)}
-                                                    tabIndex={0}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            addItemToBill(item);
-                                                        } else if (e.key === 'ArrowDown') {
-                                                            e.preventDefault();
-                                                            const nextItem = e.target.nextElementSibling;
-                                                            if (nextItem) {
-                                                                e.target.classList.remove('active');
-                                                                nextItem.classList.add('active');
-                                                                nextItem.focus();
-                                                            }
-                                                        } else if (e.key === 'ArrowUp') {
-                                                            e.preventDefault();
-                                                            const prevItem = e.target.previousElementSibling;
-                                                            if (prevItem) {
-                                                                e.target.classList.remove('active');
-                                                                prevItem.classList.add('active');
-                                                                prevItem.focus();
-                                                            } else {
-                                                                itemSearchRef.current.focus();
-                                                            }
-                                                        }
-                                                    }}
-                                                    onFocus={(e) => {
-                                                        document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                            item.classList.remove('active');
-                                                        });
-                                                        e.target.classList.add('active');
-                                                    }}
-                                                >
-                                                    <div>{item.uniqueNumber || 'N/A'}</div>
-                                                    <div>{item.hscode || 'N/A'}</div>
-                                                    <div className="dropdown-items-name">{item.name}</div>
-                                                    <div>{item.category?.name || 'No Category'}</div>
-                                                    <div>{item.stock || 0}</div>
-                                                    <div>{item.unit?.name || ''}</div>
-                                                    <div>Rs.{Math.round(item.stockEntries?.[0]?.price * 100) / 100 || 0}</div>
-                                                </div>
-                                            ))
-                                        ) : itemSearchRef.current?.value ? (
-                                            <div className="text-center py-3 text-muted">
-                                                No items found matching "{itemSearchRef.current.value}"
-                                            </div>
-                                        ) : allItems.length > 0 ? (
-                                            allItems
-                                                .filter(item => {
-                                                    if (formData.isVatExempt === 'all') return true;
-                                                    if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-                                                    if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-                                                    return true;
-                                                })
-                                                .map((item, index) => (
-                                                    <div
-                                                        key={index}
-                                                        data-index={index}
-                                                        className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'}`}
-                                                        style={{
-                                                            height: '40px',
-                                                            display: 'grid',
-                                                            gridTemplateColumns: 'repeat(7, 1fr)',
-                                                            alignItems: 'center',
-                                                            padding: '0 10px',
-                                                            borderBottom: '1px solid #eee',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                        onClick={() => addItemToBill(item)}
-                                                        tabIndex={0}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                addItemToBill(item);
-                                                            } else if (e.key === 'ArrowDown') {
-                                                                e.preventDefault();
-                                                                const nextItem = e.target.nextElementSibling;
-                                                                if (nextItem) {
-                                                                    e.target.classList.remove('active');
-                                                                    nextItem.classList.add('active');
-                                                                    nextItem.focus();
-                                                                }
-                                                            } else if (e.key === 'ArrowUp') {
-                                                                e.preventDefault();
-                                                                const prevItem = e.target.previousElementSibling;
-                                                                if (prevItem) {
-                                                                    e.target.classList.remove('active');
-                                                                    prevItem.classList.add('active');
-                                                                    prevItem.focus();
-                                                                } else {
-                                                                    itemSearchRef.current.focus();
-                                                                }
-                                                            }
-                                                        }}
-                                                        onFocus={(e) => {
-                                                            document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                                item.classList.remove('active');
-                                                            });
-                                                            e.target.classList.add('active');
-                                                        }}
-                                                    >
-                                                        <div>{item.uniqueNumber || 'N/A'}</div>
-                                                        <div>{item.hscode || 'N/A'}</div>
-                                                        <div className="dropdown-items-name">{item.name}</div>
-                                                        <div>{item.category?.name || 'No Category'}</div>
-                                                        <div>{item.stock || 0}</div>
-                                                        <div>{item.unit?.name || ''}</div>
-                                                        <div>Rs.{item.price || 0}</div>
-                                                    </div>
-                                                ))
-                                        ) : (
-                                            <div className="text-center py-3 text-muted">
-                                                No items available
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div> */}
-
                         {/* Item Search */}
                         <div className="row mb-3">
                             <div className="col-12">

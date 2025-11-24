@@ -5,12 +5,13 @@ import Header from '../Header';
 import NepaliDate from 'nepali-date-converter';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
 import Loader from '../../Loader';
+import ProductModal from '../dashboard/modals/ProductModal';
 
 const ReceiptsList = () => {
     const { draftSave, setDraftSave, clearDraft } = usePageNotRefreshContext();
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
-
+    const [showProductModal, setShowProductModal] = useState(false);
     const [company, setCompany] = useState({
         dateFormat: 'nepali',
         vatEnabled: true,
@@ -141,6 +142,21 @@ const ReceiptsList = () => {
         };
 
         fetchInitialData();
+    }, []);
+
+    useEffect(() => {
+        // Add F9 key handler here
+        const handF9leKeyDown = (e) => {
+            if (e.key === 'F9') {
+                e.preventDefault();
+                setShowProductModal(prev => !prev); // Toggle modal visibility
+            }
+        };
+
+        window.addEventListener('keydown', handF9leKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handF9leKeyDown);
+        };
     }, []);
 
     const [loading, setLoading] = useState(false);
@@ -658,28 +674,28 @@ const ReceiptsList = () => {
                                 className="btn btn-primary"
                                 onClick={() => navigate('/retailer/receipts')}
                             >
-                                <i className="fas fa-receipt me-2"></i>New Voucher
+                                New Voucher
                             </button>
                             <button
                                 className="btn btn-secondary"
                                 onClick={() => handlePrint(false)}
                                 disabled={data.receipts.length === 0}
                             >
-                                <i className="fas fa-print"></i>Print All
+                                Print All
                             </button>
                             <button
                                 className="btn btn-secondary"
                                 onClick={() => handlePrint(true)}
                                 disabled={data.receipts.length === 0}
                             >
-                                <i className="fas fa-filter"></i>Print Filtered
+                                Print Filtered
                             </button>
                             <button
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={() => window.location.reload()}
                             >
-                                <i className="fas fa-sync-alt me-2"></i>Refresh
+                                Refresh
                             </button>
                         </div>
                     </div>
@@ -764,6 +780,11 @@ const ReceiptsList = () => {
                     )}
                 </div>
             </div>
+
+            {/* Product modal */}
+            {showProductModal && (
+                <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
         </div>
     );
 };

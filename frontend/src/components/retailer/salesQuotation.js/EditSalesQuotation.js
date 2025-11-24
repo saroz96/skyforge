@@ -23,7 +23,7 @@ const EditSalesQuotation = () => {
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
     const transactionDateRef = useRef(null);
-
+    const itemsTableRef = useRef(null);
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
         displayTransactionsForPurchase: false,
@@ -337,6 +337,9 @@ const EditSalesQuotation = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        // Scroll to items table when search input is focused
+        scrollToItemsTable();
     };
 
     const fetchLastTransactions = async (itemId) => {
@@ -644,21 +647,6 @@ const EditSalesQuotation = () => {
 
         try {
             const quotationData = {
-                // accountId: formData.accountId,
-                // accountName: formData.accountName,
-                // accountAddress: formData.accountAddress,
-                // accountPan: formData.accountPan,
-                // transactionDateNepali: new NepaliDate(formData.transactionDateNepali).format('YYYY-MM-DD'),
-                // transactionDateRoman: formData.transactionDateRoman,
-                // nepaliDate: formData.nepaliDate,
-                // billDate: formData.billDate,
-                // billNumber: formData.billNumber,
-                // paymentMode: formData.paymentMode,
-                // isVatExempt: formData.isVatExempt,
-                // discountPercentage: formData.discountPercentage,
-                // discountAmount: formData.discountAmount,
-                // roundOffAmount: formData.roundOffAmount,
-                // vatPercentage: formData.vatPercentage,
                 ...formData,
                 items: formData.items.map(item => ({
                     ...item,
@@ -783,23 +771,6 @@ const EditSalesQuotation = () => {
         // Refresh accounts data
         fetchAccounts();
     };
-
-    // useEffect(() => {
-    //     const handleF6KeyForItems = (e) => {
-    //         if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
-    //             e.preventDefault();
-    //             setShowItemsModal(true);
-    //         }
-    //     };
-
-    //     window.addEventListener('keydown', handleF6KeyForItems);
-    //     return () => {
-    //         window.removeEventListener('keydown', handleF6KeyForItems);
-    //     };
-    // }, []);
-
-    // Memoized dropdown component
-
 
     // Add print function
     const printQuotationImmediately = async (quotationId) => {
@@ -1072,6 +1043,18 @@ const EditSalesQuotation = () => {
                 message: 'Quotation saved but failed to load print data',
                 type: 'warning'
             });
+        }
+    };
+
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
         }
     };
 
@@ -1490,125 +1473,130 @@ const EditSalesQuotation = () => {
 
                             <hr style={{ border: "1px solid gray" }} />
 
-                            <table className="table table-bordered compact-table" id="itemsTable">
-                                <thead>
-                                    <tr>
-                                        <th>S.N.</th>
-                                        <th>#</th>
-                                        <th>HSN</th>
-                                        <th>Description of Goods</th>
-                                        <th>Description</th>
-                                        <th>Qty</th>
-                                        <th>Unit</th>
-                                        <th>Rate</th>
-                                        <th>Amount</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="items">
-                                    {formData.items.map((item, index) => (
-                                        <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`}>
-                                            <td>{index + 1}</td>
-                                            <td>{item.uniqueNumber}</td>
-                                            <td>
-                                                <input type="hidden" name={`items[${index}][hscode]`} value={item.hscode} />
-                                                {item.hscode}
-                                            </td>
-                                            <td className="col-3">
-                                                <input type="hidden" name={`items[${index}][item]`} value={item.item?._id || item.item} />
-                                                {item.name}
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    name={`items[${index}][description]`}
-                                                    className="form-control form-control-sm"
-                                                    autoComplete='off'
-                                                    value={item.description}
-                                                    id={`description-${index}`}
-                                                    onChange={(e) => updateItemField(index, 'description', e.target.value)}
-                                                    onFocus={(e) => {
-                                                        e.target.select();
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById(`quantity-${index}`)?.focus();
-                                                        }
-                                                    }}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    name={`items[${index}][quantity]`}
-                                                    className="form-control item-quantity"
-                                                    id={`quantity-${index}`}
-                                                    value={item.quantity}
-                                                    onChange={(e) => updateItemField(index, 'quantity', e.target.value)}
-                                                    min="1"
-                                                    step="any"
-                                                    onFocus={(e) => e.target.select()}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            document.getElementById(`price-${index}`)?.focus();
-                                                        }
-                                                    }}
-                                                />
-                                            </td>
-                                            <td>
-                                                {item.unit?.name}
-                                                <input type="hidden" name={`items[${index}][unit]`} value={item.unit?._id} />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    name={`items[${index}][price]`}
-                                                    className="form-control item-price"
-                                                    id={`price-${index}`}
-                                                    value={item.price}
-                                                    onChange={(e) => updateItemField(index, 'price', e.target.value)}
-                                                    step="any"
-                                                    onFocus={(e) => e.target.select()}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            itemSearchRef.current?.focus();
-                                                        }
-                                                    }}
-                                                />
-                                            </td>
-                                            <td className="item-amount">{item.amount}</td>
-                                            <td>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-info"
-                                                    onClick={() => fetchLastTransactions(item.item)}
-                                                    title="View last transactions"
-                                                    disabled={isLoadingTransactions}
-                                                >
-                                                    {isLoadingTransactions ? (
-                                                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: "14px", height: "14px" }}></span>
-                                                    ) : (
-                                                        <i className="bi bi-clock-history"></i>
-                                                    )}
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-sm btn-danger"
-                                                    onClick={() => removeItem(index)}
-                                                >
-                                                    <i className="bi bi-trash"></i>
-                                                </button>
-                                            </td>
-                                            <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
+                            <div
+                                className="table-responsive"
+                                style={{ maxHeight: "400px", overflowY: "auto" }}
+                                ref={itemsTableRef}
+                            >
+                                <table className="table table-bordered compact-table" id="itemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>S.N.</th>
+                                            <th>#</th>
+                                            <th>HSN</th>
+                                            <th>Description of Goods</th>
+                                            <th>Description</th>
+                                            <th>Qty</th>
+                                            <th>Unit</th>
+                                            <th>Rate</th>
+                                            <th>Amount</th>
+                                            <th>Action</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody id="items">
+                                        {formData.items.map((item, index) => (
+                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`}>
+                                                <td>{index + 1}</td>
+                                                <td>{item.uniqueNumber}</td>
+                                                <td>
+                                                    <input type="hidden" name={`items[${index}][hscode]`} value={item.hscode} />
+                                                    {item.hscode}
+                                                </td>
+                                                <td className="col-3">
+                                                    <input type="hidden" name={`items[${index}][item]`} value={item.item?._id || item.item} />
+                                                    {item.name}
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        name={`items[${index}][description]`}
+                                                        className="form-control form-control-sm"
+                                                        autoComplete='off'
+                                                        value={item.description}
+                                                        id={`description-${index}`}
+                                                        onChange={(e) => updateItemField(index, 'description', e.target.value)}
+                                                        onFocus={(e) => {
+                                                            e.target.select();
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById(`quantity-${index}`)?.focus();
+                                                            }
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        name={`items[${index}][quantity]`}
+                                                        className="form-control item-quantity"
+                                                        id={`quantity-${index}`}
+                                                        value={item.quantity}
+                                                        onChange={(e) => updateItemField(index, 'quantity', e.target.value)}
+                                                        min="1"
+                                                        step="any"
+                                                        onFocus={(e) => e.target.select()}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                document.getElementById(`price-${index}`)?.focus();
+                                                            }
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    {item.unit?.name}
+                                                    <input type="hidden" name={`items[${index}][unit]`} value={item.unit?._id} />
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        name={`items[${index}][price]`}
+                                                        className="form-control item-price"
+                                                        id={`price-${index}`}
+                                                        value={item.price}
+                                                        onChange={(e) => updateItemField(index, 'price', e.target.value)}
+                                                        step="any"
+                                                        onFocus={(e) => e.target.select()}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                itemSearchRef.current?.focus();
+                                                            }
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td className="item-amount">{item.amount}</td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-info"
+                                                        onClick={() => fetchLastTransactions(item.item)}
+                                                        title="View last transactions"
+                                                        disabled={isLoadingTransactions}
+                                                    >
+                                                        {isLoadingTransactions ? (
+                                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: "14px", height: "14px" }}></span>
+                                                        ) : (
+                                                            <i className="bi bi-clock-history"></i>
+                                                        )}
+                                                    </button>
 
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={() => removeItem(index)}
+                                                    >
+                                                        <i className="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                                <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                             <hr style={{ border: "1px solid gray" }} />
 
 
@@ -1621,16 +1609,17 @@ const EditSalesQuotation = () => {
                                         className="form-control"
                                         placeholder="Search for an item"
                                         autoComplete='off'
+                                        onFocus={handleSearchFocus}
                                         onChange={(e) => {
                                             handleItemSearch(e);
                                             setShowItemDropdown(true);
                                         }}
-                                        onFocus={() => {
-                                            setShowItemDropdown(true);
-                                            document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                item.classList.remove('active');
-                                            });
-                                        }}
+                                        // onFocus={() => {
+                                        //     setShowItemDropdown(true);
+                                        //     document.querySelectorAll('.dropdown-item').forEach(item => {
+                                        //         item.classList.remove('active');
+                                        //     });
+                                        // }}
                                         ref={itemSearchRef}
                                         onKeyDown={(e) => {
                                             if (e.key === 'ArrowDown') {
@@ -1836,53 +1825,6 @@ const EditSalesQuotation = () => {
                                     )}
                                 </div>
                             </div>
-
-                            {/* Item Search */}
-                            {/* <div className="row mb-3">
-                                <div className="col-12">
-                                    <label htmlFor="itemSearch" className="form-label">Search Item</label>
-                                    <div className="position-relative">
-                                        <input
-                                            type="text"
-                                            id="itemSearch"
-                                            className="form-control form-control-sm"
-                                            placeholder="Search for an item"
-                                            autoComplete='off'
-                                            value={searchQuery}
-                                            onChange={handleItemSearch}
-                                            onFocus={handleSearchFocus}
-                                            ref={itemSearchRef}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowDown') {
-                                                    e.preventDefault();
-                                                    const firstItem = document.querySelector('.dropdown-item');
-                                                    if (firstItem) {
-                                                        firstItem.classList.add('active');
-                                                        firstItem.focus();
-                                                    }
-                                                } else if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    const activeItem = document.querySelector('.dropdown-item.active');
-                                                    if (activeItem) {
-                                                        const index = parseInt(activeItem.getAttribute('data-index'));
-                                                        const itemToAdd = memoizedFilteredItems[index];
-                                                        if (itemToAdd) {
-                                                            addItemToBill(itemToAdd);
-                                                        }
-                                                    } else if (!searchQuery && items.length > 0) {
-                                                        setShowItemDropdown(false);
-                                                        setTimeout(() => {
-                                                            document.getElementById('discountPercentage')?.focus();
-                                                        }, 0);
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                        {ItemDropdown}
-                                    </div>
-                                </div>
-                            </div> */}
-
                             <hr style={{ border: "1px solid gray" }} />
 
                             <div className="table-responsive">
@@ -2011,35 +1953,6 @@ const EditSalesQuotation = () => {
                                 </table>
                             </div>
 
-                            {/* <div className="d-flex justify-content-end mt-4">
-                                <Button variant="secondary" className="me-2" onClick={handleBack}>
-                                    <BiArrowBack /> Back
-                                </Button>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary mr-2 p-3"
-                                    id="saveBill"
-                                    onClick={(e) => handleSubmit(e, false)}
-                                    disabled={isSaving}
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        <i className="bi bi-save"></i>
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary p-3"
-                                    onClick={(e) => handleSubmit(e, true)}
-                                    disabled={isSaving}
-                                >
-                                    <i className="bi bi-printer"></i>
-                                </button>
-                            </div> */}
                             {/* Action Buttons */}
                             <div className="d-flex justify-content-end mt-4">
                                 {/* Add Print After Save Checkbox */}
@@ -2074,7 +1987,7 @@ const EditSalesQuotation = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <i className="bi bi-save me-1"></i> Save
+                                                <i className="bi bi-save me-1"></i> Update
                                             </>
                                         )}
                                     </button>

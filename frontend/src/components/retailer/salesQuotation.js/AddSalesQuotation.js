@@ -46,6 +46,7 @@ const AddSalesQuotation = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
+    const itemsTableRef = useRef(null);
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -344,6 +345,9 @@ const AddSalesQuotation = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        // Scroll to items table when search input is focused
+        scrollToItemsTable();
     };
 
     const addItemToBill = async (item) => {
@@ -365,7 +369,7 @@ const AddSalesQuotation = () => {
             category: item.category?.name || 'No Category',
             quantity: 0,
             unit: item.unit,
-            price: firstStockEntry.price || 0,
+            price: Math.round(firstStockEntry.price * 100) / 100,
             puPrice: firstStockEntry.puPrice || 0,
             netPuPrice: firstStockEntry.netPuPrice || 0,
             amount: 0,
@@ -871,6 +875,18 @@ const AddSalesQuotation = () => {
 
         // Refresh accounts data
         fetchAccounts();
+    };
+
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
     };
 
     const printQuotationImmediately = async (quotationId) => {
@@ -1534,7 +1550,7 @@ const AddSalesQuotation = () => {
                             <hr className="my-2" />
 
                             {/* Items Table */}
-                            <div className="table-responsive mb-3" style={{ maxHeight: "300px", overflowY: "auto" }}>
+                            <div className="table-responsive mb-3" style={{ maxHeight: "300px", overflowY: "auto" }} ref={itemsTableRef}>
                                 <table className="table table-sm table-bordered table-hover">
                                     <thead className="sticky-top bg-light">
                                         <tr>

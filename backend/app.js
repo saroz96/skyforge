@@ -46,7 +46,9 @@ const transactionRoutes = require('./routes/retailer/transaction');
 const networkStatusRoutes = require('./routes/networkStatus');
 const invoiceWiseProfitLossRoutes = require('./routes/retailer/profitAnalysis');
 const debitNoteRoutes = require('./routes/retailer/debitNote');
+const creditNoteRoutes = require('./routes/retailer/creditNote');
 const confirmationRoutes = require('./routes/retailer/vatConfirmation');
+const trialBalanceRoutes = require('./routes/retailer/trialBalance');
 
 const backupRoutes = require('./routes/backupRoutes');
 
@@ -147,16 +149,19 @@ app.use('/api/retailer', paymentRoutes);
 app.use('/api/retailer', receiptRoutes);
 app.use('/api/retailer', stockAdjustmentRoutes);
 app.use('/api/retailer', dashboardV1Routes);
-app.use('/api/retailer', salesQuotationRoutes)
-app.use('/api/retailer', ageingReportRoutes)
-app.use('/api/retailer', journalVoucherRoutes)
-app.use('/api/retailer', settingsRoutes)
-app.use('/api/retailer', transactionRoutes)
-app.use('/api/retailer', invoiceWiseProfitLossRoutes)
-app.use('/api/retailer', debitNoteRoutes)
+app.use('/api/retailer', salesQuotationRoutes);
+app.use('/api/retailer', ageingReportRoutes);
+app.use('/api/retailer', journalVoucherRoutes);
+app.use('/api/retailer', settingsRoutes);
+app.use('/api/retailer', transactionRoutes);
+app.use('/api/retailer', invoiceWiseProfitLossRoutes);
+app.use('/api/retailer', debitNoteRoutes);
+app.use('/api/retailer', creditNoteRoutes);
+
+app.use('/api/retailer', trialBalanceRoutes);
+app.use('/api/retailer/vat-confirmation', confirmationRoutes);
 
 app.use('/api/backup', backupRoutes);
-app.use('/api/vat-confirmation', confirmationRoutes);
 
 
 // Only handle non-API routes with React

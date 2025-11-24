@@ -25,6 +25,13 @@ const EditPurchase = () => {
         displayTransactionsForSalesReturn: false,
         displayTransactionsForPurchaseReturn: false
     });
+    const itemsTableRef = useRef(null);
+
+    // Add this state near your other state declarations
+    const [printAfterSave, setPrintAfterSave] = useState(
+        localStorage.getItem('printAfterSavePurchase') === 'true' || false
+    );
+
     // Add these state variables with your existing state declarations
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState(''); // Store the last search
@@ -499,6 +506,8 @@ const EditPurchase = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        scrollToItemsTable();
     };
 
 
@@ -556,6 +565,18 @@ const EditPurchase = () => {
             ...prev,
             items: updatedItems
         }));
+    };
+
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
     };
 
     // const calculateTotal = (itemsToCalculate = formData.items) => {
@@ -983,6 +1004,113 @@ const EditPurchase = () => {
         };
     }, []);
 
+    // const handleSubmit = async (e, print = false) => {
+    //     e.preventDefault();
+    //     setIsSaving(true);
+
+    //     try {
+    //         // Debug: Log the form data before submission
+    //         console.log('Form data before submission:', {
+    //             ...formData,
+    //             items: formData.items.map(item => ({
+    //                 ...item,
+    //                 item: item.item?._id || item.item, // Ensure we have the ID
+    //                 uniqueUuId: item.uniqueUuId || '' // Ensure uniqueUuId exists
+    //             }))
+    //         });
+
+    //         const billData = {
+    //             accountId: formData.accountId,
+    //             accountName: formData.accountName,
+    //             accountAddress: formData.accountAddress,
+    //             accountPan: formData.accountPan,
+    //             transactionDateNepali: new Date(formData.transactionDateNepali).toISOString().split('T')[0],
+    //             transactionDateRoman: formData.transactionDateRoman,
+    //             nepaliDate: new Date(formData.nepaliDate).toISOString().split('T')[0],
+    //             billDate: formData.billDate,
+    //             billNumber: formData.billNumber,
+    //             partyBillNumber: formData.partyBillNumber,
+    //             paymentMode: formData.paymentMode,
+    //             isVatExempt: formData.isVatExempt,
+    //             discountPercentage: formData.discountPercentage,
+    //             discountAmount: formData.discountAmount,
+    //             roundOffAmount: formData.roundOffAmount,
+    //             CCAmount: formData.CCAmount,
+    //             vatPercentage: formData.vatPercentage,
+    //             subTotal: totals.subTotal,
+    //             taxableAmount: totals.taxableAmount,
+    //             nonTaxableAmount: totals.nonTaxableAmount,
+    //             vatAmount: totals.vatAmount,
+    //             totalAmount: totals.totalAmount,
+    //             totalCCAmount: totals.totalCCAmount,
+    //             items: formData.items.map(item => ({
+    //                 ...item,
+    //                 item: item.item?._id || item.item, // Ensure we have the ID
+    //                 uniqueUuId: item.uniqueUuId || '', // Preserve existing uniqueUuId
+    //                 unit: item.unit?._id || item.unit, // Ensure unit ID is correct
+    //                 batchNumber: item.batchNumber,
+    //                 expiryDate: item.expiryDate,
+    //                 WSUnit: item.WSUnit,
+    //                 quantity: item.quantity,
+    //                 bonus: item.bonus,
+    //                 puPrice: item.puPrice,
+    //                 price: item.price || 0,
+    //                 mrp: item.mrp || 0,
+    //                 marginPercentage: item.marginPercentage || 0,
+    //                 currency: item.currency || 'NPR',
+    //                 CCPercentage: item.CCPercentage || 7.5,
+    //                 itemCCAmount: item.itemCCAmount || 0,
+    //                 vatStatus: item.vatStatus
+    //             })),
+    //             print
+    //         };
+
+    //         console.log('Submitting purchase data:', billData); // Debug log
+
+    //         const response = await api.put(`/api/retailer/purchase/edit/${id}`, billData);
+
+    //         console.log('Update response:', response.data); // Debug response
+
+    //         setNotification({
+    //             show: true,
+    //             message: 'Purchase updated successfully!',
+    //             type: 'success'
+    //         });
+
+    //         // Refresh items and accounts after successful update
+    //         await fetchItemsAndAccounts();
+
+    //         if (print) {
+    //             window.open(`/purchase-bills/${response.data.data.bill._id}/print`, '_blank');
+    //             navigate('/purchase-bills');
+    //         } else {
+    //             // Refresh filtered items based on VAT selection
+    //             const filtered = allItems.filter(item => {
+    //                 if (formData.isVatExempt === 'all') return true;
+    //                 if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
+    //                 if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
+    //                 return true;
+    //             });
+    //             setFilteredItems(filtered);
+    //         }
+    //     } catch (error) {
+    //         console.error('Full error details:', {
+    //             message: error.message,
+    //             response: error.response?.data,
+    //             config: error.config,
+    //             stack: error.stack
+    //         });
+
+    //         setNotification({
+    //             show: true,
+    //             message: error.response?.data?.error || 'Failed to update purchase. Please try again.',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setIsSaving(false);
+    //     }
+    // };
+
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
         setIsSaving(true);
@@ -1041,7 +1169,7 @@ const EditPurchase = () => {
                     itemCCAmount: item.itemCCAmount || 0,
                     vatStatus: item.vatStatus
                 })),
-                print
+                print: print || printAfterSave
             };
 
             console.log('Submitting purchase data:', billData); // Debug log
@@ -1059,9 +1187,13 @@ const EditPurchase = () => {
             // Refresh items and accounts after successful update
             await fetchItemsAndAccounts();
 
-            if (print) {
-                window.open(`/purchase-bills/${response.data.data.bill._id}/print`, '_blank');
-                navigate('/purchase-bills');
+            if (print || printAfterSave) {
+                if (response.data.data?.billId) {
+                    await printImmediately(response.data.data.billId);
+                    setTimeout(() => {
+                        handleBack();
+                    }, 1000);
+                }
             } else {
                 // Refresh filtered items based on VAT selection
                 const filtered = allItems.filter(item => {
@@ -1071,6 +1203,8 @@ const EditPurchase = () => {
                     return true;
                 });
                 setFilteredItems(filtered);
+
+                handleBack();
             }
         } catch (error) {
             console.error('Full error details:', {
@@ -1087,6 +1221,409 @@ const EditPurchase = () => {
             });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+
+    const handlePrintAfterSaveChange = (e) => {
+        const isChecked = e.target.checked;
+        setPrintAfterSave(isChecked);
+        localStorage.setItem('printAfterSavePurchase', isChecked);
+    };
+
+    const printImmediately = async (billId) => {
+        try {
+            const response = await api.get(`/api/retailer/purchase/${billId}/print`);
+            const printData = response.data.data;
+
+            // Create a temporary div to hold the print content
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+
+            // Helper function to format numbers to 2 decimal places
+            const formatTo2Decimal = (num) => {
+                const rounded = Math.round(num * 100) / 100;
+                const parts = rounded.toString().split(".");
+                if (!parts[1]) return parts[0] + ".00";
+                if (parts[1].length === 1) return parts[0] + "." + parts[1] + "0";
+                return rounded.toString();
+            };
+
+            // Helper function for number to words conversion
+            const numberToWords = (num) => {
+                const ones = [
+                    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                    'Seventeen', 'Eighteen', 'Nineteen'
+                ];
+
+                const tens = [
+                    '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+                ];
+
+                const scales = ['', 'Thousand', 'Million', 'Billion'];
+
+                const convertHundreds = (num) => {
+                    let words = '';
+
+                    if (num > 99) {
+                        words += ones[Math.floor(num / 100)] + ' Hundred ';
+                        num %= 100;
+                    }
+
+                    if (num > 19) {
+                        words += tens[Math.floor(num / 10)] + ' ';
+                        num %= 10;
+                    }
+
+                    if (num > 0) {
+                        words += ones[num] + ' ';
+                    }
+
+                    return words.trim();
+                };
+
+                if (num === 0) return 'Zero';
+                if (num < 0) return 'Negative ' + numberToWords(Math.abs(num));
+
+                let words = '';
+
+                for (let i = 0; i < scales.length; i++) {
+                    let unit = Math.pow(1000, scales.length - i - 1);
+                    let currentNum = Math.floor(num / unit);
+
+                    if (currentNum > 0) {
+                        words += convertHundreds(currentNum) + ' ' + scales[scales.length - i - 1] + ' ';
+                    }
+
+                    num %= unit;
+                }
+
+                return words.trim();
+            };
+
+            const numberToWordsWithPaisa = (amount) => {
+                const rupees = Math.floor(amount);
+                const paisa = Math.round((amount - rupees) * 100);
+
+                let result = numberToWords(rupees) + ' Rupees';
+
+                if (paisa > 0) {
+                    result += ' and ' + numberToWords(paisa) + ' Paisa';
+                }
+
+                return result;
+            };
+
+            // Create the printable content for purchase bill matching PurchaseBillPrint structure
+            tempDiv.innerHTML = `
+      <div id="printableContent" class="print-version">
+        <div class="print-invoice-container">
+          <div class="print-invoice-header">
+            <div class="print-company-name">${printData.currentCompanyName}</div>
+            <div class="print-company-details">
+              ${printData.currentCompany.address} ${printData.currentCompany.city ? printData.currentCompany.city : ''} |
+              Tel: ${printData.currentCompany.phone} | PAN: ${printData.currentCompany.pan}
+            </div>
+            <div class="print-invoice-title">PURCHASE INVOICE</div>
+          </div>
+
+          <div class="print-invoice-details">
+            <div>
+              <div><strong>Supplier:</strong> ${printData.bill.account?.name || 'Account Not Found'}</div>
+              <div><strong>Address:</strong> ${printData.bill.account?.address || 'N/A'}</div>
+              <div><strong>PAN:</strong> ${printData.bill.account?.pan || 'N/A'}</div>
+              <div><strong>Payment Mode:</strong> ${printData.bill.paymentMode}</div>
+            </div>
+            <div>
+              <div><strong>Invoice No:</strong> ${printData.bill.billNumber}</div>
+              <div><strong>Supplier Inv No:</strong> ${printData.bill.partyBillNumber || 'N/A'}</div>
+              <div><strong>Transaction Date:</strong> ${new Date(printData.bill.transactionDate).toLocaleDateString()}</div>
+              <div><strong>Inv. Issue Date:</strong> ${new Date(printData.bill.date).toLocaleDateString()}</div>
+            </div>
+          </div>
+
+          <table class="print-invoice-table">
+            <thead>
+              <tr>
+                <th>SN</th>
+                <th>Code</th>
+                <th>HSN</th>
+                <th>Description of Goods</th>
+                <th>Unit</th>
+                <th>Batch</th>
+                <th>Expiry</th>
+                <th>Qty</th>
+                <th>Free</th>
+                <th>Rate</th>
+                <th>MRP</th>
+                <th>%</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${printData.bill.items.map((item, i) => `
+                <tr key="${i}">
+                  <td>${i + 1}</td>
+                  <td>${item.item.uniqueNumber}</td>
+                  <td>${item.item.hscode}</td>
+                  <td>
+                    ${item.item.vatStatus === 'vatExempt' ?
+                    `${item.item.name} <span style="color: red">*</span>` :
+                    item.item.name
+                }
+                  </td>
+                  <td>${item.item.unit?.name || ''}</td>
+                  <td>${item.batchNumber}</td>
+                  <td>${item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}</td>
+                  <td>${item.Altquantity || item.quantity}</td>
+                  <td>${item.Altbonus || item.bonus || 0}</td>
+                  <td>${formatTo2Decimal(item.AltpuPrice || item.puPrice)}</td>
+                  <td>${formatTo2Decimal(item.mrp || 0)}</td>
+                  <td>${formatTo2Decimal(item.marginPercentage || 0)}</td>
+                  <td>${formatTo2Decimal((item.Altquantity || item.quantity) * (item.AltpuPrice || item.puPrice))}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tr>
+              <td colSpan="13" style="borderBottom: '1px dashed #000'"></td>
+            </tr>
+          </table>
+
+          <table class="print-totals-table">
+            <tbody>
+              <tr>
+                <td><strong>Sub Total:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.subTotal)}</td>
+              </tr>
+              <tr>
+                <td><strong>Discount (${printData.bill.discountPercentage}%):</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.discountAmount)}</td>
+              </tr>
+              <tr>
+                <td><strong>CC Charge:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.totalCCAmount || 0)}</td>
+              </tr>
+              ${!printData.bill.isVatExempt ? `
+                <tr>
+                  <td><strong>Taxable Amount:</strong></td>
+                  <td class="print-text-right">${formatTo2Decimal(printData.bill.taxableAmount)}</td>
+                </tr>
+                <tr>
+                  <td><strong>VAT (${printData.bill.vatPercentage}%):</strong></td>
+                  <td class="print-text-right">${formatTo2Decimal(printData.bill.taxableAmount * printData.bill.vatPercentage / 100)}</td>
+                </tr>
+              ` : ''}
+              <tr>
+                <td><strong>Round Off:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.roundOffAmount)}</td>
+              </tr>
+              <tr>
+                <td><strong>Grand Total:</strong></td>
+                <td class="print-text-right">${formatTo2Decimal(printData.bill.totalAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="print-amount-in-words">
+            <strong>In Words:</strong> ${numberToWordsWithPaisa(printData.bill.totalAmount)} Only.
+          </div>
+
+          <br /><br />
+          <div class="print-signature-area">
+            <div class="print-signature-box">Prepared By</div>
+            <div class="print-signature-box">Checked By</div>
+            <div class="print-signature-box">Approved By</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+            // Add print styles matching PurchaseBillPrint
+            const styles = `
+      @media print {
+        @page {
+          size: A4;
+          margin: 5mm;
+        }
+
+        body {
+          font-family: 'Arial Narrow', Arial, sans-serif;
+          font-size: 9pt;
+          line-height: 1.2;
+          color: #000;
+          background: white;
+          margin: 0;
+          padding: 0;
+        }
+
+        .print-invoice-container {
+          width: 100%;
+          max-width: 210mm;
+          margin: 0 auto;
+          padding: 2mm;
+        }
+
+        .print-invoice-header {
+          text-align: center;
+          margin-bottom: 3mm;
+          border-bottom: 1px dashed #000;
+          padding-bottom: 2mm;
+        }
+
+        .print-invoice-title {
+          font-size: 12pt;
+          font-weight: bold;
+          margin: 2mm 0;
+          text-transform: uppercase;
+        }
+
+        .print-company-name {
+          font-size: 16pt;
+          font-weight: bold;
+        }
+
+        .print-company-details {
+          font-size: 8pt;
+          font-weight: bold;
+          margin: 1mm 0;
+        }
+
+        .print-invoice-details {
+          display: flex;
+          justify-content: space-between;
+          margin: 2mm 0;
+          font-size: 8pt;
+        }
+
+        .print-invoice-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 3mm 0;
+          font-size: 8pt;
+          border: none;
+        }
+
+        .print-invoice-table thead {
+          border-top: 1px dashed #000;
+          border-bottom: 1px dashed #000;
+        }
+
+        .print-invoice-table th {
+          background-color: transparent;
+          border: none;
+          padding: 1mm;
+          text-align: left;
+          font-weight: bold;
+        }
+
+        .print-invoice-table td {
+          border: none;
+          padding: 1mm;
+          border-bottom: 1px solid #eee;
+        }
+
+        .print-text-right {
+          text-align: right;
+        }
+
+        .print-text-center {
+          text-align: center;
+        }
+
+        .print-amount-in-words {
+          font-size: 8pt;
+          margin: 2mm 0;
+          padding: 1mm;
+          border: 1px dashed #000;
+        }
+
+        .print-signature-area {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 5mm;
+          font-size: 8pt;
+        }
+
+        .print-signature-box {
+          text-align: center;
+          width: 30%;
+          border-top: 1px dashed #000;
+          padding-top: 1mm;
+          font-weight: bold;
+        }
+
+        .print-totals-table {
+          width: 60%;
+          margin-left: auto;
+          border-collapse: collapse;
+          font-size: 8pt;
+        }
+
+        .print-totals-table td {
+          padding: 1mm;
+        }
+
+        .print-footer {
+          text-align: center;
+          font-size: 7pt;
+          margin-top: 3mm;
+          border-top: 1px dashed #000;
+          padding-top: 1mm;
+        }
+
+        .no-print {
+          display: none;
+        }
+
+        /* Hide screen version when printing */
+        .screen-version {
+          display: none;
+        }
+      }
+
+      @media screen {
+        /* Hide print version on screen */
+        .print-version {
+          display: none;
+        }
+      }
+    `;
+
+            // Create print window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+      <html>
+        <head>
+          <title>Purchase_Invoice_${printData.bill.billNumber}</title>
+          <style>${styles}</style>
+        </head>
+        <body>
+          ${tempDiv.innerHTML}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 200);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+            printWindow.document.close();
+
+            // Clean up
+            document.body.removeChild(tempDiv);
+        } catch (error) {
+            console.error('Error fetching print data:', error);
+            setNotification({
+                show: true,
+                message: 'Bill updated but failed to load print data',
+                type: 'warning'
+            });
         }
     };
 
@@ -1535,7 +2072,7 @@ const EditPurchase = () => {
 
                         <hr style={{ border: "1px solid gray" }} />
 
-                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }}>
+                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }} ref={itemsTableRef}>
                             <table className="table table-bordered compact-table" id="itemsTable">
                                 <thead>
                                     <tr>
@@ -1716,46 +2253,48 @@ const EditPurchase = () => {
                             </table>
                         </div>
 
-                        <div className="form-group row">
-                            <div className="col">
-                                <label htmlFor="itemSearch">Search Item</label>
-                                <input
-                                    type="text"
-                                    id="itemSearch"
-                                    className="form-control"
-                                    placeholder="Search item (Press F6 to create new item)"
-                                    autoComplete='off'
-                                    value={searchQuery}
-                                    onChange={handleItemSearch}
-                                    onFocus={handleSearchFocus}
-                                    ref={itemSearchRef}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const firstItem = document.querySelector('.dropdown-item');
-                                            if (firstItem) {
-                                                firstItem.classList.add('active');
-                                                firstItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const activeItem = document.querySelector('.dropdown-item.active');
-                                            if (activeItem) {
-                                                const index = parseInt(activeItem.getAttribute('data-index'));
-                                                const itemToAdd = memoizedFilteredItems[index];
-                                                if (itemToAdd) {
-                                                    addItemToBill(itemToAdd);
+                        <div className="row mb-3">
+                            <div className="col-12">
+                                <label htmlFor="itemSearch" className="form-label">Search Item</label>
+                                <div className="position-relative">
+                                    <input
+                                        type="text"
+                                        id="itemSearch"
+                                        className="form-control"
+                                        placeholder="Search item (Press F6 to create new item)"
+                                        autoComplete='off'
+                                        value={searchQuery}
+                                        onChange={handleItemSearch}
+                                        onFocus={handleSearchFocus}
+                                        ref={itemSearchRef}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                const firstItem = document.querySelector('.dropdown-item');
+                                                if (firstItem) {
+                                                    firstItem.classList.add('active');
+                                                    firstItem.focus();
                                                 }
-                                            } else if (!searchQuery && items.length > 0) {
-                                                setShowItemDropdown(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('discountPercentage')?.focus();
-                                                }, 0);
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const activeItem = document.querySelector('.dropdown-item.active');
+                                                if (activeItem) {
+                                                    const index = parseInt(activeItem.getAttribute('data-index'));
+                                                    const itemToAdd = memoizedFilteredItems[index];
+                                                    if (itemToAdd) {
+                                                        addItemToBill(itemToAdd);
+                                                    }
+                                                } else if (!searchQuery && items.length > 0) {
+                                                    setShowItemDropdown(false);
+                                                    setTimeout(() => {
+                                                        document.getElementById('discountPercentage')?.focus();
+                                                    }, 0);
+                                                }
                                             }
-                                        }
-                                    }}
-                                />
-                                {ItemDropdown}
+                                        }}
+                                    />
+                                    {ItemDropdown}
+                                </div>
                             </div>
                         </div>
 
@@ -1894,7 +2433,7 @@ const EditPurchase = () => {
                             </table>
                         </div>
 
-                        <div className="d-flex justify-content-end mt-4">
+                        {/* <div className="d-flex justify-content-end mt-4">
                             <Button variant="secondary" className="me-2" onClick={handleBack}>
                                 <BiArrowBack /> Back
                             </Button>
@@ -1926,6 +2465,44 @@ const EditPurchase = () => {
                                 disabled={isSaving}
                             >
                                 <i className="bi bi-printer"></i>
+                            </button>
+                        </div> */}
+
+                        <div className="d-flex justify-content-end mt-4">
+                            {/* Add Print After Save Checkbox */}
+                            <div className="form-check me-3 align-self-center">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="printAfterSave"
+                                    checked={printAfterSave}
+                                    onChange={handlePrintAfterSaveChange}
+                                />
+                                <label className="form-check-label" htmlFor="printAfterSave">
+                                    Print after save
+                                </label>
+                            </div>
+
+                            <Button variant="secondary" className="me-2" onClick={handleBack}>
+                                <BiArrowBack /> Back
+                            </Button>
+                            <button
+                                type="submit"
+                                className="btn btn-primary btn-sm"
+                                id="saveBill"
+                                onClick={(e) => handleSubmit(e, printAfterSave)}
+                                disabled={isSaving}
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-save me-1"></i> Update
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>

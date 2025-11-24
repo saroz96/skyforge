@@ -761,7 +761,6 @@ router.get('/parties', ensureFiscalYear, async (req, res) => {
             .select('name pan address phone uniqueNumber openingBalanceByFiscalYear companyGroups')
             .populate('companyGroups', 'name')
             .sort({ name: 1 })
-            .limit(100)
             .lean(); // Added lean() for better performance
 
         console.log(`Found ${parties.length} parties`);
