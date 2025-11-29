@@ -14,10 +14,6 @@ const userSchema = new mongoose.Schema({
         match: [/.+@.+\..+/, 'Please enter a valid email address']
     },
     password: { type: String, required: true },
-    // company: {
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: 'Company'
-    // },
     company: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Company'

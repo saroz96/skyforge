@@ -1,6 +1,6 @@
 const crypto = require('crypto'); // Add this at the top
 const User = require('../models/User');
-const { transporter, generateToken } = require('../config/email');
+const { generateToken, transporter } = require('../config/email');
 const { sendResetEmail } = require('../config/sendResetEmail');
 
 

@@ -402,6 +402,481 @@ function negateBuckets(buckets) {
     return negated;
 }
 
+// router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, async (req, res) => {
+//     try {
+//         const { accountId, fromDate, toDate } = req.query;
+//         const companyId = req.session.currentCompany;
+//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
+//         const currentCompany = await Company.findById(companyId);
+//         const currentCompanyName = req.session.currentCompanyName;
+//         const today = new Date();
+//         const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+//         const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
+
+//         let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//         let currentFiscalYear = null;
+
+//         if (fiscalYear) {
+//             currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//         }
+
+//         if (!currentFiscalYear && company.fiscalYear) {
+//             currentFiscalYear = company.fiscalYear;
+//             req.session.currentFiscalYear = {
+//                 id: currentFiscalYear._id.toString(),
+//                 startDate: currentFiscalYear.startDate,
+//                 endDate: currentFiscalYear.endDate,
+//                 name: currentFiscalYear.name,
+//                 dateFormat: currentFiscalYear.dateFormat,
+//                 isActive: currentFiscalYear.isActive
+//             };
+//             fiscalYear = req.session.currentFiscalYear.id;
+//         }
+
+//         if (!fiscalYear) {
+//             return res.status(400).json({ 
+//                 success: false,
+//                 error: 'No fiscal year found in session or company.' 
+//             });
+//         }
+
+//         // Helper functions - define them inside the route handler
+//         const getTransactionDescription = (transaction) => {
+//             if (transaction.billId) return `Sales Bill - ${transaction.billId?.billNumber || ''}`;
+//             if (transaction.purchaseBillId) return `Purchase Bill - ${transaction.purchaseBillId?.billNumber || ''}`;
+//             if (transaction.salesReturnBillId) return `Sales Return - ${transaction.salesReturnBillId?.billNumber || ''}`;
+//             if (transaction.purchaseReturnBillId) return `Purchase Return - ${transaction.purchaseReturnBillId?.billNumber || ''}`;
+//             if (transaction.paymentAccountId) return `Payment - ${transaction.paymentAccountId?.name || ''}`;
+//             if (transaction.receiptAccountId) return `Receipt - ${transaction.receiptAccountId?.name || ''}`;
+//             if (transaction.journalBillId) return `Journal Entry - ${transaction.journalBillId?.billNumber || ''}`;
+//             if (transaction.debitNoteId) return `Debit Note - ${transaction.debitNoteId?.billNumber || ''}`;
+//             if (transaction.creditNoteId) return `Credit Note - ${transaction.creditNoteId?.billNumber || ''}`;
+//             return 'Other Transaction';
+//         };
+
+//         const getReferenceNumber = (transaction) => {
+//             if (transaction.billId) return transaction.billId?.billNumber;
+//             if (transaction.purchaseBillId) return transaction.purchaseBillId?.billNumber;
+//             if (transaction.salesReturnBillId) return transaction.salesReturnBillId?.billNumber;
+//             if (transaction.purchaseReturnBillId) return transaction.purchaseReturnBillId?.billNumber;
+//             if (transaction.journalBillId) return transaction.journalBillId?.billNumber;
+//             if (transaction.debitNoteId) return transaction.debitNoteId?.billNumber;
+//             if (transaction.creditNoteId) return transaction.creditNoteId?.billNumber;
+//             if (transaction.billNumber) return transaction.billNumber;
+//             if (transaction.partyBillNumber) return transaction.partyBillNumber;
+//             if (transaction.salesBillNumber) return transaction.salesBillNumber;
+//             return 'N/A';
+//         };
+
+//         const getTransactionType = (transaction) => {
+//             if (transaction.billId) return 'sales';
+//             if (transaction.purchaseBillId) return 'purchase';
+//             if (transaction.salesReturnBillId) return 'sales_return';
+//             if (transaction.purchaseReturnBillId) return 'purchase_return';
+//             if (transaction.paymentAccountId) return 'payment';
+//             if (transaction.receiptAccountId) return 'receipt';
+//             if (transaction.journalBillId) return 'journal';
+//             if (transaction.debitNoteId) return 'debit_note';
+//             if (transaction.creditNoteId) return 'credit_note';
+            
+//             // Fallback to type field from transaction schema
+//             const typeMap = {
+//                 'Sale': 'sales',
+//                 'Purc': 'purchase',
+//                 'SlRt': 'sales_return',
+//                 'PrRt': 'purchase_return',
+//                 'Pymt': 'payment',
+//                 'Rcpt': 'receipt',
+//                 'Jrnl': 'journal',
+//                 'DrNt': 'debit_note',
+//                 'CrNt': 'credit_note'
+//             };
+            
+//             return typeMap[transaction.type] || 'other';
+//         };
+
+//         // Fetch the account if accountId is provided
+//         const account = accountId ? await Account.findById(accountId) : null;
+
+//         // Fetch only the required company groups: Sundry Debtors, Sundry Creditors
+//         const relevantGroups = await CompanyGroup.find({
+//             name: { $in: ['Sundry Debtors', 'Sundry Creditors'] }
+//         }).exec();
+
+//         // Convert relevant group IDs to an array of ObjectIds
+//         const relevantGroupIds = relevantGroups.map(group => group._id);
+
+//         const accounts = await Account.find({
+//             company: companyId,
+//             fiscalYear: fiscalYear,
+//             isActive: true,
+//             companyGroups: { $in: relevantGroupIds }
+//         }).sort({ name: 1 });
+
+//         // If no accountId provided, return accounts list
+//         if (!accountId) {
+//             return res.json({
+//                 success: true,
+//                 data: {
+//                     accounts: accounts.map(acc => ({
+//                         _id: acc._id,
+//                         name: acc.name,
+//                         address: acc.address,
+//                         phone: acc.phone,
+//                         email: acc.email,
+//                         type: acc.type,
+//                         companyGroups: acc.companyGroups,
+//                         initialOpeningBalance: acc.initialOpeningBalance || { amount: 0, type: 'Dr' }
+//                     })),
+//                     company: {
+//                         _id: company._id,
+//                         name: company.name,
+//                         dateFormat: company.dateFormat
+//                     },
+//                     currentFiscalYear: currentFiscalYear ? {
+//                         _id: currentFiscalYear._id,
+//                         name: currentFiscalYear.name,
+//                         startDate: currentFiscalYear.startDate,
+//                         endDate: currentFiscalYear.endDate
+//                     } : null,
+//                     currentCompanyName,
+//                     fromDate: fromDate || '',
+//                     toDate: toDate || '',
+//                     hasDateFilter: false
+//                 }
+//             });
+//         }
+
+//         // Validate account exists
+//         if (!account) {
+//             return res.status(404).json({
+//                 success: false,
+//                 error: 'Account not found'
+//             });
+//         }
+
+//         // Use initialOpeningBalance if available, otherwise use default values
+//         const initialOpeningBalance = account.initialOpeningBalance || { 
+//             amount: 0, 
+//             type: 'Dr',
+//             initialFiscalYear: currentFiscalYear?._id,
+//             date: new Date()
+//         };
+
+//         // Initialize aging data with initialOpeningBalance
+//         const agingData = {
+//             totalOutstanding: 0,
+//             current: 0,
+//             oneToThirty: 0,
+//             thirtyOneToSixty: 0,
+//             sixtyOneToNinety: 0,
+//             ninetyPlus: 0,
+//             openingBalance: initialOpeningBalance.amount,
+//             openingBalanceType: initialOpeningBalance.type,
+//             openingBalanceDate: initialOpeningBalance.date,
+//             initialFiscalYear: initialOpeningBalance.initialFiscalYear,
+//             transactions: []
+//         };
+
+//         // Only process transactions if both fromDate and toDate are provided
+//         if (fromDate && toDate) {
+//             // Calculate initial running balance from initialOpeningBalance
+//             let initialRunningBalance = initialOpeningBalance.type === 'Cr' 
+//                 ? initialOpeningBalance.amount 
+//                 : -initialOpeningBalance.amount;
+
+//             console.log(`Initial opening balance for ${account.name}: ${initialOpeningBalance.amount} ${initialOpeningBalance.type}`);
+//             console.log(`Initial running balance: ${initialRunningBalance}`);
+
+//             // Get transactions before the date range to calculate correct initial balance
+//             const transactionsBeforeRange = await Transaction.find({
+//                 company: companyId,
+//                 account: accountId,
+//                 isActive: true,
+//                 date: { $lt: new Date(fromDate) },
+//                 $or: [
+//                     {
+//                         billId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     {
+//                         purchaseBillId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     {
+//                         purchaseReturnBillId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     {
+//                         salesReturnBillId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     { paymentAccountId: { $exists: true } },
+//                     { receiptAccountId: { $exists: true } },
+//                     { journalBillId: { $exists: true } },
+//                     { debitNoteId: { $exists: true } },
+//                     { creditNoteId: { $exists: true } },
+//                 ],
+//             })
+//                 .sort({ date: 1 })
+//                 .lean()
+//                 .exec();
+
+//             console.log(`Found ${transactionsBeforeRange.length} transactions before date range`);
+
+//             // Calculate running balance up to the start of the date range
+//             for (const transaction of transactionsBeforeRange) {
+//                 if (transaction.billId) {
+//                     initialRunningBalance -= transaction.debit;
+//                 } else if (transaction.salesReturnBillId) {
+//                     initialRunningBalance += transaction.credit;
+//                 } else if (transaction.purchaseBillId) {
+//                     initialRunningBalance += transaction.credit;
+//                 } else if (transaction.purchaseReturnBillId) {
+//                     initialRunningBalance -= transaction.debit;
+//                 } else if (transaction.paymentAccountId) {
+//                     if (transaction.debit > 0) initialRunningBalance -= transaction.debit;
+//                     if (transaction.credit > 0) initialRunningBalance += transaction.credit;
+//                 } else if (transaction.receiptAccountId) {
+//                     if (transaction.debit > 0) initialRunningBalance -= transaction.debit;
+//                     if (transaction.credit > 0) initialRunningBalance += transaction.credit;
+//                 } else if (transaction.debitNoteId || transaction.creditNoteId || transaction.journalBillId) {
+//                     if (transaction.debit > 0) initialRunningBalance -= transaction.debit;
+//                     if (transaction.credit > 0) initialRunningBalance += transaction.credit;
+//                 }
+//             }
+
+//             console.log(`Running balance after previous transactions: ${initialRunningBalance}`);
+
+//             // Get transactions within the date range
+//             const startDate = new Date(fromDate);
+//             const endDate = new Date(toDate);
+//             endDate.setHours(23, 59, 59, 999);
+
+//             const transactions = await Transaction.find({
+//                 company: companyId,
+//                 account: accountId,
+//                 isActive: true,
+//                 date: {
+//                     $gte: startDate,
+//                     $lte: endDate
+//                 },
+//                 $or: [
+//                     {
+//                         billId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     {
+//                         purchaseBillId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     {
+//                         purchaseReturnBillId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     {
+//                         salesReturnBillId: { $exists: true },
+//                         paymentMode: { $ne: 'cash' }
+//                     },
+//                     { paymentAccountId: { $exists: true } },
+//                     { receiptAccountId: { $exists: true } },
+//                     { journalBillId: { $exists: true } },
+//                     { debitNoteId: { $exists: true } },
+//                     { creditNoteId: { $exists: true } },
+//                 ],
+//             })
+//                 .populate('billId', 'billNumber')
+//                 .populate('purchaseBillId', 'billNumber')
+//                 .populate('purchaseReturnBillId', 'billNumber')
+//                 .populate('salesReturnBillId', 'billNumber')
+//                 .populate('paymentAccountId', 'name')
+//                 .populate('receiptAccountId', 'name')
+//                 .populate('journalBillId', 'billNumber')
+//                 .populate('debitNoteId', 'billNumber')
+//                 .populate('creditNoteId', 'billNumber')
+//                 .sort({ date: 1 })
+//                 .lean()
+//                 .exec();
+
+//             console.log(`Found ${transactions.length} transactions in date range`);
+
+//             // Process transactions with the initial running balance
+//             let runningBalance = initialRunningBalance;
+//             agingData.transactions = [];
+
+//             for (const transaction of transactions) {
+//                 // Calculate age in days
+//                 let age;
+//                 if (companyDateFormat === 'nepali') {
+//                     try {
+//                         const nepaliTransactionDate = new Date(transaction.date);
+//                         const nepaliCurrentDate = new Date(nepaliDate);
+//                         age = (nepaliCurrentDate - nepaliTransactionDate) / (1000 * 60 * 60 * 24);
+//                     } catch (error) {
+//                         age = 0;
+//                     }
+//                 } else {
+//                     try {
+//                         age = (today - transaction.date) / (1000 * 60 * 60 * 24);
+//                     } catch (error) {
+//                         age = 0;
+//                     }
+//                 }
+
+//                 const ageInDays = Math.round(age);
+
+//                 // Update running balance based on transaction type
+//                 if (transaction.billId) {
+//                     runningBalance -= transaction.debit;
+//                     agingData.totalOutstanding += transaction.debit;
+//                 } else if (transaction.salesReturnBillId) {
+//                     runningBalance += transaction.credit;
+//                     agingData.totalOutstanding -= transaction.credit;
+//                 } else if (transaction.purchaseBillId) {
+//                     runningBalance += transaction.credit;
+//                     agingData.totalOutstanding -= transaction.credit;
+//                 } else if (transaction.purchaseReturnBillId) {
+//                     runningBalance -= transaction.debit;
+//                     agingData.totalOutstanding += transaction.debit;
+//                 } else if (transaction.paymentAccountId) {
+//                     if (transaction.debit > 0) runningBalance -= transaction.debit;
+//                     if (transaction.credit > 0) runningBalance += transaction.credit;
+//                 } else if (transaction.receiptAccountId) {
+//                     if (transaction.debit > 0) {
+//                         runningBalance -= transaction.debit;
+//                         agingData.totalOutstanding += transaction.debit;
+//                     }
+//                     if (transaction.credit > 0) {
+//                         runningBalance += transaction.credit;
+//                         agingData.totalOutstanding -= transaction.credit;
+//                     }
+//                 } else if (transaction.debitNoteId || transaction.creditNoteId || transaction.journalBillId) {
+//                     if (transaction.debit > 0) {
+//                         runningBalance -= transaction.debit;
+//                         agingData.totalOutstanding += transaction.debit;
+//                     }
+//                     if (transaction.credit > 0) {
+//                         runningBalance += transaction.credit;
+//                         agingData.totalOutstanding -= transaction.credit;
+//                     }
+//                 }
+
+//                 // Categorize by age
+//                 if (ageInDays <= 30) {
+//                     agingData.oneToThirty += transaction.debit - transaction.credit;
+//                 } else if (ageInDays <= 60) {
+//                     agingData.thirtyOneToSixty += transaction.debit - transaction.credit;
+//                 } else if (ageInDays <= 90) {
+//                     agingData.sixtyOneToNinety += transaction.debit - transaction.credit;
+//                 } else {
+//                     agingData.ninetyPlus += transaction.debit - transaction.credit;
+//                 }
+
+//                 // Prepare transaction data for response
+//                 const transactionData = {
+//                     _id: transaction._id,
+//                     date: transaction.date,
+//                     debit: transaction.debit,
+//                     credit: transaction.credit,
+//                     balance: runningBalance,
+//                     age: ageInDays,
+//                     ageCategory: ageInDays <= 30 ? '0-30 days' :
+//                                 ageInDays <= 60 ? '31-60 days' :
+//                                 ageInDays <= 90 ? '61-90 days' : '90+ days',
+//                     description: getTransactionDescription(transaction),
+//                     referenceNumber: getReferenceNumber(transaction),
+//                     type: getTransactionType(transaction)
+//                 };
+
+//                 agingData.transactions.push(transactionData);
+//             }
+
+//             // Include initial opening balance in the total outstanding calculation
+//             agingData.totalOutstanding += initialOpeningBalance.amount;
+            
+//             console.log(`Final total outstanding: ${agingData.totalOutstanding}`);
+//             console.log(`Final running balance: ${runningBalance}`);
+//         }
+
+//         // Return JSON response
+//         res.json({
+//             success: true,
+//             data: {
+//                 account: {
+//                     _id: account._id,
+//                     name: account.name,
+//                     address: account.address,
+//                     phone: account.phone,
+//                     email: account.email,
+//                     type: account.type,
+//                     companyGroups: account.companyGroups,
+//                     openingBalance: agingData.openingBalance,
+//                     openingBalanceType: agingData.openingBalanceType,
+//                     openingBalanceDate: agingData.openingBalanceDate,
+//                     initialFiscalYear: agingData.initialFiscalYear,
+//                     initialOpeningBalance: account.initialOpeningBalance || null
+//                 },
+//                 agingData: {
+//                     totalOutstanding: agingData.totalOutstanding,
+//                     agingBreakdown: {
+//                         current: agingData.current,
+//                         oneToThirty: agingData.oneToThirty,
+//                         thirtyOneToSixty: agingData.thirtyOneToSixty,
+//                         sixtyOneToNinety: agingData.sixtyOneToNinety,
+//                         ninetyPlus: agingData.ninetyPlus
+//                     },
+//                     transactions: agingData.transactions,
+//                     summary: {
+//                         totalTransactions: agingData.transactions.length,
+//                         dateRange: {
+//                             fromDate,
+//                             toDate
+//                         },
+//                         initialBalanceUsed: {
+//                             amount: initialOpeningBalance.amount,
+//                             type: initialOpeningBalance.type,
+//                             date: initialOpeningBalance.date
+//                         }
+//                     }
+//                 },
+//                 company: {
+//                     _id: company._id,
+//                     name: company.name,
+//                     dateFormat: company.dateFormat
+//                 },
+//                 currentFiscalYear: currentFiscalYear ? {
+//                     _id: currentFiscalYear._id,
+//                     name: currentFiscalYear.name,
+//                     startDate: currentFiscalYear.startDate,
+//                     endDate: currentFiscalYear.endDate
+//                 } : null,
+//                 accounts: accounts.map(acc => ({
+//                     _id: acc._id,
+//                     name: acc.name,
+//                     address: acc.address,
+//                     phone: acc.phone,
+//                     email: acc.email,
+//                     type: acc.type,
+//                     companyGroups: acc.companyGroups,
+//                     initialOpeningBalance: acc.initialOpeningBalance || { amount: 0, type: 'Dr' }
+//                 })),
+//                 currentCompanyName,
+//                 fromDate: fromDate || '',
+//                 toDate: toDate || '',
+//                 hasDateFilter: !!fromDate && !!toDate
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error in day-count-aging:', error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Internal Server Error',
+//             message: error.message
+//         });
+//     }
+// });
+
 router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, ensureTradeType, async (req, res) => {
     try {
         const { accountId, fromDate, toDate } = req.query;
@@ -493,6 +968,87 @@ router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySel
             };
             
             return typeMap[transaction.type] || 'other';
+        };
+
+        // Helper function to get unique voucher identifier
+        const getVoucherIdentifier = (transaction) => {
+            // Use billNumber if available
+            if (transaction.billNumber) return `bill_${transaction.billNumber}`;
+            if (transaction.partyBillNumber) return `party_bill_${transaction.partyBillNumber}`;
+            
+            // Use referenced bill numbers
+            if (transaction.billId) return `sales_bill_${transaction.billId?.billNumber}`;
+            if (transaction.purchaseBillId) return `purchase_bill_${transaction.purchaseBillId?.billNumber}`;
+            if (transaction.salesReturnBillId) return `sales_return_${transaction.salesReturnBillId?.billNumber}`;
+            if (transaction.purchaseReturnBillId) return `purchase_return_${transaction.purchaseReturnBillId?.billNumber}`;
+            if (transaction.journalBillId) return `journal_${transaction.journalBillId?.billNumber}`;
+            if (transaction.debitNoteId) return `debit_note_${transaction.debitNoteId?.billNumber}`;
+            if (transaction.creditNoteId) return `credit_note_${transaction.creditNoteId?.billNumber}`;
+            
+            // For payments/receipts without bill numbers, use date and amount as fallback
+            return `other_${transaction.date}_${transaction.debit}_${transaction.credit}`;
+        };
+
+        // Helper function to identify main transaction (the one that represents the total)
+        const identifyMainTransaction = (transactions) => {
+            // Look for a transaction without item (this would be the main entry)
+            const transactionWithoutItem = transactions.find(tx => !tx.item);
+            if (transactionWithoutItem) {
+                return transactionWithoutItem;
+            }
+            
+            // If all have items, look for one with isType field (VAT, RoundOff, etc.)
+            const vatTransaction = transactions.find(tx => tx.isType);
+            if (vatTransaction) {
+                return vatTransaction;
+            }
+            
+            // If still not found, return the first transaction
+            return transactions[0];
+        };
+
+        // Helper function to calculate correct voucher amounts
+        const calculateVoucherAmounts = (transactions) => {
+            const mainTransaction = identifyMainTransaction(transactions);
+            
+            // If we found a main transaction without item or with isType, use its amounts
+            if (!mainTransaction.item || mainTransaction.isType) {
+                return {
+                    totalDebit: mainTransaction.debit || 0,
+                    totalCredit: mainTransaction.credit || 0,
+                    voucherTotal: (mainTransaction.debit || 0) - (mainTransaction.credit || 0),
+                    isMainTransaction: true
+                };
+            }
+            
+            // If all transactions have items and no main transaction found,
+            // we need to calculate from individual items but avoid duplication
+            let totalDebit = 0;
+            let totalCredit = 0;
+            
+            // For purchase transactions
+            if (mainTransaction.type === 'Purc' && mainTransaction.purchaseBillId) {
+                // Use the credit amount from the main transaction only once
+                totalCredit = mainTransaction.credit || 0;
+            }
+            // For sales transactions  
+            else if (mainTransaction.type === 'Sale' && mainTransaction.billId) {
+                // Use the debit amount from the main transaction only once
+                totalDebit = mainTransaction.debit || 0;
+            }
+            // For other transaction types
+            else {
+                // Use the amounts from the main transaction only
+                totalDebit = mainTransaction.debit || 0;
+                totalCredit = mainTransaction.credit || 0;
+            }
+            
+            return {
+                totalDebit,
+                totalCredit,
+                voucherTotal: totalDebit - totalCredit,
+                isMainTransaction: false
+            };
         };
 
         // Fetch the account if accountId is provided
@@ -624,25 +1180,43 @@ router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySel
 
             console.log(`Found ${transactionsBeforeRange.length} transactions before date range`);
 
+            // Use a Set to track processed vouchers before date range
+            const processedVouchersBeforeRange = new Set();
+
             // Calculate running balance up to the start of the date range
             for (const transaction of transactionsBeforeRange) {
+                const voucherIdentifier = getVoucherIdentifier(transaction);
+                
+                // Skip if we've already processed this voucher
+                if (processedVouchersBeforeRange.has(voucherIdentifier)) {
+                    continue;
+                }
+                processedVouchersBeforeRange.add(voucherIdentifier);
+
+                // For grouped calculation, we need to get all transactions for this voucher
+                const voucherTransactions = transactionsBeforeRange.filter(tx => 
+                    getVoucherIdentifier(tx) === voucherIdentifier
+                );
+
+                const amounts = calculateVoucherAmounts(voucherTransactions);
+
                 if (transaction.billId) {
-                    initialRunningBalance -= transaction.debit;
+                    initialRunningBalance -= amounts.totalDebit;
                 } else if (transaction.salesReturnBillId) {
-                    initialRunningBalance += transaction.credit;
+                    initialRunningBalance += amounts.totalCredit;
                 } else if (transaction.purchaseBillId) {
-                    initialRunningBalance += transaction.credit;
+                    initialRunningBalance += amounts.totalCredit;
                 } else if (transaction.purchaseReturnBillId) {
-                    initialRunningBalance -= transaction.debit;
+                    initialRunningBalance -= amounts.totalDebit;
                 } else if (transaction.paymentAccountId) {
-                    if (transaction.debit > 0) initialRunningBalance -= transaction.debit;
-                    if (transaction.credit > 0) initialRunningBalance += transaction.credit;
+                    if (amounts.totalDebit > 0) initialRunningBalance -= amounts.totalDebit;
+                    if (amounts.totalCredit > 0) initialRunningBalance += amounts.totalCredit;
                 } else if (transaction.receiptAccountId) {
-                    if (transaction.debit > 0) initialRunningBalance -= transaction.debit;
-                    if (transaction.credit > 0) initialRunningBalance += transaction.credit;
+                    if (amounts.totalDebit > 0) initialRunningBalance -= amounts.totalDebit;
+                    if (amounts.totalCredit > 0) initialRunningBalance += amounts.totalCredit;
                 } else if (transaction.debitNoteId || transaction.creditNoteId || transaction.journalBillId) {
-                    if (transaction.debit > 0) initialRunningBalance -= transaction.debit;
-                    if (transaction.credit > 0) initialRunningBalance += transaction.credit;
+                    if (amounts.totalDebit > 0) initialRunningBalance -= amounts.totalDebit;
+                    if (amounts.totalCredit > 0) initialRunningBalance += amounts.totalCredit;
                 }
             }
 
@@ -700,16 +1274,36 @@ router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySel
 
             console.log(`Found ${transactions.length} transactions in date range`);
 
-            // Process transactions with the initial running balance
+            // Group transactions by voucher
+            const voucherMap = new Map();
+
+            for (const transaction of transactions) {
+                const voucherIdentifier = getVoucherIdentifier(transaction);
+                
+                if (!voucherMap.has(voucherIdentifier)) {
+                    voucherMap.set(voucherIdentifier, []);
+                }
+                
+                voucherMap.get(voucherIdentifier).push(transaction);
+            }
+
+            console.log(`After grouping, ${voucherMap.size} unique vouchers found`);
+
+            // Process unique vouchers with the initial running balance
             let runningBalance = initialRunningBalance;
             agingData.transactions = [];
 
-            for (const transaction of transactions) {
-                // Calculate age in days
+            for (const [voucherIdentifier, voucherTransactions] of voucherMap) {
+                const amounts = calculateVoucherAmounts(voucherTransactions);
+                const mainTransaction = identifyMainTransaction(voucherTransactions);
+
+                console.log(`Voucher ${voucherIdentifier}: ${voucherTransactions.length} transactions, Debit: ${amounts.totalDebit}, Credit: ${amounts.totalCredit}, Main Transaction: ${amounts.isMainTransaction ? 'Yes' : 'No'}`);
+
+                // Calculate age in days using the main transaction's date
                 let age;
                 if (companyDateFormat === 'nepali') {
                     try {
-                        const nepaliTransactionDate = new Date(transaction.date);
+                        const nepaliTransactionDate = new Date(mainTransaction.date);
                         const nepaliCurrentDate = new Date(nepaliDate);
                         age = (nepaliCurrentDate - nepaliTransactionDate) / (1000 * 60 * 60 * 24);
                     } catch (error) {
@@ -717,7 +1311,7 @@ router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySel
                     }
                 } else {
                     try {
-                        age = (today - transaction.date) / (1000 * 60 * 60 * 24);
+                        age = (today - mainTransaction.date) / (1000 * 60 * 60 * 24);
                     } catch (error) {
                         age = 0;
                     }
@@ -725,67 +1319,74 @@ router.get('/day-count-aging', isLoggedIn, ensureAuthenticated, ensureCompanySel
 
                 const ageInDays = Math.round(age);
 
-                // Update running balance based on transaction type
-                if (transaction.billId) {
-                    runningBalance -= transaction.debit;
-                    agingData.totalOutstanding += transaction.debit;
-                } else if (transaction.salesReturnBillId) {
-                    runningBalance += transaction.credit;
-                    agingData.totalOutstanding -= transaction.credit;
-                } else if (transaction.purchaseBillId) {
-                    runningBalance += transaction.credit;
-                    agingData.totalOutstanding -= transaction.credit;
-                } else if (transaction.purchaseReturnBillId) {
-                    runningBalance -= transaction.debit;
-                    agingData.totalOutstanding += transaction.debit;
-                } else if (transaction.paymentAccountId) {
-                    if (transaction.debit > 0) runningBalance -= transaction.debit;
-                    if (transaction.credit > 0) runningBalance += transaction.credit;
-                } else if (transaction.receiptAccountId) {
-                    if (transaction.debit > 0) {
-                        runningBalance -= transaction.debit;
-                        agingData.totalOutstanding += transaction.debit;
+                // Update running balance based on transaction type using CORRECT voucher amounts
+                if (mainTransaction.billId) {
+                    runningBalance -= amounts.totalDebit;
+                    agingData.totalOutstanding += amounts.totalDebit;
+                } else if (mainTransaction.salesReturnBillId) {
+                    runningBalance += amounts.totalCredit;
+                    agingData.totalOutstanding -= amounts.totalCredit;
+                } else if (mainTransaction.purchaseBillId) {
+                    runningBalance += amounts.totalCredit;
+                    agingData.totalOutstanding -= amounts.totalCredit;
+                } else if (mainTransaction.purchaseReturnBillId) {
+                    runningBalance -= amounts.totalDebit;
+                    agingData.totalOutstanding += amounts.totalDebit;
+                } else if (mainTransaction.paymentAccountId) {
+                    if (amounts.totalDebit > 0) runningBalance -= amounts.totalDebit;
+                    if (amounts.totalCredit > 0) runningBalance += amounts.totalCredit;
+                } else if (mainTransaction.receiptAccountId) {
+                    if (amounts.totalDebit > 0) {
+                        runningBalance -= amounts.totalDebit;
+                        agingData.totalOutstanding += amounts.totalDebit;
                     }
-                    if (transaction.credit > 0) {
-                        runningBalance += transaction.credit;
-                        agingData.totalOutstanding -= transaction.credit;
+                    if (amounts.totalCredit > 0) {
+                        runningBalance += amounts.totalCredit;
+                        agingData.totalOutstanding -= amounts.totalCredit;
                     }
-                } else if (transaction.debitNoteId || transaction.creditNoteId || transaction.journalBillId) {
-                    if (transaction.debit > 0) {
-                        runningBalance -= transaction.debit;
-                        agingData.totalOutstanding += transaction.debit;
+                } else if (mainTransaction.debitNoteId || mainTransaction.creditNoteId || mainTransaction.journalBillId) {
+                    if (amounts.totalDebit > 0) {
+                        runningBalance -= amounts.totalDebit;
+                        agingData.totalOutstanding += amounts.totalDebit;
                     }
-                    if (transaction.credit > 0) {
-                        runningBalance += transaction.credit;
-                        agingData.totalOutstanding -= transaction.credit;
+                    if (amounts.totalCredit > 0) {
+                        runningBalance += amounts.totalCredit;
+                        agingData.totalOutstanding -= amounts.totalCredit;
                     }
                 }
+
+                // Calculate net amount for aging categorization
+                const netAmount = amounts.totalDebit - amounts.totalCredit;
 
                 // Categorize by age
                 if (ageInDays <= 30) {
-                    agingData.oneToThirty += transaction.debit - transaction.credit;
+                    agingData.oneToThirty += netAmount;
                 } else if (ageInDays <= 60) {
-                    agingData.thirtyOneToSixty += transaction.debit - transaction.credit;
+                    agingData.thirtyOneToSixty += netAmount;
                 } else if (ageInDays <= 90) {
-                    agingData.sixtyOneToNinety += transaction.debit - transaction.credit;
+                    agingData.sixtyOneToNinety += netAmount;
                 } else {
-                    agingData.ninetyPlus += transaction.debit - transaction.credit;
+                    agingData.ninetyPlus += netAmount;
                 }
 
-                // Prepare transaction data for response
+                // Prepare transaction data for response using CORRECT voucher amounts
                 const transactionData = {
-                    _id: transaction._id,
-                    date: transaction.date,
-                    debit: transaction.debit,
-                    credit: transaction.credit,
+                    _id: mainTransaction._id,
+                    date: mainTransaction.date,
+                    debit: amounts.totalDebit,
+                    credit: amounts.totalCredit,
                     balance: runningBalance,
                     age: ageInDays,
                     ageCategory: ageInDays <= 30 ? '0-30 days' :
                                 ageInDays <= 60 ? '31-60 days' :
                                 ageInDays <= 90 ? '61-90 days' : '90+ days',
-                    description: getTransactionDescription(transaction),
-                    referenceNumber: getReferenceNumber(transaction),
-                    type: getTransactionType(transaction)
+                    description: getTransactionDescription(mainTransaction),
+                    referenceNumber: getReferenceNumber(mainTransaction),
+                    type: getTransactionType(mainTransaction),
+                    voucherIdentifier: voucherIdentifier,
+                    isGrouped: true,
+                    totalItems: voucherTransactions.length,
+                    hasMainTransaction: amounts.isMainTransaction
                 };
 
                 agingData.transactions.push(transactionData);

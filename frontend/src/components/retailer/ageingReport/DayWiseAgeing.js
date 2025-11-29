@@ -1,3 +1,4 @@
+
 // import React, { useState, useEffect, useRef } from 'react';
 // import axios from 'axios';
 // import Select from 'react-select';
@@ -25,6 +26,7 @@
 //         }
 //         return {
 //             accountId: '',
+//             accountName: '',
 //             fromDate: '',
 //             toDate: '',
 //             companyDateFormat: 'english'
@@ -33,6 +35,9 @@
 
 //     const [selectedRowIndex, setSelectedRowIndex] = useState(0);
 //     const tableBodyRef = useRef(null);
+//     const [showAccountModal, setShowAccountModal] = useState(false);
+//     const [filteredAccounts, setFilteredAccounts] = useState([]);
+//     const accountSearchRef = useRef(null);
 
 //     const fromDateRef = useRef(null);
 //     const toDateRef = useRef(null);
@@ -108,6 +113,10 @@
 //             const response = await axios.get('/api/retailer/day-count-aging');
 //             if (response.data.success) {
 //                 setData(response.data.data);
+//                 // Initialize filtered accounts with all accounts
+//                 if (response.data.data.accounts) {
+//                     setFilteredAccounts(response.data.data.accounts);
+//                 }
 //             }
 //         } catch (err) {
 //             setError('Failed to fetch accounts');
@@ -115,6 +124,43 @@
 //         } finally {
 //             setLoading(false);
 //         }
+//     };
+
+//     const handleAccountSearch = (e) => {
+//         const searchText = e.target.value.toLowerCase();
+//         if (!data?.accounts) return;
+
+//         const filtered = data.accounts.filter(account =>
+//             account.name.toLowerCase().includes(searchText) ||
+//             (account.uniqueNumber && account.uniqueNumber.toString().toLowerCase().includes(searchText))
+//         ).sort((a, b) => a.name.localeCompare(b.name));
+
+//         setFilteredAccounts(filtered);
+//     };
+
+//     // const selectAccount = (account) => {
+//     //     setFormData({
+//     //         ...formData,
+//     //         accountId: account._id,
+//     //         accountName: `${account.uniqueNumber || ''} ${account.name}`.trim()
+//     //     });
+//     //     setShowAccountModal(false);
+//     // };
+
+//     const selectAccount = (account) => {
+//         setFormData({
+//             ...formData,
+//             accountId: account._id,
+//             accountName: `${account.uniqueNumber || ''} ${account.name}`.trim()
+//         });
+//         setShowAccountModal(false);
+
+//         // Focus on From Date input after a small delay to ensure modal is closed
+//         setTimeout(() => {
+//             if (fromDateRef.current) {
+//                 fromDateRef.current.focus();
+//             }
+//         }, 100);
 //     };
 
 //     const handleSubmit = async (e) => {
@@ -237,7 +283,6 @@
 //         const printContent = `
 //         <style>
 //             @page { 
-//                 size: A4 landscape; 
 //                 margin: 10mm; 
 //             }
 //             body { 
@@ -480,38 +525,58 @@
 //                     <div className="card-body">
 //                         <form onSubmit={handleSubmit} className="mb-4 p-3 bg-light rounded">
 //                             <div className="row">
-//                                 {/* Account Selection */}
+//                                 {/* Account Selection - Updated to use modal */}
 //                                 <div className="col-md-3">
 //                                     <div className="form-group">
 //                                         <label className="form-label">Account:</label>
-//                                         <Select
-//                                             options={data?.accounts?.map(acc => ({
-//                                                 value: acc._id,
-//                                                 label: acc.name
-//                                             })) || []}
-//                                             value={data?.accounts?.find(acc => acc._id === formData.accountId)
-//                                                 ? { value: formData.accountId, label: data.accounts.find(acc => acc._id === formData.accountId).name }
-//                                                 : null
-//                                             }
-//                                             onChange={(selected) => handleInputChange('accountId', selected?.value || '')}
+//                                         <input
+//                                             type="text"
+//                                             className="form-control"
+//                                             value={formData.accountName}
+//                                             onClick={() => setShowAccountModal(true)}
+//                                             onFocus={() => setShowAccountModal(true)}
+//                                             readOnly
 //                                             placeholder="Select Account"
-//                                             isClearable
-//                                             isLoading={loading}
+//                                             required
+//                                             onKeyDown={(e) => {
+//                                                 if (e.key === 'Enter') {
+//                                                     handleKeyDown(e, 'fromDate');
+//                                                 }
+//                                             }}
 //                                         />
+//                                         <input type="hidden" id="accountId" value={formData.accountId} />
 //                                     </div>
 //                                 </div>
 
 //                                 {/* Date Range */}
-//                                 <div className="col-md-2">
+//                                 {/* <div className="col-md-2">
 //                                     <div className="form-group">
 //                                         <label className="form-label">From Date:</label>
 //                                         <input
 //                                             type="text"
+//                                             id="fromDate"
 //                                             className="form-control no-date-icon"
 //                                             value={formData.fromDate}
 //                                             onChange={(e) => handleInputChange('fromDate', e.target.value)}
 //                                             onKeyDown={(e) => handleKeyDown(e, 'toDate')}
 //                                             ref={company.dateFormat === 'nepali' ? fromDateRef : null}
+//                                             required
+//                                             autoComplete='off'
+//                                         />
+//                                     </div>
+//                                 </div> */}
+
+//                                 <div className="col-md-2">
+//                                     <div className="form-group">
+//                                         <label className="form-label">From Date:</label>
+//                                         <input
+//                                             type="text"
+//                                             id="fromDate"
+//                                             className="form-control no-date-icon"
+//                                             value={formData.fromDate}
+//                                             onChange={(e) => handleInputChange('fromDate', e.target.value)}
+//                                             onKeyDown={(e) => handleKeyDown(e, 'toDate')}
+//                                             ref={fromDateRef} // This is important - attach the ref here
 //                                             required
 //                                             autoComplete='off'
 //                                         />
@@ -688,32 +753,6 @@
 //                                                 </div>
 //                                             </div>
 //                                         </div>
-
-//                                         <div className="col-md-8">
-//                                             <div className="card">
-//                                                 <div className="card-body">
-//                                                     <h5 className="card-title">Export Options</h5>
-//                                                     <button
-//                                                         className="btn btn-outline-success me-2"
-//                                                         onClick={exportToExcel}
-//                                                     >
-//                                                         <i className="fas fa-file-excel me-2" /> Export to Excel
-//                                                     </button>
-//                                                     <button
-//                                                         className="btn btn-outline-danger me-2"
-//                                                         onClick={exportToPDF}
-//                                                     >
-//                                                         <i className="fas fa-file-pdf me-2" /> Export to PDF
-//                                                     </button>
-//                                                     <button
-//                                                         className="btn btn-outline-secondary"
-//                                                         onClick={exportToCSV}
-//                                                     >
-//                                                         <i className="fas fa-file-csv me-2" /> Export to CSV
-//                                                     </button>
-//                                                 </div>
-//                                             </div>
-//                                         </div>
 //                                     </div>
 //                                 </div>
 //                             </div>
@@ -721,11 +760,167 @@
 //                     </div>
 //                 </div>
 //             </div>
+
+//             {/* Account Modal */}
+//             {showAccountModal && (
+//                 <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
+//                     <div className="modal-dialog modal-xl modal-dialog-centered">
+//                         <div className="modal-content" style={{ height: '500px' }}>
+//                             <div className="modal-header">
+//                                 <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
+//                                 <button type="button" className="btn-close" onClick={() => setShowAccountModal(false)}></button>
+//                             </div>
+//                             <div className="p-3 bg-white sticky-top">
+//                                 <input
+//                                     type="text"
+//                                     id="searchAccount"
+//                                     className="form-control form-control-sm"
+//                                     placeholder="Search Account"
+//                                     autoComplete='off'
+//                                     autoFocus
+//                                     onChange={handleAccountSearch}
+//                                     onKeyDown={(e) => {
+//                                         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+//                                             e.preventDefault();
+//                                             const firstAccountItem = document.querySelector('.account-item');
+//                                             if (firstAccountItem) {
+//                                                 firstAccountItem.focus();
+//                                             }
+//                                         } else if (e.key === 'Enter') {
+//                                             e.preventDefault();
+//                                             const firstAccountItem = document.querySelector('.account-item.active');
+//                                             if (firstAccountItem) {
+//                                                 const accountId = firstAccountItem.getAttribute('data-account-id');
+//                                                 const account = filteredAccounts.length > 0
+//                                                     ? filteredAccounts.find(a => a._id === accountId)
+//                                                     : data?.accounts?.find(a => a._id === accountId);
+//                                                 if (account) {
+//                                                     selectAccount(account);
+//                                                 }
+//                                             }
+//                                         }
+//                                     }}
+//                                     ref={accountSearchRef}
+//                                 />
+//                             </div>
+//                             <div className="modal-body p-0">
+//                                 <div className="overflow-auto" style={{ height: 'calc(400px - 120px)' }}>
+//                                     <ul id="accountList" className="list-group">
+//                                         {filteredAccounts.length > 0 ? (
+//                                             filteredAccounts.map((account, index) => (
+//                                                 <li
+//                                                     key={account._id}
+//                                                     data-account-id={account._id}
+//                                                     className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+//                                                     onClick={() => {
+//                                                         selectAccount(account);
+//                                                     }}
+//                                                     style={{ cursor: 'pointer' }}
+//                                                     tabIndex={0}
+//                                                     onKeyDown={(e) => {
+//                                                         if (e.key === 'ArrowDown') {
+//                                                             e.preventDefault();
+//                                                             const nextItem = e.target.nextElementSibling;
+//                                                             if (nextItem) {
+//                                                                 e.target.classList.remove('active');
+//                                                                 nextItem.classList.add('active');
+//                                                                 nextItem.focus();
+//                                                             }
+//                                                         } else if (e.key === 'ArrowUp') {
+//                                                             e.preventDefault();
+//                                                             const prevItem = e.target.previousElementSibling;
+//                                                             if (prevItem) {
+//                                                                 e.target.classList.remove('active');
+//                                                                 prevItem.classList.add('active');
+//                                                                 prevItem.focus();
+//                                                             } else {
+//                                                                 accountSearchRef.current.focus();
+//                                                             }
+//                                                         } else if (e.key === 'Enter') {
+//                                                             e.preventDefault();
+//                                                             selectAccount(account);
+//                                                         }
+//                                                     }}
+//                                                     onFocus={(e) => {
+//                                                         document.querySelectorAll('.account-item').forEach(item => {
+//                                                             item.classList.remove('active');
+//                                                         });
+//                                                         e.target.classList.add('active');
+//                                                     }}
+//                                                 >
+//                                                     <div className="d-flex justify-content-between small">
+//                                                         <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+//                                                         <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+//                                                     </div>
+//                                                 </li>
+//                                             ))
+//                                         ) : (
+//                                             accountSearchRef.current?.value ? (
+//                                                 <li className="list-group-item text-center text-muted small py-2">No accounts found</li>
+//                                             ) : (
+//                                                 data?.accounts?.map((account, index) => (
+//                                                     <li
+//                                                         key={account._id}
+//                                                         data-account-id={account._id}
+//                                                         className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+//                                                         onClick={() => {
+//                                                             selectAccount(account);
+//                                                         }}
+//                                                         style={{ cursor: 'pointer' }}
+//                                                         tabIndex={0}
+//                                                         onKeyDown={(e) => {
+//                                                             if (e.key === 'ArrowDown') {
+//                                                                 e.preventDefault();
+//                                                                 const nextItem = e.target.nextElementSibling;
+//                                                                 if (nextItem) {
+//                                                                     e.target.classList.remove('active');
+//                                                                     nextItem.classList.add('active');
+//                                                                     nextItem.focus();
+//                                                                 }
+//                                                             } else if (e.key === 'ArrowUp') {
+//                                                                 e.preventDefault();
+//                                                                 const prevItem = e.target.previousElementSibling;
+//                                                                 if (prevItem) {
+//                                                                     e.target.classList.remove('active');
+//                                                                     prevItem.classList.add('active');
+//                                                                     prevItem.focus();
+//                                                                 } else {
+//                                                                     accountSearchRef.current.focus();
+//                                                                 }
+//                                                             } else if (e.key === 'Enter') {
+//                                                                 e.preventDefault();
+//                                                                 selectAccount(account);
+//                                                             }
+//                                                         }}
+//                                                         onFocus={(e) => {
+//                                                             document.querySelectorAll('.account-item').forEach(item => {
+//                                                                 item.classList.remove('active');
+//                                                             });
+//                                                             e.target.classList.add('active');
+//                                                         }}
+//                                                     >
+//                                                         <div className="d-flex justify-content-between small">
+//                                                             <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+//                                                             <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+//                                                         </div>
+//                                                     </li>
+//                                                 ))
+//                                             )
+//                                         )}
+//                                     </ul>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
+//             )}
 //         </div>
 //     );
 // };
 
 // export default DayWiseAgeing;
+
+//-----------------------------------------------------------------------------------------------------------
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
@@ -734,6 +929,8 @@ import Header from '../Header';
 import NepaliDate from 'nepali-date-converter';
 import Loader from '../../Loader';
 import { usePageNotRefreshContext } from '../PageNotRefreshContext';
+import * as XLSX from 'xlsx';
+import NotificationToast from '../../NotificationToast';
 
 const DayWiseAgeing = () => {
     const [loading, setLoading] = useState(false);
@@ -742,7 +939,12 @@ const DayWiseAgeing = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
     const { draftSave, setDraftSave } = usePageNotRefreshContext();
-
+    const [exporting, setExporting] = useState(false);
+    const [notification, setNotification] = useState({
+        show: false,
+        message: '',
+        type: 'success'
+    });
     const [company, setCompany] = useState({
         dateFormat: 'nepali',
         fiscalYear: {}
@@ -866,15 +1068,6 @@ const DayWiseAgeing = () => {
         setFilteredAccounts(filtered);
     };
 
-    // const selectAccount = (account) => {
-    //     setFormData({
-    //         ...formData,
-    //         accountId: account._id,
-    //         accountName: `${account.uniqueNumber || ''} ${account.name}`.trim()
-    //     });
-    //     setShowAccountModal(false);
-    // };
-
     const selectAccount = (account) => {
         setFormData({
             ...formData,
@@ -924,6 +1117,122 @@ const DayWiseAgeing = () => {
             ...prev,
             [field]: value
         }));
+    };
+
+    // Excel Export Function
+    const handleExportExcel = async () => {
+        // Check if there's any data to export
+        if (!data?.agingData?.transactions?.length) {
+            alert('No data available to export. Please generate a report first.');
+            return;
+        }
+
+        setExporting(true);
+        try {
+            let excelData = [];
+            const currentDate = new Date().toISOString().split('T')[0];
+
+            // Add company header information
+            excelData.push(['Company Name:', data.currentCompanyName || 'N/A']);
+            excelData.push(['Report Type:', 'Ageing Report']);
+            excelData.push(['Account:', data.account.name || 'N/A']);
+            excelData.push(['From Date:', formatDisplayDate(formData.fromDate)]);
+            excelData.push(['To Date:', formatDisplayDate(formData.toDate)]);
+            excelData.push(['Export Date:', currentDate]);
+            excelData.push([]); // Empty row for spacing
+
+            // Add opening balance information
+            const openingBalance = data?.account?.initialOpeningBalance?.amount || data?.agingData?.openingBalance;
+            const balanceType = data?.account?.initialOpeningBalance?.type || data?.agingData?.openingBalanceType;
+            const formattedOpeningBalance = openingBalance !== undefined && openingBalance !== null
+                ? `${formatCurrency(Math.abs(openingBalance))} ${balanceType === 'credit' || openingBalance >= 0 ? 'Cr' : 'Dr'}`
+                : 'N/A';
+
+            excelData.push(['Opening Balance:', formattedOpeningBalance]);
+            excelData.push([]); // Empty row for spacing
+
+            // Main table headers
+            const headers = [
+                'Date',
+                'Age (Days)',
+                'Voucher No.',
+                'Particulars',
+                'Debit Amount',
+                'Credit Amount',
+                'Balance'
+            ];
+
+            // Add headers row
+            excelData.push(headers);
+
+            // Add transaction data
+            data.agingData.transactions.forEach((transaction) => {
+                const rowData = [
+                    formatDate(transaction.date),
+                    transaction.age + ' days',
+                    transaction.referenceNumber,
+                    getTransactionTypeLabel(transaction.type),
+                    formatCurrency(transaction.debit),
+                    formatCurrency(transaction.credit),
+                    formatBalanceForExport(transaction.balance)
+                ];
+                excelData.push(rowData);
+            });
+
+            // Add summary section
+            excelData.push([]); // Empty row
+            excelData.push(['AGING SUMMARY', '']);
+            excelData.push(['Age Range', 'Count']);
+
+            const agingSummary = getAgingSummary();
+            agingSummary.forEach(item => {
+                excelData.push([item.range, item.count]);
+            });
+
+            // Create worksheet using array format
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Ageing Report');
+
+            // Set column widths for better formatting
+            const colWidths = [
+                { wch: 15 }, // Date
+                { wch: 12 }, // Age
+                { wch: 15 }, // Voucher No.
+                { wch: 20 }, // Particulars
+                { wch: 15 }, // Debit
+                { wch: 15 }, // Credit
+                { wch: 20 }  // Balance
+            ];
+            ws['!cols'] = colWidths;
+
+            // Generate filename
+            const fileName = `Ageing_Report_${data.account.name}_${formData.fromDate}_to_${formData.toDate}.xlsx`;
+
+            // Export to Excel
+            XLSX.writeFile(wb, fileName);
+
+            // Show success message
+            setNotification({
+                show: true,
+                message: 'Excel file exported successfully!',
+                type: 'success'
+            });
+
+        } catch (err) {
+            console.error('Error exporting to Excel:', err);
+            alert('Failed to export Excel file: ' + err.message);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    // Helper function for Excel export balance formatting
+    const formatBalanceForExport = (balance) => {
+        const formattedBalance = formatCurrency(Math.abs(balance));
+        return balance >= 0
+            ? `${formattedBalance} Cr`
+            : `${formattedBalance} Dr`;
     };
 
     // Keyboard navigation
@@ -1116,10 +1425,6 @@ const DayWiseAgeing = () => {
         printWindow.document.close();
     };
 
-    const exportToExcel = () => {
-        alert('Excel export functionality');
-    };
-
     const exportToPDF = () => {
         alert('PDF export functionality');
     };
@@ -1276,25 +1581,7 @@ const DayWiseAgeing = () => {
                                     </div>
                                 </div>
 
-                                {/* Date Range */}
-                                {/* <div className="col-md-2">
-                                    <div className="form-group">
-                                        <label className="form-label">From Date:</label>
-                                        <input
-                                            type="text"
-                                            id="fromDate"
-                                            className="form-control no-date-icon"
-                                            value={formData.fromDate}
-                                            onChange={(e) => handleInputChange('fromDate', e.target.value)}
-                                            onKeyDown={(e) => handleKeyDown(e, 'toDate')}
-                                            ref={company.dateFormat === 'nepali' ? fromDateRef : null}
-                                            required
-                                            autoComplete='off'
-                                        />
-                                    </div>
-                                </div> */}
-
-                                <div className="col-md-2">
+                                <div className="col">
                                     <div className="form-group">
                                         <label className="form-label">From Date:</label>
                                         <input
@@ -1311,7 +1598,7 @@ const DayWiseAgeing = () => {
                                     </div>
                                 </div>
 
-                                <div className="col-md-2">
+                                <div className="col">
                                     <div className="form-group">
                                         <label className="form-label">To Date:</label>
                                         <input
@@ -1328,7 +1615,7 @@ const DayWiseAgeing = () => {
                                     </div>
                                 </div>
 
-                                <div className="col-md-2">
+                                <div className="col">
                                     <div className="form-group" style={{ marginTop: '25px' }}>
                                         <button
                                             id="generateReport"
@@ -1351,7 +1638,7 @@ const DayWiseAgeing = () => {
                                     </div>
                                 </div>
 
-                                <div className="col-md-2">
+                                <div className="col">
                                     <div className="form-group" style={{ marginTop: '25px' }}>
                                         <button
                                             type="button"
@@ -1360,6 +1647,29 @@ const DayWiseAgeing = () => {
                                             disabled={!data?.agingData?.transactions?.length}
                                         >
                                             <i className="fas fa-print me-2" /> Print Report
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Excel Export Button */}
+                                <div className="col">
+                                    <div className="form-group" style={{ marginTop: '25px' }}>
+                                        <button
+                                            type="button"
+                                            className="btn btn-success w-100"
+                                            onClick={handleExportExcel}
+                                            disabled={!data?.agingData?.transactions?.length || exporting}
+                                        >
+                                            {exporting ? (
+                                                <>
+                                                    <span className="spinner-border spinner-border-sm me-2" />
+                                                    Exporting...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fas fa-file-excel me-2" /> Export to Excel
+                                                </>
+                                            )}
                                         </button>
                                     </div>
                                 </div>
@@ -1478,32 +1788,6 @@ const DayWiseAgeing = () => {
                                                             </div>
                                                         ))}
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="col-md-8">
-                                            <div className="card">
-                                                <div className="card-body">
-                                                    <h5 className="card-title">Export Options</h5>
-                                                    <button
-                                                        className="btn btn-outline-success me-2"
-                                                        onClick={exportToExcel}
-                                                    >
-                                                        <i className="fas fa-file-excel me-2" /> Export to Excel
-                                                    </button>
-                                                    <button
-                                                        className="btn btn-outline-danger me-2"
-                                                        onClick={exportToPDF}
-                                                    >
-                                                        <i className="fas fa-file-pdf me-2" /> Export to PDF
-                                                    </button>
-                                                    <button
-                                                        className="btn btn-outline-secondary"
-                                                        onClick={exportToCSV}
-                                                    >
-                                                        <i className="fas fa-file-csv me-2" /> Export to CSV
-                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1668,6 +1952,12 @@ const DayWiseAgeing = () => {
                     </div>
                 </div>
             )}
+            <NotificationToast
+                show={notification.show}
+                message={notification.message}
+                type={notification.type}
+                onClose={() => setNotification({ ...notification, show: false })}
+            />
         </div>
     );
 };

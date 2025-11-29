@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../../../stylesheet/retailer/accounts/AccountsImport.css';
+import Header from '../Header';
 
 // Create axios instance with your base URL
 const api = axios.create({
@@ -24,7 +25,7 @@ const AccountsImport = () => {
             try {
                 setIsLoading(true);
                 const response = await api.get('/api/retailer/accounts-import');
-                
+
                 if (response.data.success) {
                     setPageData(response.data.data);
                 } else {
@@ -46,8 +47,8 @@ const AccountsImport = () => {
     }, []);
 
     const handleFileSelect = (file) => {
-        if (file && (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-                     file.type === 'application/vnd.ms-excel')) {
+        if (file && (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+            file.type === 'application/vnd.ms-excel')) {
             setSelectedFile(file);
             setError(null);
         } else {
@@ -75,7 +76,7 @@ const AccountsImport = () => {
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             handleFileSelect(e.dataTransfer.files[0]);
         }
@@ -83,7 +84,7 @@ const AccountsImport = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!selectedFile) {
             setError('Please select a file to upload');
             return;
@@ -108,13 +109,13 @@ const AccountsImport = () => {
             });
 
             if (response.data.success) {
-                navigate('/retailer/accounts-import-results', { 
-                    state: { 
+                navigate('/retailer/accounts-import-results', {
+                    state: {
                         results: response.data.data,
                         message: response.data.message,
                         warning: response.data.warning,
                         code: response.data.code
-                    } 
+                    }
                 });
             } else {
                 setError(response.data.message || 'Import failed');
@@ -123,17 +124,17 @@ const AccountsImport = () => {
             console.error('Upload error:', error);
             if (error.response && error.response.data) {
                 setError(error.response.data.message || 'Upload failed. Please try again.');
-                
+
                 // If it's an import error with data, navigate to results page
                 if (error.response.data.data && error.response.data.data.results) {
-                    navigate('/retailer/accounts-import-results', { 
-                        state: { 
+                    navigate('/retailer/accounts-import-results', {
+                        state: {
                             results: error.response.data.data,
                             message: error.response.data.message,
                             error: error.response.data.error,
                             code: error.response.data.code,
                             isError: true
-                        } 
+                        }
                     });
                     return;
                 }
@@ -163,7 +164,7 @@ const AccountsImport = () => {
             link.click();
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
-            
+
         } catch (error) {
             console.error('Download error:', error);
             setError('Download failed. Please try again.');
@@ -201,150 +202,153 @@ const AccountsImport = () => {
     }
 
     return (
-        <div className="import-container">
-            <div className="import-card">
-                <div className="page-header">
-                    <h1>📥 Import Accounts</h1>
-                    <div className="company-info">
-                        <span className="company-name">{pageData?.currentCompany?.name}</span>
-                        <span className="fiscal-year">{pageData?.currentFiscalYear?.name}</span>
-                    </div>
-                </div>
-
-                <div className="instructions">
-                    <p>Upload an Excel (.xlsx) file to import accounts into your system. Ensure your file follows these guidelines:</p>
-                    <ul>
-                        <li>Use the provided template format</li>
-                        <li>Maximum file size: 5MB</li>
-                        <li>Required columns: Account Name, Code, Type, Group, etc.</li>
-                        <li>Make sure reference data (account groups, types) exists in the system</li>
-                    </ul>
-                </div>
-
-                {/* System Information */}
-                <div className="system-info">
-                    <div className="info-grid">
-                        <div className="info-item">
-                            <label>Company:</label>
-                            <span>{pageData?.currentCompany?.name}</span>
-                        </div>
-                        <div className="info-item">
-                            <label>Fiscal Year:</label>
-                            <span>{pageData?.currentFiscalYear?.name}</span>
-                        </div>
-                        <div className="info-item">
-                            <label>Available Groups:</label>
-                            <span>{pageData?.companyGroups?.length || 0} groups</span>
+        <div>
+            <Header />
+            <div className="import-container">
+                <div className="import-card">
+                    <div className="page-header">
+                        <h1>📥 Import Accounts</h1>
+                        <div className="company-info">
+                            <span className="company-name">{pageData?.currentCompany?.name}</span>
+                            <span className="fiscal-year">{pageData?.currentFiscalYear?.name}</span>
                         </div>
                     </div>
-                </div>
 
-                {/* Error Alert */}
-                {error && (
-                    <div className="alert alert-error">
-                        <div className="alert-icon">❌</div>
-                        <div className="alert-content">
-                            <strong>Error:</strong> {error}
-                        </div>
-                        <button className="alert-close" onClick={() => setError(null)}>×</button>
+                    <div className="instructions">
+                        <p>Upload an Excel (.xlsx) file to import accounts into your system. Ensure your file follows these guidelines:</p>
+                        <ul>
+                            <li>Use the provided template format</li>
+                            <li>Maximum file size: 5MB</li>
+                            <li>Required columns: Account Name, Code, Type, Group, etc.</li>
+                            <li>Make sure reference data (account groups, types) exists in the system</li>
+                        </ul>
                     </div>
-                )}
 
-                <form onSubmit={handleSubmit} className="import-form">
-                    <div className="upload-section">
-                        <div 
-                            className={`file-drop-zone ${dragActive ? 'drag-active' : ''} ${selectedFile ? 'file-selected' : ''}`}
-                            onDragEnter={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDragOver={handleDrag}
-                            onDrop={handleDrop}
-                        >
-                            <input 
-                                type="file" 
-                                accept=".xlsx,.xls" 
-                                onChange={handleFileChange}
-                                style={{ display: 'none' }}
-                                id="file-input"
-                            />
-                            <label htmlFor="file-input" className="file-input-label">
-                                <div className="file-upload-content">
-                                    <div className="upload-icon">
-                                        {selectedFile ? '📄' : '📁'}
+                    {/* System Information */}
+                    <div className="system-info">
+                        <div className="info-grid">
+                            <div className="info-item">
+                                <label>Company:</label>
+                                <span>{pageData?.currentCompany?.name}</span>
+                            </div>
+                            <div className="info-item">
+                                <label>Fiscal Year:</label>
+                                <span>{pageData?.currentFiscalYear?.name}</span>
+                            </div>
+                            <div className="info-item">
+                                <label>Available Groups:</label>
+                                <span>{pageData?.companyGroups?.length || 0} groups</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Error Alert */}
+                    {error && (
+                        <div className="alert alert-error">
+                            <div className="alert-icon">❌</div>
+                            <div className="alert-content">
+                                <strong>Error:</strong> {error}
+                            </div>
+                            <button className="alert-close" onClick={() => setError(null)}>×</button>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="import-form">
+                        <div className="upload-section">
+                            <div
+                                className={`file-drop-zone ${dragActive ? 'drag-active' : ''} ${selectedFile ? 'file-selected' : ''}`}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
+                            >
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleFileChange}
+                                    style={{ display: 'none' }}
+                                    id="file-input"
+                                />
+                                <label htmlFor="file-input" className="file-input-label">
+                                    <div className="file-upload-content">
+                                        <div className="upload-icon">
+                                            {selectedFile ? '📄' : '📁'}
+                                        </div>
+                                        <p className="upload-text">
+                                            {selectedFile ? (
+                                                <span className="file-name">{selectedFile.name}</span>
+                                            ) : (
+                                                'Choose file or drag and drop here'
+                                            )}
+                                        </p>
+                                        <span className="file-hint">
+                                            {selectedFile ?
+                                                `Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` :
+                                                'Excel files only (.xlsx, .xls) - Max 5MB'
+                                            }
+                                        </span>
                                     </div>
-                                    <p className="upload-text">
-                                        {selectedFile ? (
-                                            <span className="file-name">{selectedFile.name}</span>
-                                        ) : (
-                                            'Choose file or drag and drop here'
-                                        )}
-                                    </p>
-                                    <span className="file-hint">
-                                        {selectedFile ? 
-                                            `Size: ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 
-                                            'Excel files only (.xlsx, .xls) - Max 5MB'
-                                        }
+                                </label>
+                                {selectedFile && (
+                                    <button
+                                        type="button"
+                                        className="clear-file-btn"
+                                        onClick={() => setSelectedFile(null)}
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                className={`submit-btn ${isUploading ? 'loading' : ''}`}
+                                disabled={isUploading || !selectedFile}
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <span className="spinner"></span>
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Start Accounts Import ➤'
+                                )}
+                            </button>
+                        </div>
+                    </form>
+
+                    <div className="template-section">
+                        <div className="template-card">
+                            <h5>📑 Download Accounts Import Template</h5>
+                            <p>Ensure successful imports by using our pre-formatted template with all required columns and sample data.</p>
+
+                            <button
+                                onClick={downloadTemplate}
+                                className="template-btn"
+                            >
+                                📥 Download Excel Template
+                            </button>
+
+                            <div className="template-info">
+                                <span>File format: .xlsx (Excel) | Size: ~13KB | Includes instructions</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Available Groups List */}
+                    {pageData?.companyGroups && pageData.companyGroups.length > 0 && (
+                        <div className="available-groups">
+                            <h5>Available Account Groups</h5>
+                            <div className="groups-list">
+                                {pageData.companyGroups.map(group => (
+                                    <span key={group.id} className="group-tag">
+                                        {group.name}
                                     </span>
-                                </div>
-                            </label>
-                            {selectedFile && (
-                                <button 
-                                    type="button" 
-                                    className="clear-file-btn"
-                                    onClick={() => setSelectedFile(null)}
-                                >
-                                    Remove
-                                </button>
-                            )}
+                                ))}
+                            </div>
                         </div>
-
-                        <button 
-                            type="submit" 
-                            className={`submit-btn ${isUploading ? 'loading' : ''}`}
-                            disabled={isUploading || !selectedFile}
-                        >
-                            {isUploading ? (
-                                <>
-                                    <span className="spinner"></span>
-                                    Processing...
-                                </>
-                            ) : (
-                                'Start Accounts Import ➤'
-                            )}
-                        </button>
-                    </div>
-                </form>
-
-                <div className="template-section">
-                    <div className="template-card">
-                        <h5>📑 Download Accounts Import Template</h5>
-                        <p>Ensure successful imports by using our pre-formatted template with all required columns and sample data.</p>
-                        
-                        <button 
-                            onClick={downloadTemplate} 
-                            className="template-btn"
-                        >
-                            📥 Download Excel Template
-                        </button>
-
-                        <div className="template-info">
-                            <span>File format: .xlsx (Excel) | Size: ~13KB | Includes instructions</span>
-                        </div>
-                    </div>
+                    )}
                 </div>
-
-                {/* Available Groups List */}
-                {pageData?.companyGroups && pageData.companyGroups.length > 0 && (
-                    <div className="available-groups">
-                        <h5>Available Account Groups</h5>
-                        <div className="groups-list">
-                            {pageData.companyGroups.map(group => (
-                                <span key={group.id} className="group-tag">
-                                    {group.name}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

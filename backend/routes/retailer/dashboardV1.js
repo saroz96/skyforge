@@ -195,24 +195,24 @@ router.get('/retailerDashboard/indexv1', isLoggedIn, ensureAuthenticated, ensure
         // }
 
         // Calculate cash balance
-let cashBalance = 0;
-if (cashAccount) {
-    const cashTransactions = await Transaction.find({
-        account: cashAccount._id,
-        date: { $lte: currentFiscalYear.endDate }
-    });
+        let cashBalance = 0;
+        if (cashAccount) {
+            const cashTransactions = await Transaction.find({
+                account: cashAccount._id,
+                date: { $lte: currentFiscalYear.endDate }
+            });
 
-    cashTransactions.forEach(txn => {
-        cashBalance += (txn.debit || 0) - (txn.credit || 0);
-    });
+            cashTransactions.forEach(txn => {
+                cashBalance += (txn.debit || 0) - (txn.credit || 0);
+            });
 
-    // Use initialOpeningBalance instead of openingBalanceByFiscalYear
-    if (cashAccount.initialOpeningBalance) {
-        cashBalance += cashAccount.initialOpeningBalance.type === 'Dr'
-            ? cashAccount.initialOpeningBalance.amount
-            : -cashAccount.initialOpeningBalance.amount;
-    }
-}
+            // Use initialOpeningBalance instead of openingBalanceByFiscalYear
+            if (cashAccount.initialOpeningBalance) {
+                cashBalance += cashAccount.initialOpeningBalance.type === 'Dr'
+                    ? cashAccount.initialOpeningBalance.amount
+                    : -cashAccount.initialOpeningBalance.amount;
+            }
+        }
 
         // Calculate bank balances
         let bankBalance = 0;
@@ -339,7 +339,7 @@ if (cashAccount) {
         const categories = [];
         const netSalesData = [];
         const isNepaliFormat = company.dateFormat === 'nepali';
-        const nepaliMonths = ['Baisakh', 'Jestha', 'Ashad', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
+        const nepaliMonths = ['Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra', 'Baisakh', 'Jestha', 'Ashad',];
 
         monthlySalesData.forEach(monthData => {
             const { year, month } = monthData._id;

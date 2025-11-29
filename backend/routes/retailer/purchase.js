@@ -705,6 +705,9 @@ router.post('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                     WSUnit: item.WSUnit,
                     price: item.price,
                     puPrice: item.puPrice || 0,
+                    discountPercentagePerItem: discountPercentage || 0,
+                    discountAmountPerItem: (item.puPrice * item.quantity * (discountPercentage || 0)) / 100,
+                    netPuPrice: item.puPrice - (item.puPrice * (discountPercentage || 0) / 100),
                     quantity: item.quantity || 0,
                     bonus: item.bonus || 0,
                     account: accountId,
@@ -1722,23 +1725,37 @@ router.put('/purchase/edit/:id', isLoggedIn, ensureAuthenticated, ensureCompanyS
 
             // Create transactions
             // 1. Party account transaction
-            const partyTransaction = new Transaction({
-                account: accountId,
-                billNumber: existingBill.billNumber,
-                partyBillNumber: existingBill.partyBillNumber,
-                type: 'Purc',
-                purchaseBillId: existingBill._id,
-                purchaseSalesType: 'Purchase',
-                debit: 0,
-                credit: existingBill.totalAmount,
-                paymentMode: paymentMode,
-                balance: 0,
-                date: nepaliDate ? nepaliDate : new Date(billDate),
-                company: companyId,
-                user: userId,
-                fiscalYear: currentFiscalYear
-            });
-            await partyTransaction.save({ session });
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const product = await Item.findById(item.item).session(session);
+                const partyTransaction = new Transaction({
+                    item: product,
+                    unit: item.unit,
+                    WSUnit: item.WSUnit,
+                    price: item.price,
+                    puPrice: item.puPrice || 0,
+                    discountPercentagePerItem: discountPercentage || 0,
+                    discountAmountPerItem: (item.puPrice * item.quantity * (discountPercentage || 0)) / 100,
+                    netPuPrice: item.puPrice - (item.puPrice * (discountPercentage || 0) / 100),
+                    quantity: item.quantity || 0,
+                    bonus: item.bonus || 0,
+                    account: accountId,
+                    billNumber: existingBill.billNumber,
+                    partyBillNumber: existingBill.partyBillNumber,
+                    type: 'Purc',
+                    purchaseBillId: existingBill._id,
+                    purchaseSalesType: 'Purchase',
+                    debit: 0,
+                    credit: existingBill.totalAmount,
+                    paymentMode: paymentMode,
+                    balance: 0,
+                    date: nepaliDate ? nepaliDate : new Date(billDate),
+                    company: companyId,
+                    user: userId,
+                    fiscalYear: currentFiscalYear
+                });
+                await partyTransaction.save({ session });
+            }
 
             // 2. Purchase account transaction
             const purchaseAccount = await Account.findOne({ name: 'Purchase', company: companyId }).session(session);

@@ -4,6 +4,7 @@ import axios from 'axios';
 import Header from '../Header';
 import Loader from '../../Loader';
 import * as XLSX from 'xlsx';
+import NotificationToast from '../../NotificationToast';
 
 const AgeingReportAllAccounts = () => {
     const [company, setCompany] = useState({
@@ -33,6 +34,11 @@ const AgeingReportAllAccounts = () => {
     const [exporting, setExporting] = useState(false);
 
     const navigate = useNavigate();
+    const [notification, setNotification] = useState({
+        show: false,
+        message: '',
+        type: 'success'
+    });
     const searchInputRef = useRef(null);
     const abortControllerRef = useRef(null);
 
@@ -341,6 +347,13 @@ const AgeingReportAllAccounts = () => {
             const fileName = `Ageing_Report_${date}.xlsx`;
 
             XLSX.writeFile(wb, fileName);
+
+            // Show success message
+            setNotification({
+                show: true,
+                message: 'Excel file exported successfully!',
+                type: 'success'
+            });
         } catch (err) {
             console.error('Error exporting to Excel:', err);
             alert('Failed to export data');
@@ -919,6 +932,13 @@ const AgeingReportAllAccounts = () => {
                     }
                 `}
             </style>
+
+            <NotificationToast
+                show={notification.show}
+                message={notification.message}
+                type={notification.type}
+                onClose={() => setNotification({ ...notification, show: false })}
+            />
         </div>
     );
 };

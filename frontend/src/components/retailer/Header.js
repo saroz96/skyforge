@@ -697,14 +697,14 @@ const Header = () => {
         user?.isAdmin || user?.menuPermissions?.get('outstandingHeader')) && (
           <li className="menu-item dropdown">
             <Link to="#" className="active">
-              Outstanding
+              Reports-Account
             </Link>
             <div className="sub-menu-wrapper slideInUp">
               <ul className="sub-menu">
                 {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
                   user?.isAdmin || user?.menuPermissions?.get('ageingSubHeader')) && (
                     <li className="menu-item dropdown">
-                      <Link to="#">Ageing</Link>
+                      <Link to="#">Ageing Reports</Link>
                       <ul className="sub-menu">
                         {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
                           user?.isAdmin || user?.menuPermissions?.get('ageingAllParty')) && (
@@ -728,9 +728,53 @@ const Header = () => {
                     </li>
                   )}
                 {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
+                  user?.isAdmin || user?.menuPermissions?.get('vatSummaryHeader')) && (
+                    <li className="menu-item dropdown">
+                      <Link to="#">VAT Reports</Link>
+                      <ul className="sub-menu">
+                        {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
+                          user?.isAdmin || user?.menuPermissions?.get('salesVatRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/sales-vat-report">Sales Vat Register</Link>
+                            </li>
+                          )}
+                        {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
+                          user?.isAdmin || user?.menuPermissions?.get('salesRtnVatRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/salesReturn-vat-report">Sales Return Register</Link>
+                            </li>
+                          )}
+                        {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
+                          user?.isAdmin || user?.menuPermissions?.get('purchaseVatRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/purchase-vat-report">Purchase Vat Register</Link>
+                            </li>
+                          )}
+                        {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
+                          user?.isAdmin || user?.menuPermissions?.get('purchaseRtnVatRegister')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/purchaseReturn-vat-report">Purchase Return Register</Link>
+                            </li>
+                          )}
+                        {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
+                          user?.isAdmin || user?.menuPermissions?.get('monthlyVatSummary')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/monthly-vat-summary">Monthly Vat Summary</Link>
+                            </li>
+                          )}
+                        {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
+                          user?.isAdmin || user?.menuPermissions?.get('monthlyVatSummary')) && (
+                            <li className="menu-item">
+                              <Link to="/retailer/confirmation-of-vat">Confirmation of VAT</Link>
+                            </li>
+                          )}
+                      </ul>
+                    </li>
+                  )}
+                {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
                   user?.isAdmin || user?.menuPermissions?.get('reportsSubHeader')) && (
                     <li className="menu-item dropdown">
-                      <Link to="#">Reports</Link>
+                      <Link to="#">Profitability Reports</Link>
                       <ul className="sub-menu">
                         {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' || user?.role === 'Account' ||
                           user?.isAdmin || user?.menuPermissions?.get('dailyProfitSaleAnalysis')) && (
@@ -752,7 +796,7 @@ const Header = () => {
           </li>
         )}
 
-      {/* Vat Summary Menu */}
+      {/* Vat Summary Menu
       {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||
         user?.isAdmin || user?.menuPermissions?.get('vatSummaryHeader')) && (
           <li className="menu-item dropdown">
@@ -800,7 +844,7 @@ const Header = () => {
               </ul>
             </div>
           </li>
-        )}
+        )} */}
 
       {/* Configuration Menu */}
       {(user?.role === 'ADMINISTRATOR' || user?.role === 'Supervisor' ||

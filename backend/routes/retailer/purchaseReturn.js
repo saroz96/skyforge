@@ -625,11 +625,15 @@ router.post('/purchase-return', isLoggedIn, ensureAuthenticated, ensureCompanySe
 
             const transaction = new Transaction({
                 item: product,
+
                 account: accountId,
                 billNumber: billNumber,
                 partyBillNumber: partyBillNumber,
                 quantity: item.quantity,
                 puPrice: item.puPrice,
+                discountPercentagePerItem: discountPercentage || 0,
+                discountAmountPerItem: (item.puPrice * item.quantity * (discountPercentage || 0)) / 100,
+                netPuPrice: item.puPrice - (item.puPrice * (discountPercentage || 0) / 100),
                 unit: item.unit,
                 type: 'PrRt',
                 purchaseReturnBillId: newBill._id,

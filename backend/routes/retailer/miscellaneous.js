@@ -1188,15 +1188,209 @@ function createAdjustmentMap(adjustments) {
 }
 
 
+// router.get('/monthly-vat-summary', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     if (req.tradeType === 'retailer') {
+//         try {
+//             const companyId = req.session.currentCompany;
+//             const { month, year, nepaliMonth, nepaliYear } = req.query;
+//             const today = new Date();
+
+//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+
+//             const currentCompany = await Company.findById(new ObjectId(companyId));
+//             const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'nepali';
+
+//             // Get current Nepali date
+//             const currentNepaliDate = new NepaliDate();
+//             const currentNepaliYear = currentNepaliDate.getYear();
+
+//             if (!companyId) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     error: 'Company ID is required'
+//                 });
+//             }
+
+//             const company = await Company.findById(companyId)
+//                 .select('renewalDate fiscalYear dateFormat vatEnabled')
+//                 .populate('fiscalYear');
+
+//             const currentFiscalYear = company?.fiscalYear;
+//             if (!currentFiscalYear) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     error: 'No fiscal year found'
+//                 });
+//             }
+
+//             // If no month/year is selected, return empty data
+//             if ((companyDateFormat === 'english' && (!month || !year)) ||
+//                 (companyDateFormat === 'nepali' && (!nepaliMonth || !nepaliYear))) {
+//                 return res.json({
+//                     success: true,
+//                     data: {
+//                         companyDateFormat,
+//                         nepaliDate,
+//                         company,
+//                         totals: null,
+//                         currentFiscalYear,
+//                         currentNepaliYear,
+//                         month: '',
+//                         year: '',
+//                         nepaliMonth: '',
+//                         nepaliYear: '',
+//                         reportDateRange: '',
+//                         currentCompanyName: req.session.currentCompanyName,
+//                         isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//                     }
+//                 });
+//             }
+
+//             let fromDate, toDate, reportDateRange;
+
+//             if (companyDateFormat === 'english') {
+//                 // English date format - process month/year
+//                 const monthInt = parseInt(month);
+//                 const yearInt = parseInt(year);
+
+//                 fromDate = new Date(yearInt, monthInt - 1, 1);
+//                 toDate = new Date(yearInt, monthInt, 0);
+
+//                 const monthNames = ["January", "February", "March", "April", "May", "June",
+//                     "July", "August", "September", "October", "November", "December"];
+//                 reportDateRange = `${monthNames[monthInt - 1]}, ${yearInt}`;
+
+//                 // Format dates as YYYY-MM-DD
+//                 fromDate = fromDate.toISOString().split('T')[0];
+//                 toDate = toDate.toISOString().split('T')[0];
+//             } else {
+//                 const monthInt = parseInt(nepaliMonth);
+//                 const yearInt = parseInt(nepaliYear);
+
+//                 // Validate inputs
+//                 if (monthInt < 1 || monthInt > 12 || yearInt < 2000 || yearInt > 2100) {
+//                     return res.status(400).json({
+//                         success: false,
+//                         error: 'Invalid Nepali month or year'
+//                     });
+//                 }
+
+//                 // Create first day of month in Nepali format (YYYY-MM-DD)
+//                 fromDate = `${yearInt}-${String(monthInt).padStart(2, '0')}-01`;
+
+//                 // Get last day of month in Nepali format
+//                 let lastDayOfMonth;
+//                 for (let day = 31; day >= 1; day--) {
+//                     try {
+//                         const testDate = new NepaliDate(yearInt, monthInt - 1, day - 1);
+//                         lastDayOfMonth = day;
+//                         break;
+//                     } catch (e) {
+//                         continue;
+//                     }
+//                 }
+
+//                 if (!lastDayOfMonth) {
+//                     return res.status(400).json({
+//                         success: false,
+//                         error: 'Could not determine last day of month'
+//                     });
+//                 }
+
+//                 // Format toDate in Nepali format (YYYY-MM-DD)
+//                 toDate = `${yearInt}-${String(monthInt).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
+//                 const monthNames = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashoj",
+//                     "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
+//                 reportDateRange = `${monthNames[monthInt - 1]}, ${yearInt}`;
+//             }
+
+//             // Convert to ObjectId
+//             const companyObjId = new ObjectId(companyId);
+//             const fiscalYearObjId = new ObjectId(currentFiscalYear._id);
+
+//             // Build the query
+//             const query = {
+//                 company: companyObjId,
+//                 fiscalYear: fiscalYearObjId,
+//                 transactionDate: {
+//                     $gte: fromDate,
+//                     $lte: toDate
+//                 }
+//             };
+
+//             // Get all documents
+//             const [salesBills, salesReturns, purchaseBills, purchaseReturns] = await Promise.all([
+//                 SalesBill.find(query).lean(),
+//                 SalesReturn.find(query).lean(),
+//                 PurchaseBill.find(query).lean(),
+//                 PurchaseReturn.find(query).lean()
+//             ]);
+
+//             // Manual aggregation
+//             const aggregateData = (docs, taxableField, nonVatField, vatField) => {
+//                 return {
+//                     taxableAmount: docs.reduce((sum, doc) => sum + (doc[taxableField] || 0), 0),
+//                     nonVatAmount: docs.reduce((sum, doc) => sum + (doc[nonVatField] || 0), 0),
+//                     vatAmount: docs.reduce((sum, doc) => sum + (doc[vatField] || 0), 0)
+//                 };
+//             };
+
+//             const totals = {
+//                 sales: aggregateData(salesBills, 'taxableAmount', 'nonVatSales', 'vatAmount'),
+//                 salesReturn: aggregateData(salesReturns, 'taxableAmount', 'nonVatSalesReturn', 'vatAmount'),
+//                 purchase: aggregateData(purchaseBills, 'taxableAmount', 'nonVatPurchase', 'vatAmount'),
+//                 purchaseReturn: aggregateData(purchaseReturns, 'taxableAmount', 'nonVatPurchaseReturn', 'vatAmount')
+//             };
+
+//             // Calculate net values
+//             const netSalesVat = totals.sales.vatAmount - totals.salesReturn.vatAmount;
+//             const netPurchaseVat = totals.purchase.vatAmount - totals.purchaseReturn.vatAmount;
+//             const netVat = netSalesVat - netPurchaseVat;
+
+//             res.json({
+//                 success: true,
+//                 data: {
+//                     companyDateFormat,
+//                     nepaliDate: new NepaliDate().format('YYYY-MM-DD'),
+//                     company,
+//                     currentFiscalYear,
+//                     currentNepaliYear,
+//                     totals: {
+//                         ...totals,
+//                         netSalesVat,
+//                         netPurchaseVat,
+//                         netVat
+//                     },
+//                     month,
+//                     year,
+//                     nepaliMonth,
+//                     nepaliYear,
+//                     reportDateRange,
+//                     currentCompanyName: req.session.currentCompanyName,
+//                     isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//                 }
+//             });
+
+//         } catch (error) {
+//             console.error('Error fetching VAT report:', error);
+//             res.status(500).json({
+//                 success: false,
+//                 error: 'Internal server error',
+//                 details: error.message
+//             });
+//         }
+//     }
+// });
+
+
 router.get('/monthly-vat-summary', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     if (req.tradeType === 'retailer') {
         try {
             const companyId = req.session.currentCompany;
-            const { month, year, nepaliMonth, nepaliYear } = req.query;
+            const { month, year, nepaliMonth, nepaliYear, periodType } = req.query;
             const today = new Date();
-
             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
-
             const currentCompany = await Company.findById(new ObjectId(companyId));
             const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'nepali';
 
@@ -1224,8 +1418,10 @@ router.get('/monthly-vat-summary', isLoggedIn, ensureAuthenticated, ensureCompan
             }
 
             // If no month/year is selected, return empty data
-            if ((companyDateFormat === 'english' && (!month || !year)) ||
-                (companyDateFormat === 'nepali' && (!nepaliMonth || !nepaliYear))) {
+            if ((periodType === 'monthly' && companyDateFormat === 'english' && (!month || !year)) ||
+                (periodType === 'monthly' && companyDateFormat === 'nepali' && (!nepaliMonth || !nepaliYear)) ||
+                (periodType === 'yearly' && companyDateFormat === 'english' && !year) ||
+                (periodType === 'yearly' && companyDateFormat === 'nepali' && !nepaliYear)) {
                 return res.json({
                     success: true,
                     data: {
@@ -1233,6 +1429,8 @@ router.get('/monthly-vat-summary', isLoggedIn, ensureAuthenticated, ensureCompan
                         nepaliDate,
                         company,
                         totals: null,
+                        monthlyData: null,
+                        currentCompany,
                         currentFiscalYear,
                         currentNepaliYear,
                         month: '',
@@ -1246,131 +1444,251 @@ router.get('/monthly-vat-summary', isLoggedIn, ensureAuthenticated, ensureCompan
                 });
             }
 
-            let fromDate, toDate, reportDateRange;
+            // Function to get data for a specific month
+            const getMonthData = async (monthInt, yearInt, isNepali) => {
+                let fromDate, toDate, reportDateRange;
 
-            if (companyDateFormat === 'english') {
-                // English date format - process month/year
-                const monthInt = parseInt(month);
-                const yearInt = parseInt(year);
-
-                fromDate = new Date(yearInt, monthInt - 1, 1);
-                toDate = new Date(yearInt, monthInt, 0);
-
-                const monthNames = ["January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"];
-                reportDateRange = `${monthNames[monthInt - 1]}, ${yearInt}`;
-
-                // Format dates as YYYY-MM-DD
-                fromDate = fromDate.toISOString().split('T')[0];
-                toDate = toDate.toISOString().split('T')[0];
-            } else {
-                const monthInt = parseInt(nepaliMonth);
-                const yearInt = parseInt(nepaliYear);
-
-                // Validate inputs
-                if (monthInt < 1 || monthInt > 12 || yearInt < 2000 || yearInt > 2100) {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'Invalid Nepali month or year'
-                    });
-                }
-
-                // Create first day of month in Nepali format (YYYY-MM-DD)
-                fromDate = `${yearInt}-${String(monthInt).padStart(2, '0')}-01`;
-
-                // Get last day of month in Nepali format
-                let lastDayOfMonth;
-                for (let day = 31; day >= 1; day--) {
-                    try {
-                        const testDate = new NepaliDate(yearInt, monthInt - 1, day - 1);
-                        lastDayOfMonth = day;
-                        break;
-                    } catch (e) {
-                        continue;
+                if (isNepali) {
+                    // Validate inputs
+                    if (monthInt < 1 || monthInt > 12 || yearInt < 2000 || yearInt > 2100) {
+                        return null;
                     }
+
+                    // Create first day of month in Nepali format (YYYY-MM-DD)
+                    fromDate = `${yearInt}-${String(monthInt).padStart(2, '0')}-01`;
+
+                    // Get last day of month in Nepali format
+                    let lastDayOfMonth;
+                    for (let day = 31; day >= 1; day--) {
+                        try {
+                            const testDate = new NepaliDate(yearInt, monthInt - 1, day - 1);
+                            lastDayOfMonth = day;
+                            break;
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+
+                    if (!lastDayOfMonth) {
+                        return null;
+                    }
+
+                    // Format toDate in Nepali format (YYYY-MM-DD)
+                    toDate = `${yearInt}-${String(monthInt).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
+                    const monthNames = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashoj",
+                        "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
+                    reportDateRange = `${monthNames[monthInt - 1]}, ${yearInt}`;
+                } else {
+                    fromDate = new Date(yearInt, monthInt - 1, 1);
+                    toDate = new Date(yearInt, monthInt, 0);
+
+                    const monthNames = ["January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November", "December"];
+                    reportDateRange = `${monthNames[monthInt - 1]}, ${yearInt}`;
+
+                    // Format dates as YYYY-MM-DD
+                    fromDate = fromDate.toISOString().split('T')[0];
+                    toDate = toDate.toISOString().split('T')[0];
                 }
 
-                if (!lastDayOfMonth) {
-                    return res.status(400).json({
-                        success: false,
-                        error: 'Could not determine last day of month'
-                    });
-                }
+                // Convert to ObjectId
+                const companyObjId = new ObjectId(companyId);
+                const fiscalYearObjId = new ObjectId(currentFiscalYear._id);
 
-                // Format toDate in Nepali format (YYYY-MM-DD)
-                toDate = `${yearInt}-${String(monthInt).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
-
-                const monthNames = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashoj",
-                    "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
-                reportDateRange = `${monthNames[monthInt - 1]}, ${yearInt}`;
-            }
-
-            // Convert to ObjectId
-            const companyObjId = new ObjectId(companyId);
-            const fiscalYearObjId = new ObjectId(currentFiscalYear._id);
-
-            // Build the query
-            const query = {
-                company: companyObjId,
-                fiscalYear: fiscalYearObjId,
-                transactionDate: {
-                    $gte: fromDate,
-                    $lte: toDate
-                }
-            };
-
-            // Get all documents
-            const [salesBills, salesReturns, purchaseBills, purchaseReturns] = await Promise.all([
-                SalesBill.find(query).lean(),
-                SalesReturn.find(query).lean(),
-                PurchaseBill.find(query).lean(),
-                PurchaseReturn.find(query).lean()
-            ]);
-
-            // Manual aggregation
-            const aggregateData = (docs, taxableField, nonVatField, vatField) => {
-                return {
-                    taxableAmount: docs.reduce((sum, doc) => sum + (doc[taxableField] || 0), 0),
-                    nonVatAmount: docs.reduce((sum, doc) => sum + (doc[nonVatField] || 0), 0),
-                    vatAmount: docs.reduce((sum, doc) => sum + (doc[vatField] || 0), 0)
+                // Build the query
+                const query = {
+                    company: companyObjId,
+                    fiscalYear: fiscalYearObjId,
+                    transactionDate: {
+                        $gte: fromDate,
+                        $lte: toDate
+                    }
                 };
-            };
 
-            const totals = {
-                sales: aggregateData(salesBills, 'taxableAmount', 'nonVatSales', 'vatAmount'),
-                salesReturn: aggregateData(salesReturns, 'taxableAmount', 'nonVatSalesReturn', 'vatAmount'),
-                purchase: aggregateData(purchaseBills, 'taxableAmount', 'nonVatPurchase', 'vatAmount'),
-                purchaseReturn: aggregateData(purchaseReturns, 'taxableAmount', 'nonVatPurchaseReturn', 'vatAmount')
-            };
+                // Get all documents for this month
+                const [salesBills, salesReturns, purchaseBills, purchaseReturns] = await Promise.all([
+                    SalesBill.find(query).lean(),
+                    SalesReturn.find(query).lean(),
+                    PurchaseBill.find(query).lean(),
+                    PurchaseReturn.find(query).lean()
+                ]);
 
-            // Calculate net values
-            const netSalesVat = totals.sales.vatAmount - totals.salesReturn.vatAmount;
-            const netPurchaseVat = totals.purchase.vatAmount - totals.purchaseReturn.vatAmount;
-            const netVat = netSalesVat - netPurchaseVat;
+                // Manual aggregation
+                const aggregateData = (docs, taxableField, nonVatField, vatField) => {
+                    return {
+                        taxableAmount: docs.reduce((sum, doc) => sum + (doc[taxableField] || 0), 0),
+                        nonVatAmount: docs.reduce((sum, doc) => sum + (doc[nonVatField] || 0), 0),
+                        vatAmount: docs.reduce((sum, doc) => sum + (doc[vatField] || 0), 0)
+                    };
+                };
 
-            res.json({
-                success: true,
-                data: {
-                    companyDateFormat,
-                    nepaliDate: new NepaliDate().format('YYYY-MM-DD'),
-                    company,
-                    currentFiscalYear,
-                    currentNepaliYear,
+                const totals = {
+                    sales: aggregateData(salesBills, 'taxableAmount', 'nonVatSales', 'vatAmount'),
+                    salesReturn: aggregateData(salesReturns, 'taxableAmount', 'nonVatSalesReturn', 'vatAmount'),
+                    purchase: aggregateData(purchaseBills, 'taxableAmount', 'nonVatPurchase', 'vatAmount'),
+                    purchaseReturn: aggregateData(purchaseReturns, 'taxableAmount', 'nonVatPurchaseReturn', 'vatAmount')
+                };
+
+                // Calculate net values
+                const netSalesVat = totals.sales.vatAmount - totals.salesReturn.vatAmount;
+                const netPurchaseVat = totals.purchase.vatAmount - totals.purchaseReturn.vatAmount;
+                const netVat = netSalesVat - netPurchaseVat;
+
+                return {
+                    reportDateRange,
                     totals: {
                         ...totals,
                         netSalesVat,
                         netPurchaseVat,
                         netVat
-                    },
-                    month,
-                    year,
-                    nepaliMonth,
-                    nepaliYear,
-                    reportDateRange,
-                    currentCompanyName: req.session.currentCompanyName,
-                    isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                    }
+                };
+            };
+
+            if (periodType === 'monthly') {
+                // Single month report
+                let monthInt, yearInt, isNepali;
+
+                if (companyDateFormat === 'english') {
+                    monthInt = parseInt(month);
+                    yearInt = parseInt(year);
+                    isNepali = false;
+                } else {
+                    monthInt = parseInt(nepaliMonth);
+                    yearInt = parseInt(nepaliYear);
+                    isNepali = true;
                 }
-            });
+
+                const monthData = await getMonthData(monthInt, yearInt, isNepali);
+
+                if (!monthData) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid month or year'
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    data: {
+                        companyDateFormat,
+                        nepaliDate: new NepaliDate().format('YYYY-MM-DD'),
+                        company,
+                        currentFiscalYear,
+                        currentNepaliYear,
+                        currentCompany,
+                        totals: monthData.totals,
+                        monthlyData: null,
+                        month,
+                        year,
+                        nepaliMonth,
+                        nepaliYear,
+                        reportDateRange: monthData.reportDateRange,
+                        currentCompanyName: req.session.currentCompanyName,
+                        isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                    }
+                });
+            } else {
+                // Yearly report - all months
+                if (companyDateFormat === 'english') {
+                    // English calendar year (Jan-Dec)
+                    const yearInt = parseInt(year);
+                    const monthlyData = [];
+
+                    // Get data for all 12 months (January to December)
+                    for (let monthInt = 1; monthInt <= 12; monthInt++) {
+                        const monthData = await getMonthData(monthInt, yearInt, false);
+                        if (monthData) {
+                            monthlyData.push(monthData);
+                        }
+                    }
+
+                    res.json({
+                        success: true,
+                        data: {
+                            companyDateFormat,
+                            nepaliDate: new NepaliDate().format('YYYY-MM-DD'),
+                            company,
+                            currentFiscalYear,
+                            currentNepaliYear,
+                            totals: null,
+                            monthlyData,
+                            month: null,
+                            year: yearInt,
+                            currentCompany,
+                            nepaliMonth: null,
+                            nepaliYear: null,
+                            reportDateRange: `${yearInt} (All Months)`,
+                            currentCompanyName: req.session.currentCompanyName,
+                            isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                        }
+                    });
+                } else {
+                    // Nepali fiscal year (Shrawan to Ashad)
+                    const fiscalYear = nepaliYear;
+
+                    // Parse fiscal year (e.g., "2081/2082")
+                    const years = fiscalYear.split('/');
+                    if (years.length !== 2) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'Invalid fiscal year format. Use format: YYYY/YYYY'
+                        });
+                    }
+
+                    const startYear = parseInt(years[0]);
+                    const endYear = parseInt(years[1]);
+
+                    if (endYear !== startYear + 1) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'Invalid fiscal year. Second year should be one more than first year'
+                        });
+                    }
+
+                    const monthlyData = [];
+
+                    // Months from Shrawan (4) to Bhadra (12) of start year
+                    for (let monthInt = 4; monthInt <= 12; monthInt++) {
+                        const monthData = await getMonthData(monthInt, startYear, true);
+                        if (monthData) {
+                            monthlyData.push(monthData);
+                        }
+                    }
+
+                    // Months from Ashoj (1) to Ashad (3) of end year
+                    for (let monthInt = 1; monthInt <= 3; monthInt++) {
+                        const monthData = await getMonthData(monthInt, endYear, true);
+                        if (monthData) {
+                            monthlyData.push(monthData);
+                        }
+                    }
+
+                    res.json({
+                        success: true,
+                        data: {
+                            company: company,
+                            companyDateFormat,
+                            nepaliDate: new NepaliDate().format('YYYY-MM-DD'),
+                            company,
+                            currentFiscalYear,
+                            currentNepaliYear,
+                            currentCompany: currentCompany,
+                            totals: null,
+                            monthlyData,
+                            month: null,
+                            currentCompany,
+                            year: null,
+                            nepaliMonth: null,
+                            nepaliYear: fiscalYear,
+                            reportDateRange: `${fiscalYear} (Shrawan - Ashad)`,
+                            currentCompanyName: req.session.currentCompanyName,
+                            isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                        }
+                    });
+                }
+            }
 
         } catch (error) {
             console.error('Error fetching VAT report:', error);
@@ -1382,340 +1700,5 @@ router.get('/monthly-vat-summary', isLoggedIn, ensureAuthenticated, ensureCompan
         }
     }
 });
-
-// router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
-//     if (req.tradeType === 'retailer') {
-//         try {
-//             const companyId = req.session.currentCompany;
-//             const currentCompany = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat address ward pan city country email phone').populate('fiscalYear');;
-//             const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english'; // Default to 'english'
-//             const selectedCompany = req.query.account || '';
-//             const fromDate = req.query.fromDate ? new Date(req.query.fromDate) : null;
-//             const toDate = req.query.toDate ? new Date(req.query.toDate) : null;
-//             const paymentMode = req.query.paymentMode || 'all'; // New parameter for payment mode
-//             const currentCompanyName = req.session.currentCompanyName;
-//             const today = new Date();
-//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD'); // Format the Nepali date as needed
-
-//             // Retrieve the fiscal year from the session
-//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//             let currentFiscalYear = null;
-
-//             if (fiscalYear) {
-//                 // Fetch the fiscal year from the database if available in the session
-//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
-//             }
-
-//             // If no fiscal year is found in session, use the company's fiscal year
-//             if (!currentFiscalYear && currentCompany.fiscalYear) {
-//                 currentFiscalYear = currentCompany.fiscalYear;
-//                 req.session.currentFiscalYear = {
-//                     id: currentFiscalYear._id.toString(),
-//                     startDate: currentFiscalYear.startDate,
-//                     endDate: currentFiscalYear.endDate,
-//                     name: currentFiscalYear.name,
-//                     dateFormat: currentFiscalYear.dateFormat,
-//                     isActive: currentFiscalYear.isActive
-//                 };
-//                 fiscalYear = req.session.currentFiscalYear.id;
-//             }
-
-//             if (!fiscalYear) {
-//                 return res.status(400).json({ error: 'No fiscal year found in session or company.' });
-//             }
-
-//             // Fetch accounts that belong to the current fiscal year
-//             const accounts = await Account.find({
-//                 company: companyId,
-//                 isActive: true, // Filter for active accounts
-//                 $or: [
-//                     { originalFiscalYear: fiscalYear }, // Created here
-//                     {
-//                         fiscalYear: fiscalYear,
-//                         originalFiscalYear: { $lt: fiscalYear } // Migrated from older FYs
-//                     }
-//                 ]
-//             }).sort({ name: 1 });
-
-//             if (!selectedCompany) {
-//                 return res.json({
-//                     status: 'success',
-//                     data: {
-//                         company: currentCompany,
-//                         currentFiscalYear,
-//                         statement: [],
-//                         accounts,
-//                         selectedCompany: null,
-//                         fromDate: '',
-//                         toDate: '',
-//                         paymentMode,
-//                         companyDateFormat,
-//                         nepaliDate,
-//                         currentCompanyName,
-//                         currentCompany,
-//                         user: {
-//                             preferences: req.user.preferences,
-//                             isAdmin: req.user.isAdmin,
-//                             role: req.user.role
-//                         }
-//                     }
-//                 });
-//             }
-
-//             // Fetch the selected account based on the fiscal year and company
-//             const account = await Account.findOne({
-//                 _id: selectedCompany,
-//                 company: companyId,
-//                 isActive: true, // Filter for active accounts
-//                 $or: [
-//                     { originalFiscalYear: fiscalYear }, // Created here
-//                     {
-//                         fiscalYear: fiscalYear,
-//                         originalFiscalYear: { $lt: fiscalYear } // Migrated from older FYs
-//                     }
-//                 ]
-//             }).populate('companyGroups', 'name'); // Add population here
-
-//             if (!account) {
-//                 return res.status(404).json({ error: 'Account not found for the current fiscal year' });
-//             }
-
-//             // Query to filter transactions based on the selected company and fiscal year
-//             let query = {
-//                 company: companyId,
-//                 isActive: true, // Ensure only active transactions
-//             };
-
-//             if (selectedCompany) {
-//                 query.$or = [
-//                     { account: selectedCompany },
-//                     { paymentAccount: selectedCompany },
-//                     { receiptAccount: selectedCompany },
-//                     { debitAccount: selectedCompany },
-//                     { creditAccount: selectedCompany },
-//                 ];
-//             }
-
-//             if (paymentMode === 'exclude-cash') {
-//                 query.paymentMode = { $ne: 'cash' };
-//             } else if (paymentMode !== 'all') {
-//                 query.paymentMode = paymentMode;
-//             }
-
-//             // Define groups that use transaction-based opening balance
-//             const transactionBasedGroups = [
-//                 'Sundry Debtors',
-//                 'Sundry Creditors',
-//                 'Cash in Hand',
-//                 'Bank Accounts',
-//                 'Bank O/D Account',
-//                 'Duties & Taxes'
-//             ];
-
-//             // Determine if account belongs to transaction-based group
-//             const isTransactionBased = account.companyGroups &&
-//                 transactionBasedGroups.includes(account.companyGroups.name);
-
-//             let openingBalance = 0;
-
-//             if (isTransactionBased) {
-//                 if (paymentMode !== 'cash') {
-//                     // Existing transaction-based calculation
-//                     const transactionsBeforeFromDate = await Transaction.find({
-//                         ...query,
-//                         date: { $lt: fromDate }
-//                     }).sort({ date: 1 });
-
-//                     openingBalance = account.initialOpeningBalance.type === 'Dr'
-//                         ? account.initialOpeningBalance.amount
-//                         : -account.initialOpeningBalance.amount;
-
-//                     transactionsBeforeFromDate.forEach(tx => {
-//                         openingBalance += (tx.debit || 0) - (tx.credit || 0);
-//                     });
-//                 }
-//             } else {
-//                 // For non-transaction groups, use fiscal year opening balance
-//                 openingBalance = account.openingBalance.type === 'Dr'
-//                     ? account.openingBalance.amount
-//                     : -account.openingBalance.amount;
-//             }
-
-//             if (fromDate && toDate) {
-//                 query.date = { $gte: fromDate, $lte: toDate };
-//             } else if (fromDate) {
-//                 query.date = { $gte: fromDate };
-//             } else if (toDate) {
-//                 query.date = { $lte: toDate };
-//             }
-
-//             const filteredTransactions = await Transaction.find(query)
-//                 .sort({ date: 1 })
-//                 .populate('paymentAccount', 'name')
-//                 .populate('receiptAccount', 'name')
-//                 .populate('debitAccount', 'name')
-//                 .populate('creditAccount', 'name')
-//                 .populate('account', 'name')
-//                 .populate('accountType', 'name')
-//                 .lean();
-
-//             const cleanTransactions = filteredTransactions.map(tx => ({
-//                 ...tx,
-//                 paymentAccount: tx.paymentAccount ? { name: tx.paymentAccount.name } : null,
-//                 receiptAccount: tx.receiptAccount ? { name: tx.receiptAccount.name } : null,
-//                 debitAccount: tx.debitAccount ? { name: tx.debitAccount.name } : null,
-//                 creditAccount: tx.creditAccount ? { name: tx.creditAccount.name } : null,
-//                 account: tx.account ? { name: tx.account.name } : null,
-//                 accountType: tx.accountType ? { name: tx.accountType.name } : 'Opening Balance'
-//             }));
-
-//             const { statement, totalDebit, totalCredit } = prepareStatementWithOpeningBalanceAndTotals(openingBalance, cleanTransactions, fromDate,
-//                 paymentMode,
-//                 isTransactionBased
-//             );
-
-//             const partyName = account.name;
-
-//             res.json({
-//                 status: 'success',
-//                 data: {
-//                     currentFiscalYear,
-//                     statement,
-//                     accounts,
-//                     partyName,
-//                     selectedCompany,
-//                     account,
-//                     fromDate: req.query.fromDate,
-//                     toDate: req.query.toDate,
-//                     paymentMode,
-//                     company: currentCompany,
-//                     totalDebit,
-//                     totalCredit,
-//                     finalBalance: openingBalance + totalDebit - totalCredit,
-//                     currentCompanyName,
-//                     companyDateFormat,
-//                     nepaliDate,
-//                     currentCompany,
-//                     user: {
-//                         preferences: req.user.preferences,
-//                         isAdmin: req.user.isAdmin,
-//                         role: req.user.role
-//                     }
-//                 }
-//             });
-//         } catch (error) {
-//             console.error("Error fetching statement:", error);
-//             res.status(500).json({ error: 'Error fetching statement' });
-//         }
-//     }
-// });
-
-// // Function to calculate opening balance based on opening balance date
-// function calculateOpeningBalance(account, transactions, fromDate) {
-//     const openingBalanceDate = fromDate || account.openingBalanceDate || new Date('July 17, 2023'); // Use fromDate if available
-//     let openingBalance = account.openingBalance.type === 'Dr' ? account.openingBalance.amount : -account.openingBalance.amount;
-
-//     transactions.forEach(tx => {
-//         if (tx.date < openingBalanceDate) {
-//             openingBalance += (tx.debit || 0) - (tx.credit || 0);
-//         }
-//     });
-
-//     return openingBalance;
-// }
-
-// function prepareStatementWithOpeningBalanceAndTotals(openingBalance, transactions, fromDate, paymentMode, isTransactionBased) {
-//     let balance = openingBalance;
-//     let totalDebit = paymentMode !== 'cash' && openingBalance > 0 ? openingBalance : 0;
-//     let totalCredit = paymentMode !== 'cash' && openingBalance < 0 ? -openingBalance : 0;
-
-//     const statement = paymentMode !== 'cash' ? [
-//         {
-//             date: fromDate ? fromDate.toISOString().split('T')[0] : '',
-//             type: '',
-//             billNumber: '',
-//             paymentMode: '',
-//             paymentAccount: '',
-//             receiptAccount: '',
-//             debitAccount: '',
-//             creditAccount: '',
-//             accountType: 'Opening Balance',
-//             purchaseSalesType: '',
-//             purchaseSalesReturnType: '',
-//             journalAccountType: '',
-//             drCrNoteAccountType: '',
-//             account: '',
-//             debit: openingBalance > 0 ? openingBalance : null,
-//             credit: openingBalance < 0 ? -openingBalance : null,
-//             balance: formatBalance(openingBalance),
-//             billId: '' // Ensure billId is included
-//         }
-//     ] : [];
-
-//     const transactionsByBill = transactions.reduce((acc, tx) => {
-//         let billId = tx.billId || tx.purchaseBillId || tx.salesReturnBillId || tx.purchaseReturnBillId || tx.journalBillId || tx.debitNoteId || tx.creditNoteId || tx.paymentAccountId || tx.receiptAccountId;
-
-//         if (!acc[billId]) {
-//             acc[billId] = {
-//                 date: tx.date,
-//                 type: tx.type,
-//                 billNumber: tx.billNumber,
-//                 paymentMode: tx.paymentMode,
-//                 partyBillNumber: tx.partyBillNumber,
-//                 paymentAccount: tx.paymentAccount,
-//                 receiptAccount: tx.receiptAccount,
-//                 debitAccount: tx.debitAccount,
-//                 creditAccount: tx.creditAccount,
-//                 accountType: tx.accountType,
-//                 purchaseSalesType: tx.purchaseSalesType,
-//                 purchaseSalesReturnType: tx.purchaseSalesReturnType,
-//                 journalAccountType: tx.journalAccountType,
-//                 drCrNoteAccountType: tx.drCrNoteAccountType,
-//                 account: tx.account,
-//                 debit: 0,
-//                 credit: 0,
-//                 balance: 0,
-//                 billId: tx.billId
-//             };
-//         }
-//         acc[billId].debit = tx.debit || 0;
-//         acc[billId].credit = tx.credit || 0;
-//         return acc;
-//     }, {});
-
-//     // Iterate over grouped transactions to prepare the final statement
-//     Object.values(transactionsByBill).forEach(tx => {
-//         balance += (tx.debit || 0) - (tx.credit || 0);
-//         totalDebit += tx.debit || 0;
-//         totalCredit += tx.credit || 0;
-//         statement.push({
-//             date: tx.date,
-//             type: tx.type,
-//             billNumber: tx.billNumber,
-//             paymentMode: tx.paymentMode,
-//             partyBillNumber: tx.partyBillNumber,
-//             paymentAccount: tx.paymentAccount,
-//             receiptAccount: tx.receiptAccount,
-//             debitAccount: tx.debitAccount,
-//             creditAccount: tx.creditAccount,
-//             accountType: tx.accountType,
-//             purchaseSalesType: tx.purchaseSalesType,
-//             purchaseSalesReturnType: tx.purchaseSalesReturnType,
-//             journalAccountType: tx.journalAccountType,
-//             drCrNoteAccountType: tx.drCrNoteAccountType,
-//             account: tx.account,
-//             debit: tx.debit,
-//             credit: tx.credit,
-//             balance: formatBalance(balance),
-//             billId: tx.billId,
-//         });
-//     });
-
-//     return { statement, totalDebit, totalCredit };
-// }
-
-// function formatBalance(amount) {
-//     return amount > 0 ? `${amount.toFixed(2)} Dr` : `${(-amount).toFixed(2)} Cr`;
-// }
 
 module.exports = router;

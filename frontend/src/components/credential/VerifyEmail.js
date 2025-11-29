@@ -14,7 +14,7 @@ const VerifyEmail = () => {
   useEffect(() => {
     const verifyEmail = async () => {
       try {
-        const response = await axios.get(`/auth/verify-email/${token}`);
+        const response = await axios.get(`/api/auth/verify-email/${token}`);
         
         if (response.data.success) {
           setMessage('Email successfully verified! You can now log in.');

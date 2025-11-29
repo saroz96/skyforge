@@ -18,37 +18,180 @@ const ensureFiscalYear = require('../../middleware/checkActiveFiscalYear');
 const checkDemoPeriod = require('../../middleware/checkDemoPeriod');
 
 // Get all stock adjustments for the current company (JSON response for React)
+// router.get('/stockAdjustments/register', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     try {
+//         if (req.tradeType === 'retailer') {
+//             const companyId = req.session.currentCompany;
+//             const currentCompany = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+//             const currentCompanyName = req.session.currentCompanyName;
+//             const today = new Date();
+//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+//             const companyDateFormat = currentCompany ? currentCompany.dateFormat : '';
+//             const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
+
+//             // Extract dates from query parameters
+//             let fromDate = req.query.fromDate ? req.query.fromDate : null;
+//             let toDate = req.query.toDate ? req.query.toDate : null;
+//             // Check if fiscal year is already in the session or available in the company
+//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//             let currentFiscalYear = null;
+
+//             if (fiscalYear) {
+//                 // Fetch the fiscal year from the database if available in the session
+//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//             }
+
+//             // If no fiscal year is found in session or currentCompany, use company's fiscal year
+//             if (!currentFiscalYear && currentCompany.fiscalYear) {
+//                 currentFiscalYear = currentCompany.fiscalYear;
+
+//                 // Set the fiscal year in the session for future requests
+//                 req.session.currentFiscalYear = {
+//                     id: currentFiscalYear._id.toString(),
+//                     startDate: currentFiscalYear.startDate,
+//                     endDate: currentFiscalYear.endDate,
+//                     name: currentFiscalYear.name,
+//                     dateFormat: currentFiscalYear.dateFormat,
+//                     isActive: currentFiscalYear.isActive
+//                 };
+
+//                 // Assign fiscal year ID for use
+//                 fiscalYear = req.session.currentFiscalYear.id;
+//             }
+
+//             if (!fiscalYear) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     error: 'No fiscal year found in session or company.'
+//                 });
+//             }
+
+//             // If no date range provided, return basic info
+//             if (!fromDate || !toDate) {
+//                 return res.json({
+//                     success: true,
+//                     data: {
+//                         company,
+//                         currentFiscalYear: currentFiscalYear,
+//                         nepaliDate,
+//                         companyDateFormat,
+//                         currentCompany,
+//                         stockAdjustments: [],
+//                         fromDate: req.query.fromDate || '',
+//                         toDate: req.query.toDate || '',
+//                         currentCompanyName,
+//                         user: req.user,
+//                         isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//                     },
+//                     meta: {
+//                         title: 'Purchase VAT Report',
+//                         theme: req.user.preferences?.theme || 'light'
+//                     }
+//                 });
+//             }
+
+//             const stockAdjustments = await StockAdjustment.find({
+//                 company: companyId,
+//                 fiscalYear: fiscalYear
+//             })
+//                 .populate('items.item')
+//                 .populate('items.unit') // Populate unit details
+//                 .populate('user')
+//                 .lean();
+
+//             // Sort adjustments by date in ascending order
+//             stockAdjustments.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+//             const formattedAdjustments = stockAdjustments.map(adjustment => {
+//                 return adjustment.items.map(item => ({
+//                     date: adjustment.date,
+//                     billNumber: adjustment.billNumber,
+//                     itemId: item.item?._id,
+//                     itemName: item.item ? item.item.name : 'N/A',
+//                     quantity: item.quantity,
+//                     unitId: item.unit?._id,
+//                     unitName: item.unit?.name || 'N/A',
+//                     puPrice: item.puPrice,
+//                     adjustmentType: adjustment.adjustmentType,
+//                     reason: item.reason.join(' '),
+//                     vatStatus: item.vatStatus,
+//                     userId: adjustment.user?._id,
+//                     userName: adjustment.user?.name || 'N/A',
+//                     adjustmentId: adjustment._id,
+//                 }));
+//             }).flat(); // Flatten the nested array of items
+
+//             const items = await Item.find({ company: companyId }).select('name _id');
+
+//             return res.json({
+//                 success: true,
+//                 data: {
+//                     company: {
+//                         _id: currentCompany._id,
+//                         name: currentCompany.name,
+//                         dateFormat: currentCompany.dateFormat || 'english'
+//                     },
+//                     fiscalYear: currentFiscalYear ? {
+//                         _id: currentFiscalYear._id,
+//                         name: currentFiscalYear.name,
+//                         startDate: currentFiscalYear.startDate,
+//                         endDate: currentFiscalYear.endDate,
+//                         isActive: currentFiscalYear.isActive
+//                     } : null,
+//                     stockAdjustments: formattedAdjustments,
+//                     items: items,
+//                     user: {
+//                         _id: req.user._id,
+//                         name: req.user.name,
+//                         isAdmin: req.user.isAdmin,
+//                         role: req.user.role,
+//                         preferences: req.user.preferences
+//                     },
+//                     isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//                 }
+//             });
+//         } else {
+//             return res.status(403).json({
+//                 success: false,
+//                 error: 'Access denied for this trade type'
+//             });
+//         }
+//     } catch (error) {
+//         console.error('Error fetching stock adjustments:', error);
+//         return res.status(500).json({
+//             success: false,
+//             error: 'Internal server error'
+//         });
+//     }
+// });
+
 router.get('/stockAdjustments/register', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
         if (req.tradeType === 'retailer') {
             const companyId = req.session.currentCompany;
-            const currentCompany = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
+            const currentCompany = await Company.findById(new ObjectId(companyId));
+            const currentCompanyName = req.session.currentCompanyName;
+            const today = new Date();
+            const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+            const companyDateFormat = currentCompany ? currentCompany.dateFormat : '';
+            const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
+
+            // Extract dates from query parameters
+            let fromDate = req.query.fromDate ? req.query.fromDate : null;
+            let toDate = req.query.toDate ? req.query.toDate : null;
 
             // Check if fiscal year is already in the session or available in the company
             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
             let currentFiscalYear = null;
 
             if (fiscalYear) {
-                // Fetch the fiscal year from the database if available in the session
                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
             }
 
             // If no fiscal year is found in session or currentCompany, use company's fiscal year
-            if (!currentFiscalYear && currentCompany.fiscalYear) {
-                currentFiscalYear = currentCompany.fiscalYear;
-
-                // Set the fiscal year in the session for future requests
-                req.session.currentFiscalYear = {
-                    id: currentFiscalYear._id.toString(),
-                    startDate: currentFiscalYear.startDate,
-                    endDate: currentFiscalYear.endDate,
-                    name: currentFiscalYear.name,
-                    dateFormat: currentFiscalYear.dateFormat,
-                    isActive: currentFiscalYear.isActive
-                };
-
-                // Assign fiscal year ID for use
-                fiscalYear = req.session.currentFiscalYear.id;
+            if (!currentFiscalYear && company.fiscalYear) {
+                currentFiscalYear = company.fiscalYear;
+                fiscalYear = currentFiscalYear._id.toString();
             }
 
             if (!fiscalYear) {
@@ -58,17 +201,51 @@ router.get('/stockAdjustments/register', isLoggedIn, ensureAuthenticated, ensure
                 });
             }
 
-            const stockAdjustments = await StockAdjustment.find({
+            // If no date range provided, return basic info
+            if (!fromDate || !toDate) {
+                return res.json({
+                    success: true,
+                    data: {
+                        company,
+                        currentFiscalYear: currentFiscalYear,
+                        nepaliDate,
+                        companyDateFormat,
+                        currentCompany,
+                        stockAdjustments: [],
+                        fromDate: req.query.fromDate || '',
+                        toDate: req.query.toDate || '',
+                        currentCompanyName,
+                        user: req.user,
+                        isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                    },
+                    meta: {
+                        title: 'Stock Adjustments Register',
+                        theme: req.user.preferences?.theme || 'light'
+                    }
+                });
+            }
+
+            // Build the query based on the date range
+            let query = {
                 company: companyId,
                 fiscalYear: fiscalYear
-            })
-                .populate('items.item')
-                .populate('items.unit') // Populate unit details
-                .populate('user')
-                .lean();
+            };
 
-            // Sort adjustments by date in ascending order
-            stockAdjustments.sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (fromDate && toDate) {
+                query.date = { $gte: fromDate, $lte: toDate };
+            } else if (fromDate) {
+                query.date = { $gte: fromDate };
+            } else if (toDate) {
+                query.date = { $lte: toDate };
+            }
+
+            const stockAdjustments = await StockAdjustment.find(query)
+                .sort({ date: 1 })
+                .populate('items.item')
+                .populate('items.unit')
+                .populate('user')
+                .lean()
+                .exec();
 
             const formattedAdjustments = stockAdjustments.map(adjustment => {
                 return adjustment.items.map(item => ({
@@ -94,28 +271,22 @@ router.get('/stockAdjustments/register', isLoggedIn, ensureAuthenticated, ensure
             return res.json({
                 success: true,
                 data: {
-                    company: {
-                        _id: currentCompany._id,
-                        name: currentCompany.name,
-                        dateFormat: currentCompany.dateFormat || 'english'
-                    },
-                    fiscalYear: currentFiscalYear ? {
-                        _id: currentFiscalYear._id,
-                        name: currentFiscalYear.name,
-                        startDate: currentFiscalYear.startDate,
-                        endDate: currentFiscalYear.endDate,
-                        isActive: currentFiscalYear.isActive
-                    } : null,
+                    company,
+                    currentFiscalYear,
                     stockAdjustments: formattedAdjustments,
-                    items: items,
-                    user: {
-                        _id: req.user._id,
-                        name: req.user.name,
-                        isAdmin: req.user.isAdmin,
-                        role: req.user.role,
-                        preferences: req.user.preferences
-                    },
+                    items,
+                    companyDateFormat,
+                    nepaliDate,
+                    currentCompany,
+                    fromDate: req.query.fromDate || '',
+                    toDate: req.query.toDate || '',
+                    currentCompanyName,
+                    user: req.user,
                     isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                },
+                meta: {
+                    title: 'Stock Adjustments Register',
+                    theme: req.user.preferences?.theme || 'light'
                 }
             });
         } else {
@@ -125,10 +296,11 @@ router.get('/stockAdjustments/register', isLoggedIn, ensureAuthenticated, ensure
             });
         }
     } catch (error) {
-        console.error('Error fetching stock adjustments:', error);
+        console.error('Error in stock-adjustments register endpoint:', error);
         return res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            details: error.message
         });
     }
 });
@@ -477,6 +649,164 @@ router.post('/stockAdjustments/new', ensureAuthenticated, ensureCompanySelected,
         session.endSession();
     }
 });
+
+
+router.get('/stockAdjustments/:id/print', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    if (req.tradeType === 'retailer') {
+        try {
+            const stockAdjustmentId = req.params.id;
+            const companyId = req.session.currentCompany;
+            const currentCompanyName = req.session.currentCompanyName;
+            const today = new Date();
+            const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+
+            const company = await Company.findById(companyId)
+                .select('renewalDate fiscalYear dateFormat name address ward city country phone email pan')
+                .populate('fiscalYear');
+
+            if (!company) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Company not found'
+                });
+            }
+
+            // Handle fiscal year
+            let fiscalYear = req.session.currentFiscalYear?.id || null;
+            let currentFiscalYear = null;
+
+            if (fiscalYear) {
+                currentFiscalYear = await FiscalYear.findById(fiscalYear).lean();
+            }
+
+            if (!currentFiscalYear && company.fiscalYear) {
+                currentFiscalYear = company.fiscalYear;
+                fiscalYear = currentFiscalYear._id.toString();
+            }
+
+            if (!fiscalYear) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'No fiscal year found in session or company.'
+                });
+            }
+
+            // Validate stock adjustment ID
+            if (!mongoose.Types.ObjectId.isValid(stockAdjustmentId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid stock adjustment ID.'
+                });
+            }
+
+            const currentCompany = await Company.findById(new ObjectId(companyId));
+            if (!currentCompany) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Company not found'
+                });
+            }
+
+            // Find the stock adjustment record with populated fields
+            const stockAdjustment = await StockAdjustment.findById(stockAdjustmentId)
+                .populate('items.item')
+                .populate('items.unit')
+                .populate('user', 'name')
+                .lean();
+
+            if (!stockAdjustment) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Stock adjustment not found.'
+                });
+            }
+
+            // Format dates safely
+            const formatDate = (date) => {
+                if (!date) return null;
+                try {
+                    return new Date(date).toISOString().split('T')[0];
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            // Process items to ensure all required fields are present
+            const processedItems = stockAdjustment.items.map(item => ({
+                ...item,
+                item: item.item || { name: 'N/A', _id: null },
+                unit: item.unit || { name: 'N/A', _id: null },
+                quantity: item.quantity || 0,
+                puPrice: item.puPrice || 0,
+                reason: item.reason || [],
+                vatStatus: item.vatStatus || 'vatable'
+            }));
+
+            // Calculate totals
+            const totals = processedItems.reduce((acc, item) => {
+                const itemTotal = (item.quantity || 0) * (item.puPrice || 0);
+                return {
+                    totalQuantity: acc.totalQuantity + (item.quantity || 0),
+                    totalValue: acc.totalValue + itemTotal
+                };
+            }, { totalQuantity: 0, totalValue: 0 });
+
+            // Prepare response
+            const response = {
+                success: true,
+                data: {
+                    company: {
+                        ...company,
+                        fiscalYear: company.fiscalYear
+                    },
+                    currentFiscalYear: currentFiscalYear,
+                    currentCompanyName,
+                    currentCompany: {
+                        _id: currentCompany._id,
+                        name: currentCompany.name,
+                        phone: currentCompany.phone,
+                        pan: currentCompany.pan,
+                        address: currentCompany.address,
+                        ward: currentCompany.ward,
+                        city: currentCompany.city,
+                        email: currentCompany.email,
+                        country: currentCompany.country
+                    },
+                    stockAdjustment: {
+                        ...stockAdjustment,
+                        date: formatDate(stockAdjustment.date),
+                        createdAt: formatDate(stockAdjustment.createdAt),
+                        updatedAt: formatDate(stockAdjustment.updatedAt),
+                        items: processedItems,
+                        user: stockAdjustment.user || { name: 'N/A' },
+                        billNumber: stockAdjustment.billNumber || 'N/A',
+                        adjustmentType: stockAdjustment.adjustmentType || 'N/A'
+                    },
+                    totals: totals,
+                    currentDate: formatDate(new Date()),
+                    nepaliDate: nepaliDate,
+                    companyDateFormat: company.dateFormat || 'english',
+                    userPreferences: {
+                        theme: req.user?.preferences?.theme || 'light'
+                    },
+                    userRoles: {
+                        isAdminOrSupervisor: req.user?.isAdmin || req.user?.role === 'Supervisor'
+                    }
+                }
+            };
+
+            res.json(response);
+        } catch (error) {
+            console.error('Error retrieving stock adjustment:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Internal server error',
+                error: error.message
+            });
+        }
+    }
+});
+
 
 
 module.exports = router;

@@ -123,6 +123,7 @@ import ItemsImport from './components/retailer/Items/ItemsImport';
 import ItemsImportResults from './components/retailer/Items/ItemsImportResults';
 import AccountsImport from './components/retailer/accounts/AccountsImport';
 import AccountsImportResults from './components/retailer/accounts/AccountsImportResults';
+import StockAdjustmentPrint from './components/retailer/stockAdjustment/Print';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -292,7 +293,7 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-                <Route
+            <Route
               path="/retailer/accounts-import-results"
               element={
                 <ProtectedRoute>
@@ -564,6 +565,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <StockAdjustmentsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retailer/stockAdjustments/:id/print"
+              element={
+                <ProtectedRoute>
+                  <StockAdjustmentPrint />
                 </ProtectedRoute>
               }
             />

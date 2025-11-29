@@ -5718,6 +5718,582 @@ router.get('/sales-vat-report', isLoggedIn, ensureAuthenticated, ensureCompanySe
     }
 });
 
+// router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+//     if (req.tradeType === 'retailer') {
+//         try {
+//             const companyId = req.session.currentCompany;
+//             const currentCompany = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat address ward pan city country email phone').populate('fiscalYear');
+//             const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
+//             const selectedCompany = req.query.account || '';
+//             const fromDate = req.query.fromDate ? new Date(req.query.fromDate) : null;
+//             const toDate = req.query.toDate ? new Date(req.query.toDate) : null;
+//             const paymentMode = req.query.paymentMode || 'all';
+//             const currentCompanyName = req.session.currentCompanyName;
+//             const today = new Date();
+//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+
+//             // Retrieve the fiscal year from the session
+//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//             let currentFiscalYear = null;
+
+//             if (fiscalYear) {
+//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//             }
+
+//             if (!currentFiscalYear && currentCompany.fiscalYear) {
+//                 currentFiscalYear = currentCompany.fiscalYear;
+//                 req.session.currentFiscalYear = {
+//                     id: currentFiscalYear._id.toString(),
+//                     startDate: currentFiscalYear.startDate,
+//                     endDate: currentFiscalYear.endDate,
+//                     name: currentFiscalYear.name,
+//                     dateFormat: currentFiscalYear.dateFormat,
+//                     isActive: currentFiscalYear.isActive
+//                 };
+//                 fiscalYear = req.session.currentFiscalYear.id;
+//             }
+
+//             if (!fiscalYear) {
+//                 return res.status(400).json({ error: 'No fiscal year found in session or company.' });
+//             }
+
+//             // Fetch accounts
+//             const accounts = await Account.find({
+//                 company: companyId,
+//                 isActive: true,
+//                 $or: [
+//                     { originalFiscalYear: fiscalYear },
+//                     {
+//                         fiscalYear: fiscalYear,
+//                         originalFiscalYear: { $lt: fiscalYear }
+//                     }
+//                 ]
+//             }).sort({ name: 1 });
+
+//             if (!selectedCompany) {
+//                 return res.json({
+//                     status: 'success',
+//                     data: {
+//                         company: currentCompany,
+//                         currentFiscalYear,
+//                         statement: [],
+//                         accounts,
+//                         selectedCompany: null,
+//                         fromDate: req.query.fromDate || '',
+//                         toDate: req.query.toDate || '',
+//                         paymentMode,
+//                         companyDateFormat,
+//                         nepaliDate,
+//                         currentCompanyName,
+//                         currentCompany,
+//                         user: {
+//                             preferences: req.user.preferences,
+//                             isAdmin: req.user.isAdmin,
+//                             role: req.user.role
+//                         },
+//                         totalDebit: 0,
+//                         totalCredit: 0,
+//                         openingBalance: 0
+//                     }
+//                 });
+//             }
+
+//             // Fetch the selected account
+//             const account = await Account.findOne({
+//                 _id: selectedCompany,
+//                 company: companyId,
+//                 isActive: true,
+//                 $or: [
+//                     { originalFiscalYear: fiscalYear },
+//                     {
+//                         fiscalYear: fiscalYear,
+//                         originalFiscalYear: { $lt: fiscalYear }
+//                     }
+//                 ]
+//             }).populate('companyGroups', 'name').lean();
+
+//             if (!account) {
+//                 return res.status(404).json({ error: 'Account not found for the current fiscal year' });
+//             }
+
+//             // Query to filter transactions
+//             let query = {
+//                 company: companyId,
+//                 isActive: true,
+//             };
+
+//             // Date filtering
+//             if (fromDate && toDate) {
+//                 query.date = { $gte: fromDate, $lte: toDate };
+//             } else if (fromDate) {
+//                 query.date = { $gte: fromDate };
+//             } else if (toDate) {
+//                 query.date = { $lte: toDate };
+//             }
+
+//             if (selectedCompany) {
+//                 query.$or = [
+//                     { account: selectedCompany },
+//                     { paymentAccount: selectedCompany },
+//                     { receiptAccount: selectedCompany },
+//                     { debitAccount: selectedCompany },
+//                     { creditAccount: selectedCompany },
+//                 ];
+//             }
+
+//             if (paymentMode === 'exclude-cash') {
+//                 query.paymentMode = { $ne: 'cash' };
+//             } else if (paymentMode !== 'all') {
+//                 query.paymentMode = paymentMode;
+//             }
+
+//             // Define transaction-based groups
+//             // const transactionBasedGroups = [
+//             //     'Sundry Debtors',
+//             //     'Sundry Creditors',
+//             //     'Cash in Hand',
+//             //     'Bank Accounts',
+//             //     'Bank O/D Account',
+//             //     'Duties & Taxes',
+//             //     'Current Assets',
+//             //     'Expenses (Direct/Mfg.)',
+//             //     'Expenses (Indirect/Admn.)',
+//             //     'Fixed Assets',
+//             //     'Income (Direct/Opr.)',
+//             //     'Income (Indirect)',
+//             //     'Loans & Advances',
+//             //     'Profit & Loss',
+//             //     'Provisions/Expenses Payable',
+//             //     'Purchase',
+//             //     'Reserves & Surplus',
+//             //     'Sale',
+//             //     'Secured Loans',
+//             //     'Securities & Deposits',
+//             //     'Stock in hand',
+//             //     'Sundry Creditors',
+//             // ];
+
+//             // const isTransactionBased = account.companyGroups &&
+//             //     transactionBasedGroups.includes(account.companyGroups.name);
+
+//             let openingBalance = 0;
+
+//             // Calculate opening balance
+//             // if (isTransactionBased) {
+//             // Create a query for transactions before fromDate (for opening balance)
+//             const openingBalanceQuery = {
+//                 company: companyId,
+//                 isActive: true,
+//                 $or: [
+//                     { account: selectedCompany },
+//                     { paymentAccount: selectedCompany },
+//                     { receiptAccount: selectedCompany },
+//                     { debitAccount: selectedCompany },
+//                     { creditAccount: selectedCompany },
+//                 ],
+//                 date: { $lt: fromDate }
+//             };
+
+//             // Don't apply payment mode filter for opening balance calculation
+//             // We need ALL transactions before the from date to calculate the correct opening balance
+
+//             const transactionsBeforeFromDate = await Transaction.find(openingBalanceQuery)
+//                 .sort({ date: 1, createdAt: 1 })
+//                 .lean();
+
+//             // Start with the initial opening balance from the account
+//             openingBalance = account.initialOpeningBalance.type === 'Dr'
+//                 ? account.initialOpeningBalance.amount
+//                 : -account.initialOpeningBalance.amount;
+
+//             // Use a Set to track processed transactions and avoid duplicates
+//             const processedTransactions = new Set();
+
+//             // Calculate running balance from all transactions before fromDate
+//             transactionsBeforeFromDate.forEach(tx => {
+//                 // Create a unique identifier for this transaction to avoid duplicates
+//                 const txIdentifier = `${tx.date}-${tx.type}-${tx.billNumber}-${tx.debit}-${tx.credit}`;
+
+//                 if (!processedTransactions.has(txIdentifier)) {
+//                     processedTransactions.add(txIdentifier);
+
+//                     // Determine if this transaction affects the selected account as debit or credit
+//                     let amount = 0;
+
+//                     if (tx.account && tx.account.toString() === selectedCompany) {
+//                         // Standard transaction
+//                         amount = (tx.debit || 0) - (tx.credit || 0);
+//                     } else if (tx.paymentAccount && tx.paymentAccount.toString() === selectedCompany) {
+//                         // Payment transaction
+//                         amount = -(tx.amount || 0);
+//                     } else if (tx.receiptAccount && tx.receiptAccount.toString() === selectedCompany) {
+//                         // Receipt transaction
+//                         amount = (tx.amount || 0);
+//                     } else if (tx.debitAccount && tx.debitAccount.toString() === selectedCompany) {
+//                         // Journal debit
+//                         amount = (tx.amount || 0);
+//                     } else if (tx.creditAccount && tx.creditAccount.toString() === selectedCompany) {
+//                         // Journal credit
+//                         amount = -(tx.amount || 0);
+//                     }
+
+//                     openingBalance += amount;
+//                 }
+//             });
+//             // } else {
+//             //     // For non-transaction based accounts, use the stored opening balance
+//             //     openingBalance = account.openingBalance.type === 'Dr'
+//             //         ? account.openingBalance.amount
+//             //         : -account.openingBalance.amount;
+//             // }
+
+//             const filteredTransactions = await Transaction.find(query)
+//                 .sort({ date: 1 })
+//                 .populate('paymentAccount', 'name')
+//                 .populate('receiptAccount', 'name')
+//                 .populate('debitAccount', 'name')
+//                 .populate('creditAccount', 'name')
+//                 .populate('account', 'name')
+//                 .populate('accountType', 'name')
+//                 .lean();
+
+//             const cleanTransactions = filteredTransactions.map(tx => ({
+//                 ...tx,
+//                 paymentAccount: tx.paymentAccount ? { name: tx.paymentAccount.name } : null,
+//                 receiptAccount: tx.receiptAccount ? { name: tx.receiptAccount.name } : null,
+//                 debitAccount: tx.debitAccount ? { name: tx.debitAccount.name } : null,
+//                 creditAccount: tx.creditAccount ? { name: tx.creditAccount.name } : null,
+//                 account: tx.account ? { name: tx.account.name } : null,
+//                 accountType: tx.accountType ? { name: tx.accountType.name } : 'Opening Balance'
+//             }));
+
+//             const { statement, totalDebit, totalCredit } = prepareStatementWithOpeningBalanceAndTotals(
+//                 openingBalance,
+//                 cleanTransactions,
+//                 fromDate,
+//                 paymentMode,
+//                 // isTransactionBased
+//             );
+
+//             const partyName = account.name;
+
+//             // Return JSON response instead of rendering template
+//             res.json({
+//                 status: 'success',
+//                 data: {
+//                     currentFiscalYear,
+//                     statement,
+//                     accounts,
+//                     partyName,
+//                     selectedCompany,
+//                     account,
+//                     fromDate: req.query.fromDate,
+//                     toDate: req.query.toDate,
+//                     paymentMode,
+//                     company: currentCompany,
+//                     totalDebit,
+//                     totalCredit,
+//                     openingBalance,
+//                     currentCompanyName,
+//                     companyDateFormat,
+//                     nepaliDate,
+//                     currentCompany,
+//                     user: {
+//                         preferences: req.user.preferences,
+//                         isAdmin: req.user.isAdmin,
+//                         role: req.user.role
+//                     }
+//                 }
+//             });
+
+//         } catch (error) {
+//             console.error("Error fetching statement:", error);
+//             res.status(500).json({ error: 'Error fetching statement' });
+//         }
+//     }
+// });
+
+
+// router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+//     if (req.tradeType === 'retailer') {
+//         try {
+//             const companyId = req.session.currentCompany;
+//             const currentCompany = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat address ward pan city country email phone').populate('fiscalYear');
+//             const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
+//             const selectedCompany = req.query.account || '';
+//             const fromDate = req.query.fromDate ? new Date(req.query.fromDate) : null;
+//             const toDate = req.query.toDate ? new Date(req.query.toDate) : null;
+//             const paymentMode = req.query.paymentMode || 'all';
+//             const includeItems = req.query.includeItems === 'true';
+//             const currentCompanyName = req.session.currentCompanyName;
+//             const today = new Date();
+//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+
+//             // Retrieve the fiscal year from the session
+//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//             let currentFiscalYear = null;
+
+//             if (fiscalYear) {
+//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//             }
+
+//             if (!currentFiscalYear && currentCompany.fiscalYear) {
+//                 currentFiscalYear = currentCompany.fiscalYear;
+//                 req.session.currentFiscalYear = {
+//                     id: currentFiscalYear._id.toString(),
+//                     startDate: currentFiscalYear.startDate,
+//                     endDate: currentFiscalYear.endDate,
+//                     name: currentFiscalYear.name,
+//                     dateFormat: currentFiscalYear.dateFormat,
+//                     isActive: currentFiscalYear.isActive
+//                 };
+//                 fiscalYear = req.session.currentFiscalYear.id;
+//             }
+
+//             if (!fiscalYear) {
+//                 return res.status(400).json({ error: 'No fiscal year found in session or company.' });
+//             }
+
+//             // Fetch accounts
+//             const accounts = await Account.find({
+//                 company: companyId,
+//                 isActive: true,
+//                 $or: [
+//                     { originalFiscalYear: fiscalYear },
+//                     {
+//                         fiscalYear: fiscalYear,
+//                         originalFiscalYear: { $lt: fiscalYear }
+//                     }
+//                 ]
+//             }).sort({ name: 1 });
+
+//             if (!selectedCompany) {
+//                 return res.json({
+//                     status: 'success',
+//                     data: {
+//                         company: currentCompany,
+//                         currentFiscalYear,
+//                         statement: [],
+//                         itemwiseStatement: [],
+//                         accounts,
+//                         selectedCompany: null,
+//                         fromDate: req.query.fromDate || '',
+//                         toDate: req.query.toDate || '',
+//                         paymentMode,
+//                         companyDateFormat,
+//                         nepaliDate,
+//                         currentCompanyName,
+//                         currentCompany,
+//                         user: {
+//                             preferences: req.user.preferences,
+//                             isAdmin: req.user.isAdmin,
+//                             role: req.user.role
+//                         },
+//                         totalDebit: 0,
+//                         totalCredit: 0,
+//                         openingBalance: 0
+//                     }
+//                 });
+//             }
+
+//             // Fetch the selected account
+//             const account = await Account.findOne({
+//                 _id: selectedCompany,
+//                 company: companyId,
+//                 isActive: true,
+//                 $or: [
+//                     { originalFiscalYear: fiscalYear },
+//                     {
+//                         fiscalYear: fiscalYear,
+//                         originalFiscalYear: { $lt: fiscalYear }
+//                     }
+//                 ]
+//             }).populate('companyGroups', 'name').lean();
+
+//             if (!account) {
+//                 return res.status(404).json({ error: 'Account not found for the current fiscal year' });
+//             }
+
+//             // Query to filter transactions
+//             let query = {
+//                 company: companyId,
+//                 isActive: true,
+//             };
+
+//             // Date filtering
+//             if (fromDate && toDate) {
+//                 query.date = { $gte: fromDate, $lte: toDate };
+//             } else if (fromDate) {
+//                 query.date = { $gte: fromDate };
+//             } else if (toDate) {
+//                 query.date = { $lte: toDate };
+//             }
+
+//             if (selectedCompany) {
+//                 query.$or = [
+//                     { account: selectedCompany },
+//                     { paymentAccount: selectedCompany },
+//                     { receiptAccount: selectedCompany },
+//                     { debitAccount: selectedCompany },
+//                     { creditAccount: selectedCompany },
+//                 ];
+//             }
+
+//             if (paymentMode === 'exclude-cash') {
+//                 query.paymentMode = { $ne: 'cash' };
+//             } else if (paymentMode !== 'all') {
+//                 query.paymentMode = paymentMode;
+//             }
+
+//             let openingBalance = 0;
+
+//             // Calculate opening balance
+//             const openingBalanceQuery = {
+//                 company: companyId,
+//                 isActive: true,
+//                 $or: [
+//                     { account: selectedCompany },
+//                     { paymentAccount: selectedCompany },
+//                     { receiptAccount: selectedCompany },
+//                     { debitAccount: selectedCompany },
+//                     { creditAccount: selectedCompany },
+//                 ],
+//                 date: { $lt: fromDate }
+//             };
+
+//             const transactionsBeforeFromDate = await Transaction.find(openingBalanceQuery)
+//                 .sort({ date: 1, createdAt: 1 })
+//                 .lean();
+
+//             // Start with the initial opening balance from the account
+//             openingBalance = account.initialOpeningBalance.type === 'Dr'
+//                 ? account.initialOpeningBalance.amount
+//                 : -account.initialOpeningBalance.amount;
+
+//             // Use a Set to track processed transactions and avoid duplicates
+//             const processedTransactions = new Set();
+
+//             // Calculate running balance from all transactions before fromDate
+//             transactionsBeforeFromDate.forEach(tx => {
+//                 const txIdentifier = `${tx.date}-${tx.type}-${tx.billNumber}-${tx.debit}-${tx.credit}`;
+
+//                 if (!processedTransactions.has(txIdentifier)) {
+//                     processedTransactions.add(txIdentifier);
+
+//                     // Determine if this transaction affects the selected account as debit or credit
+//                     let amount = 0;
+
+//                     if (tx.account && tx.account.toString() === selectedCompany) {
+//                         // Standard transaction
+//                         amount = (tx.debit || 0) - (tx.credit || 0);
+//                     } else if (tx.paymentAccount && tx.paymentAccount.toString() === selectedCompany) {
+//                         // Payment transaction
+//                         amount = -(tx.amount || 0);
+//                     } else if (tx.receiptAccount && tx.receiptAccount.toString() === selectedCompany) {
+//                         // Receipt transaction
+//                         amount = (tx.amount || 0);
+//                     } else if (tx.debitAccount && tx.debitAccount.toString() === selectedCompany) {
+//                         // Journal debit
+//                         amount = (tx.amount || 0);
+//                     } else if (tx.creditAccount && tx.creditAccount.toString() === selectedCompany) {
+//                         // Journal credit
+//                         amount = -(tx.amount || 0);
+//                     }
+
+//                     openingBalance += amount;
+//                 }
+//             });
+
+//             // Fetch transactions with item population if needed
+//             const filteredTransactions = await Transaction.find(query)
+//                 .sort({ date: 1 })
+//                 .populate('paymentAccount', 'name')
+//                 .populate('receiptAccount', 'name')
+//                 .populate('debitAccount', 'name')
+//                 .populate('creditAccount', 'name')
+//                 .populate('account', 'name')
+//                 .populate('accountType', 'name')
+//                 .populate('item', 'name') // Populate item details
+//                 .populate('unit', 'name') // Populate unit details
+//                 .lean();
+
+//             const cleanTransactions = filteredTransactions.map(tx => ({
+//                 ...tx,
+//                 paymentAccount: tx.paymentAccount ? { name: tx.paymentAccount.name } : null,
+//                 receiptAccount: tx.receiptAccount ? { name: tx.receiptAccount.name } : null,
+//                 debitAccount: tx.debitAccount ? { name: tx.debitAccount.name } : null,
+//                 creditAccount: tx.creditAccount ? { name: tx.creditAccount.name } : null,
+//                 account: tx.account ? { name: tx.account.name } : null,
+//                 accountType: tx.accountType ? { name: tx.accountType.name } : 'Opening Balance',
+//                 item: tx.item ? { name: tx.item.name } : null,
+//                 unit: tx.unit ? { name: tx.unit.name } : null
+//             }));
+
+//             const { statement, totalDebit, totalCredit } = prepareStatementWithOpeningBalanceAndTotals(
+//                 openingBalance,
+//                 cleanTransactions,
+//                 fromDate,
+//                 paymentMode,
+//             );
+
+//             // Prepare itemwise statement if requested
+//             let itemwiseStatement = [];
+//             if (includeItems) {
+//                 itemwiseStatement = cleanTransactions
+//                     .filter(tx => tx.item) // Only include transactions with items
+//                     .map(tx => ({
+//                         date: tx.date,
+//                         billNumber: tx.billNumber,
+//                         type: tx.type,
+//                         paymentMode: tx.paymentMode,
+//                         item: tx.item,
+//                         quantity: tx.quantity,
+//                         unit: tx.unit,
+//                         price: tx.price,
+//                         netPrice: tx.netPrice,
+//                         partyBillNumber: tx.partyBillNumber
+//                     }));
+//             }
+
+//             const partyName = account.name;
+
+//             // Return JSON response instead of rendering template
+//             res.json({
+//                 status: 'success',
+//                 data: {
+//                     currentFiscalYear,
+//                     statement,
+//                     itemwiseStatement,
+//                     accounts,
+//                     partyName,
+//                     selectedCompany,
+//                     account,
+//                     fromDate: req.query.fromDate,
+//                     toDate: req.query.toDate,
+//                     paymentMode,
+//                     company: currentCompany,
+//                     totalDebit,
+//                     totalCredit,
+//                     openingBalance,
+//                     currentCompanyName,
+//                     companyDateFormat,
+//                     nepaliDate,
+//                     currentCompany,
+//                     user: {
+//                         preferences: req.user.preferences,
+//                         isAdmin: req.user.isAdmin,
+//                         role: req.user.role
+//                     }
+//                 }
+//             });
+
+//         } catch (error) {
+//             console.error("Error fetching statement:", error);
+//             res.status(500).json({ error: 'Error fetching statement' });
+//         }
+//     }
+// });
+
 router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType === 'retailer') {
         try {
@@ -5728,6 +6304,7 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
             const fromDate = req.query.fromDate ? new Date(req.query.fromDate) : null;
             const toDate = req.query.toDate ? new Date(req.query.toDate) : null;
             const paymentMode = req.query.paymentMode || 'all';
+            const includeItems = req.query.includeItems === 'true';
             const currentCompanyName = req.session.currentCompanyName;
             const today = new Date();
             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
@@ -5777,6 +6354,7 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                         company: currentCompany,
                         currentFiscalYear,
                         statement: [],
+                        itemwiseStatement: [],
                         accounts,
                         selectedCompany: null,
                         fromDate: req.query.fromDate || '',
@@ -5847,40 +6425,9 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                 query.paymentMode = paymentMode;
             }
 
-            // Define transaction-based groups
-            // const transactionBasedGroups = [
-            //     'Sundry Debtors',
-            //     'Sundry Creditors',
-            //     'Cash in Hand',
-            //     'Bank Accounts',
-            //     'Bank O/D Account',
-            //     'Duties & Taxes',
-            //     'Current Assets',
-            //     'Expenses (Direct/Mfg.)',
-            //     'Expenses (Indirect/Admn.)',
-            //     'Fixed Assets',
-            //     'Income (Direct/Opr.)',
-            //     'Income (Indirect)',
-            //     'Loans & Advances',
-            //     'Profit & Loss',
-            //     'Provisions/Expenses Payable',
-            //     'Purchase',
-            //     'Reserves & Surplus',
-            //     'Sale',
-            //     'Secured Loans',
-            //     'Securities & Deposits',
-            //     'Stock in hand',
-            //     'Sundry Creditors',
-            // ];
-
-            // const isTransactionBased = account.companyGroups &&
-            //     transactionBasedGroups.includes(account.companyGroups.name);
-
             let openingBalance = 0;
 
             // Calculate opening balance
-            // if (isTransactionBased) {
-            // Create a query for transactions before fromDate (for opening balance)
             const openingBalanceQuery = {
                 company: companyId,
                 isActive: true,
@@ -5893,9 +6440,6 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                 ],
                 date: { $lt: fromDate }
             };
-
-            // Don't apply payment mode filter for opening balance calculation
-            // We need ALL transactions before the from date to calculate the correct opening balance
 
             const transactionsBeforeFromDate = await Transaction.find(openingBalanceQuery)
                 .sort({ date: 1, createdAt: 1 })
@@ -5911,7 +6455,6 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
 
             // Calculate running balance from all transactions before fromDate
             transactionsBeforeFromDate.forEach(tx => {
-                // Create a unique identifier for this transaction to avoid duplicates
                 const txIdentifier = `${tx.date}-${tx.type}-${tx.billNumber}-${tx.debit}-${tx.credit}`;
 
                 if (!processedTransactions.has(txIdentifier)) {
@@ -5940,40 +6483,158 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                     openingBalance += amount;
                 }
             });
-            // } else {
-            //     // For non-transaction based accounts, use the stored opening balance
-            //     openingBalance = account.openingBalance.type === 'Dr'
-            //         ? account.openingBalance.amount
-            //         : -account.openingBalance.amount;
-            // }
-
+            // Fetch transactions with item population if needed - FIXED QUERY
             const filteredTransactions = await Transaction.find(query)
                 .sort({ date: 1 })
                 .populate('paymentAccount', 'name')
                 .populate('receiptAccount', 'name')
                 .populate('debitAccount', 'name')
                 .populate('creditAccount', 'name')
-                .populate('account', 'name')
+                .populate('account', 'name') // This populates account field
                 .populate('accountType', 'name')
+                .populate('item', 'name') // Populate item details - but don't filter by this
+                .populate('unit', 'name') // Populate unit details
                 .lean();
 
+            // Don't filter by item - we need ALL transactions including VAT and other accounts
             const cleanTransactions = filteredTransactions.map(tx => ({
                 ...tx,
                 paymentAccount: tx.paymentAccount ? { name: tx.paymentAccount.name } : null,
                 receiptAccount: tx.receiptAccount ? { name: tx.receiptAccount.name } : null,
                 debitAccount: tx.debitAccount ? { name: tx.debitAccount.name } : null,
                 creditAccount: tx.creditAccount ? { name: tx.creditAccount.name } : null,
-                account: tx.account ? { name: tx.account.name } : null,
-                accountType: tx.accountType ? { name: tx.accountType.name } : 'Opening Balance'
+                account: tx.account ? {
+                    _id: tx.account._id, // IMPORTANT: Include the _id
+                    name: tx.account.name
+                } : null,
+                accountType: tx.accountType ? { name: tx.accountType.name } : 'Opening Balance',
+                item: tx.item ? { name: tx.item.name } : null,
+                unit: tx.unit ? { name: tx.unit.name } : null
             }));
+
+            const vatTransactions = await Transaction.find({
+                company: companyId,
+                isActive: true,
+                isType: 'VAT',
+                date: query.date // Use the same date filter
+            }).populate('account', 'name').lean();
+
+            console.log('=== VAT TRANSACTIONS FOUND ===');
+            console.log('Total VAT Transactions:', vatTransactions.length);
+            vatTransactions.forEach(tx => {
+                console.log(`VAT - Bill: ${tx.billNumber}, Type: ${tx.type}, Debit: ${tx.debit}, Credit: ${tx.credit}`);
+            });
 
             const { statement, totalDebit, totalCredit } = prepareStatementWithOpeningBalanceAndTotals(
                 openingBalance,
                 cleanTransactions,
                 fromDate,
                 paymentMode,
-                // isTransactionBased
             );
+
+            // Prepare itemwise statement if requested - FIXED DUPLICATION ISSUE
+            let itemwiseStatement = [];
+            if (includeItems) {
+                const vatAmountMap = {};
+                const totalAmountMap = {};
+
+                console.log('=== ALL TRANSACTIONS ANALYSIS ===');
+                console.log('Main Transactions Found:', cleanTransactions.length);
+                console.log('VAT Transactions Found:', vatTransactions.length);
+
+                // Process MAIN transactions for total amounts
+                cleanTransactions.forEach(tx => {
+                    const billNumber = tx.billNumber;
+
+                    // Handle total amount - check if this is a party transaction
+                    if (tx.account && tx.account._id && tx.account._id.toString() === selectedCompany) {
+                        let totalAmount = 0;
+                        if (tx.type === 'Purc') {
+                            totalAmount = tx.credit || 0; // Purchase: party owes (credit)
+                        } else if (tx.type === 'Sale') {
+                            totalAmount = tx.debit || 0; // Sales: party owes to us (debit)
+                        } else if (tx.type === 'PrRt') {
+                            totalAmount = tx.debit || 0;
+                        } else if (tx.type === 'SlRt') {
+                            totalAmount = tx.credit || 0;
+                        }
+                        if (totalAmount > 0) {
+                            totalAmountMap[billNumber] = totalAmount; // DON'T ADD, JUST SET
+                            console.log(`Total Found - Bill: ${billNumber}, Amount: ${totalAmount}`);
+                        }
+                    }
+                });
+
+                // Process VAT transactions separately
+                vatTransactions.forEach(tx => {
+                    const billNumber = tx.billNumber;
+                    const vatAmount = tx.type === 'Purc' || tx.type === 'SlRt' ? (tx.debit || 0) : (tx.credit || 0);
+                    vatAmountMap[billNumber] = vatAmount; // DON'T ADD, JUST SET
+                    console.log(`VAT Found - Bill: ${billNumber}, Amount: ${vatAmount}`);
+                });
+
+                console.log('=== FINAL PROCESSED MAPS ===');
+                console.log('VAT Amount Map:', vatAmountMap);
+                console.log('Total Amount Map:', totalAmountMap);
+
+                // Group item transactions by bill number to avoid duplication
+                const billItemsMap = {};
+
+                cleanTransactions
+                    .filter(tx => tx.item) // Only include transactions with items
+                    .forEach(tx => {
+                        const billNumber = tx.billNumber;
+
+                        if (!billItemsMap[billNumber]) {
+                            billItemsMap[billNumber] = {
+                                billNumber: billNumber,
+                                date: tx.date,
+                                type: tx.type,
+                                paymentMode: tx.paymentMode,
+                                partyBillNumber: tx.partyBillNumber,
+                                items: [],
+                                vatAmount: vatAmountMap[billNumber] || 0,
+                                totalAmount: totalAmountMap[billNumber] || 0
+                            };
+                        }
+
+                        // Add item to the bill
+                        billItemsMap[billNumber].items.push({
+                            item: tx.item,
+                            quantity: tx.quantity,
+                            unit: tx.unit,
+                            price: tx.price,
+                            puPrice: tx.puPrice,
+                            netPrice: tx.netPrice ? tx.netPrice : tx.netPuPrice,
+                            discountPercentagePerItem: tx.discountPercentagePerItem || 0,
+                            discountAmountPerItem: tx.discountAmountPerItem || 0,
+                            netPuPrice: tx.netPuPrice || 0
+                        });
+                    });
+
+                // Create itemwise statement entries - ONE ENTRY PER BILL
+                itemwiseStatement = Object.values(billItemsMap).map(billData => {
+                    console.log(`Bill ${billData.billNumber}: ${billData.items.length} items, VAT: ${billData.vatAmount}, Total: ${billData.totalAmount}`);
+
+                    // Return one entry per bill with all items
+                    return {
+                        date: billData.date,
+                        billNumber: billData.billNumber,
+                        type: billData.type,
+                        paymentMode: billData.paymentMode,
+                        partyBillNumber: billData.partyBillNumber,
+                        items: billData.items, // Array of all items for this bill
+                        vatAmount: billData.vatAmount,
+                        totalAmount: billData.totalAmount
+                    };
+                });
+
+                console.log('=== FINAL ITEMWISE STATEMENT ===');
+                console.log('Total Bills with Items:', itemwiseStatement.length);
+                itemwiseStatement.forEach(bill => {
+                    console.log(`Bill ${bill.billNumber}: ${bill.items.length} items, VAT: ${bill.vatAmount}, Total: ${bill.totalAmount}`);
+                });
+            }
 
             const partyName = account.name;
 
@@ -5983,6 +6644,7 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                 data: {
                     currentFiscalYear,
                     statement,
+                    itemwiseStatement,
                     accounts,
                     partyName,
                     selectedCompany,
@@ -6012,7 +6674,6 @@ router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
         }
     }
 });
-
 
 function prepareStatementWithOpeningBalanceAndTotals(openingBalance, transactions, fromDate, paymentMode, isTransactionBased) {
     let balance = openingBalance;
@@ -6129,776 +6790,5 @@ function prepareStatementWithOpeningBalanceAndTotals(openingBalance, transaction
     return { statement, totalDebit, totalCredit };
 }
 
-
-// router.get('/statement', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
-//     if (req.tradeType === 'retailer') {
-//         try {
-//             const companyId = req.session.currentCompany;
-//             const currentCompany = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat address ward pan city country email phone').populate('fiscalYear');
-//             const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
-//             const selectedCompany = req.query.account || '';
-//             const fromDate = req.query.fromDate ? new Date(req.query.fromDate) : null;
-//             const toDate = req.query.toDate ? new Date(req.query.toDate) : null;
-//             const paymentMode = req.query.paymentMode || 'all';
-//             const currentCompanyName = req.session.currentCompanyName;
-//             const today = new Date();
-//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
-
-//             // Retrieve the fiscal year from the session
-//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//             let currentFiscalYear = null;
-
-//             if (fiscalYear) {
-//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
-//             }
-
-//             if (!currentFiscalYear && currentCompany.fiscalYear) {
-//                 currentFiscalYear = currentCompany.fiscalYear;
-//                 req.session.currentFiscalYear = {
-//                     id: currentFiscalYear._id.toString(),
-//                     startDate: currentFiscalYear.startDate,
-//                     endDate: currentFiscalYear.endDate,
-//                     name: currentFiscalYear.name,
-//                     dateFormat: currentFiscalYear.dateFormat,
-//                     isActive: currentFiscalYear.isActive
-//                 };
-//                 fiscalYear = req.session.currentFiscalYear.id;
-//             }
-
-//             if (!fiscalYear) {
-//                 return res.status(400).json({ error: 'No fiscal year found in session or company.' });
-//             }
-
-//             // Fetch accounts
-//             const accounts = await Account.find({
-//                 company: companyId,
-//                 isActive: true,
-//                 $or: [
-//                     { originalFiscalYear: fiscalYear },
-//                     {
-//                         fiscalYear: fiscalYear,
-//                         originalFiscalYear: { $lt: fiscalYear }
-//                     }
-//                 ]
-//             }).sort({ name: 1 });
-
-//             if (!selectedCompany) {
-//                 return res.json({
-//                     status: 'success',
-//                     data: {
-//                         company: currentCompany,
-//                         currentFiscalYear,
-//                         statement: [],
-//                         accounts,
-//                         selectedCompany: null,
-//                         fromDate: req.query.fromDate || '',
-//                         toDate: req.query.toDate || '',
-//                         paymentMode,
-//                         companyDateFormat,
-//                         nepaliDate,
-//                         currentCompanyName,
-//                         currentCompany,
-//                         user: {
-//                             preferences: req.user.preferences,
-//                             isAdmin: req.user.isAdmin,
-//                             role: req.user.role
-//                         },
-//                         totalDebit: 0,
-//                         totalCredit: 0,
-//                         openingBalance: 0
-//                     }
-//                 });
-//             }
-
-//             // Fetch the selected account
-//             const account = await Account.findOne({
-//                 _id: selectedCompany,
-//                 company: companyId,
-//                 isActive: true,
-//                 $or: [
-//                     { originalFiscalYear: fiscalYear },
-//                     {
-//                         fiscalYear: fiscalYear,
-//                         originalFiscalYear: { $lt: fiscalYear }
-//                     }
-//                 ]
-//             }).populate('companyGroups', 'name').lean();
-
-//             if (!account) {
-//                 return res.status(404).json({ error: 'Account not found for the current fiscal year' });
-//             }
-
-//             // Define transaction-based groups
-//             const transactionBasedGroups = [
-//                 'Sundry Debtors',
-//                 'Sundry Creditors',
-//                 'Cash in Hand',
-//                 'Bank Accounts',
-//                 'Bank O/D Account',
-//                 'Duties & Taxes'
-//             ];
-
-//             let query = {
-//                 company: companyId,
-//                 isActive: true,
-//             };
-
-//             const isTransactionBased = account.companyGroups &&
-//                 transactionBasedGroups.includes(account.companyGroups.name);
-
-//             let openingBalance = 0;
-
-//             // In your route handler, modify the opening balance calculation section:
-// if (isTransactionBased) {
-//     if (paymentMode !== 'cash') {
-//         // Get the initial opening balance for the account
-//         openingBalance = account.initialOpeningBalance.type === 'Dr'
-//             ? account.initialOpeningBalance.amount
-//             : -account.initialOpeningBalance.amount;
-
-//         // If we have a fromDate, calculate transactions before fromDate
-//         if (fromDate) {
-//             const openingBalanceQuery = {
-//                 company: companyId,
-//                 fiscalYear: fiscalYear,
-//                 isActive: true,
-//                 date: { $lt: fromDate }, // Only transactions before fromDate
-//                 $or: [
-//                     { account: selectedCompany },
-//                     { paymentAccount: selectedCompany },
-//                     { receiptAccount: selectedCompany }
-//                 ]
-//             };
-
-//             if (paymentMode === 'exclude-cash') {
-//                 openingBalanceQuery.paymentMode = { $ne: 'cash' };
-//             } else if (paymentMode !== 'all') {
-//                 openingBalanceQuery.paymentMode = paymentMode;
-//             }
-
-//             // Get transactions before fromDate
-//             const transactionsBeforeFromDate = await getAllStatementEntries(
-//                 companyId,
-//                 selectedCompany,
-//                 null, // No start date
-//                 new Date(fromDate.getTime() - 1), // End date is day before fromDate
-//                 paymentMode,
-//                 fiscalYear
-//             );
-
-//             // Add transactions to the opening balance
-//             transactionsBeforeFromDate.forEach(tx => {
-//                 openingBalance += (tx.debit || 0) - (tx.credit || 0);
-//             });
-//         }
-//     }
-// } else {
-//     // For non-transaction based accounts, just use the initial opening balance
-//     openingBalance = account.initialOpeningBalance.type === 'Dr'
-//         ? account.initialOpeningBalance.amount
-//         : -account.initialOpeningBalance.amount;
-// }
-
-//             // Get transactions for the selected date range
-//             const transactions = await getAllStatementEntries(
-//                 companyId,
-//                 selectedCompany,
-//                 fromDate,
-//                 toDate,
-//                 paymentMode,
-//                 fiscalYear
-//             );
-
-//             // Format transactions to match the expected frontend format
-//             const formattedTransactions = transactions.map(tx => ({
-//                 date: tx.date,
-//                 type: tx.type,
-//                 billNumber: tx.billNumber,
-//                 paymentMode: tx.paymentMode,
-//                 partyBillNumber: tx.partyBillNumber,
-//                 paymentAccount: tx.paymentAccount ? { name: tx.paymentAccount } : null,
-//                 receiptAccount: tx.receiptAccount ? { name: tx.receiptAccount } : null,
-//                 debitAccount: tx.debitAccount ? { name: tx.debitAccount } : null,
-//                 creditAccount: tx.creditAccount ? { name: tx.creditAccount } : null,
-//                 account: tx.account ? { name: tx.account } : null,
-//                 accountType: tx.accountType ? { name: tx.accountType } : 'Opening Balance',
-//                 purchaseSalesType: tx.type,
-//                 purchaseSalesReturnType: tx.type,
-//                 journalAccountType: tx.type,
-//                 drCrNoteAccountType: tx.type,
-//                 paymentReceiptAccountType: tx.type,
-//                 debit: tx.debit,
-//                 credit: tx.credit,
-//                 billId: tx.billNumber
-//             }));
-
-//             const { statement, totalDebit, totalCredit } = prepareStatementWithOpeningBalanceAndTotals(
-//                 openingBalance,
-//                 formattedTransactions,
-//                 fromDate,
-//                 paymentMode,
-//                 isTransactionBased
-//             );
-
-//             const partyName = account.name;
-
-//             // Return JSON response instead of rendering template
-//             res.json({
-//                 status: 'success',
-//                 data: {
-//                     currentFiscalYear,
-//                     statement,
-//                     accounts,
-//                     partyName,
-//                     selectedCompany,
-//                     account,
-//                     fromDate: req.query.fromDate,
-//                     toDate: req.query.toDate,
-//                     paymentMode,
-//                     company: currentCompany,
-//                     totalDebit,
-//                     totalCredit,
-//                     openingBalance,
-//                     currentCompanyName,
-//                     companyDateFormat,
-//                     nepaliDate,
-//                     currentCompany,
-//                     user: {
-//                         preferences: req.user.preferences,
-//                         isAdmin: req.user.isAdmin,
-//                         role: req.user.role
-//                     }
-//                 }
-//             });
-
-//         } catch (error) {
-//             console.error("Error fetching statement:", error);
-//             res.status(500).json({ error: 'Error fetching statement' });
-//         }
-//     }
-// });
-
-
-// async function getAllStatementEntries(companyId, accountId, fromDate, toDate, paymentMode, fiscalYear) {
-//     const entries = [];
-
-//     // Date filter for queries
-//     const dateFilter = {};
-//     if (fromDate && toDate) {
-//         dateFilter.date = { $gte: fromDate, $lte: toDate };
-//     } else if (fromDate) {
-//         dateFilter.date = { $gte: fromDate };
-//     } else if (toDate) {
-//         dateFilter.date = { $lte: toDate };
-//     }
-
-//     // Payment mode filter
-//     if (paymentMode === 'exclude-cash') {
-//         dateFilter.paymentMode = { $ne: 'cash' };
-//     } else if (paymentMode !== 'all') {
-//         dateFilter.paymentMode = paymentMode;
-//     }
-
-//     // Common query parameters
-//     const commonQuery = {
-//         company: companyId,
-//         // fiscalYear: fiscalYear,
-//         // isActive: true,
-//         ...dateFilter
-//     };
-
-//     // 1. Sales Bills
-//     const salesBills = await SalesBill.find({
-//         ...commonQuery,
-//         account: accountId,
-//     }).populate('account', 'name').lean();
-
-//     for (const bill of salesBills) {
-//         entries.push({
-//             date: bill.date,
-//             type: 'Sale',
-//             billNumber: bill.billNumber,
-//             paymentMode: bill.paymentMode,
-//             account: bill.account?.name,
-//             accountType: bill.purchaseSalesType,
-//             debit: bill.totalAmount,
-//             credit: 0
-//         });
-//     }
-
-//     // 2. Purchase Bills
-//     // const purchaseBills = await PurchaseBill.find({
-//     //     ...commonQuery,
-//     //     account: accountId,
-//     // }).populate('account', 'name').lean();
-
-//     // for (const bill of purchaseBills) {
-//     //     entries.push({
-//     //         date: bill.date,
-//     //         type: 'Purc',
-//     //         billNumber: bill.billNumber,
-//     //         partyBillNumber: bill.partyBillNumber,
-//     //         paymentMode: bill.paymentMode,
-//     //         account: bill.account?.name,
-//     //         accountType: bill.purchaseSalesType,
-//     //         debit: 0,
-//     //         credit: bill.totalAmount
-//     //     });
-//     // }
-
-
-//     // 2. Purchase Bills - Query for bills that affect the selected account
-//     const purchaseBills = await PurchaseBill.find({
-//         ...commonQuery,
-//         $or: [
-//             { account: accountId }, // Vendor account
-//             { vatAccount: accountId }, // VAT account
-//             { purchaseAccount: accountId }, // Purchase account
-//             { roundOffAccount: accountId }
-//         ]
-//     }).populate('account', 'name')
-//         .populate('vatAccount', 'name')
-//         .populate('purchaseAccount', 'name')
-//         .populate('roundOffAccount', 'name')
-//         .lean();
-
-//     for (const bill of purchaseBills) {
-//         // Vendor account entry (credit)
-//         if (bill.account && bill.account._id.toString() === accountId) {
-//             entries.push({
-//                 date: bill.date,
-//                 type: 'Purc',
-//                 billNumber: bill.billNumber,
-//                 partyBillNumber: bill.partyBillNumber,
-//                 paymentMode: bill.paymentMode,
-//                 account: bill.account?.name,
-//                 accountType: bill.purchaseSalesType,
-//                 debit: 0,
-//                 credit: bill.totalAmount
-//             });
-//         }
-
-//         // VAT account entry (debit)
-//         if (bill.vatAccount && bill.vatAccount._id.toString() === accountId && bill.vatAmount > 0) {
-//             entries.push({
-//                 date: bill.date,
-//                 type: 'Purc',
-//                 billNumber: bill.billNumber,
-//                 partyBillNumber: bill.partyBillNumber,
-//                 paymentMode: bill.paymentMode,
-//                 account: bill.vatAccount?.name,
-//                 accountType: bill.account?.name,
-//                 debit: bill.vatAmount,
-//                 credit: 0
-//             });
-//         }
-
-//         // Purchase account entry (debit)
-//         if (bill.purchaseAccount && bill.purchaseAccount._id.toString() === accountId) {
-//             const purchaseAmount = (bill.taxableAmount || 0) + (bill.nonVatPurchase || 0);
-//             if (purchaseAmount > 0) {
-//                 entries.push({
-//                     date: bill.date,
-//                     type: 'Purc',
-//                     billNumber: bill.billNumber,
-//                     partyBillNumber: bill.partyBillNumber,
-//                     paymentMode: bill.paymentMode,
-//                     account: bill.purchaseAccount?.name,
-//                     accountType: bill.account?.name,
-//                     debit: purchaseAmount,
-//                     credit: 0
-//                 });
-//             }
-//         }
-//         // Round Off account entry (debit or credit depending on the amount)
-//         if (bill.roundOffAccount && bill.roundOffAccount._id.toString() === accountId && bill.roundOffAmount !== 0) {
-//             // Determine if round off is debit or credit
-//             // Typically, positive roundOffAmount is debit, negative is credit
-//             // But this depends on your accounting logic
-//             const isDebit = bill.roundOffAmount > 0;
-
-//             entries.push({
-//                 date: bill.date,
-//                 type: 'Purc',
-//                 billNumber: bill.billNumber,
-//                 partyBillNumber: bill.partyBillNumber,
-//                 paymentMode: bill.paymentMode,
-//                 account: bill.roundOffAccount?.name,
-//                 accountType: bill.account?.name,
-//                 debit: isDebit ? Math.abs(bill.roundOffAmount) : 0,
-//                 credit: isDebit ? 0 : Math.abs(bill.roundOffAmount)
-//             });
-//         }
-//     }
-
-//     // 3. Sales Returns
-//     const salesReturns = await SalesReturn.find({
-//         ...commonQuery,
-//         account: accountId,
-//     }).populate('account', 'name').lean();
-
-//     for (const returnBill of salesReturns) {
-//         entries.push({
-//             date: returnBill.date,
-//             type: 'SlRt',
-//             billNumber: returnBill.billNumber,
-//             paymentMode: returnBill.paymentMode,
-//             account: returnBill.account?.name,
-//             accountType: returnBill.purchaseSalesReturnType,
-//             debit: 0,
-//             credit: returnBill.totalAmount
-//         });
-//     }
-
-//     // 4. Purchase Returns
-//     const purchaseReturns = await PurchaseReturn.find({
-//         ...commonQuery,
-//         account: accountId,
-//     }).populate('account', 'name').lean();
-
-//     for (const returnBill of purchaseReturns) {
-//         entries.push({
-//             date: returnBill.date,
-//             type: 'PrRt',
-//             billNumber: returnBill.billNumber,
-//             partyBillNumber: returnBill.partyBillNumber,
-//             paymentMode: returnBill.paymentMode,
-//             account: returnBill.account?.name,
-//             accountType: returnBill.purchaseSalesReturnType,
-//             debit: returnBill.totalAmount,
-//             credit: 0
-//         });
-//     }
-
-//     // // 5. Payments
-//     // const payments = await Payment.find({
-//     //     ...commonQuery,
-//     //     account: accountId,
-//     //     isActive: true,
-//     // }).populate('account', 'name').populate('paymentAccount', 'name').lean();
-
-//     // for (const payment of payments) {
-//     //     entries.push({
-//     //         date: payment.date,
-//     //         type: 'Pymt',
-//     //         billNumber: payment.billNumber,
-//     //         paymentMode: 'Payment',
-//     //         account: payment.account?.name,
-//     //         accountType: payment.paymentAccount?.name,
-//     //         debit: payment.debit,
-//     //         credit: payment.credit
-//     //     });
-//     // }
-
-//     // 5. Payments
-//     const payments = await Payment.find({
-//         ...commonQuery,
-//         $or: [
-//             { account: accountId }, // Payments where this account is the main account
-//             { paymentAccount: accountId } // Payments where this account is the payment account
-//         ],
-//         isActive: true,
-//     }).populate('account', 'name').populate('paymentAccount', 'name').lean();
-
-//     for (const payment of payments) {
-//         // If this account is the main account (receiving payment)
-//         if (payment.account && payment.account._id.toString() === accountId) {
-//             entries.push({
-//                 date: payment.date,
-//                 type: 'Pymt',
-//                 billNumber: payment.billNumber,
-//                 paymentMode: 'Payment',
-//                 account: payment.account?.name,
-//                 accountType: payment.paymentAccount?.name,
-//                 debit: payment.debit,  // This account receives debit
-//                 credit: payment.credit // This account receives credit
-//             });
-//         }
-
-//         // If this account is the payment account (source of payment)
-//         if (payment.paymentAccount && payment.paymentAccount._id.toString() === accountId) {
-//             entries.push({
-//                 date: payment.date,
-//                 type: 'Pymt',
-//                 billNumber: payment.billNumber,
-//                 paymentMode: 'Payment',
-//                 account: payment.paymentAccount?.name,
-//                 accountType: payment.account?.name,
-//                 debit: payment.credit,  // Reverse the transaction for payment account
-//                 credit: payment.debit   // Reverse the transaction for payment account
-//             });
-//         }
-//     }
-
-//     // // 6. Receipts
-//     // const receipts = await Receipt.find({
-//     //     ...commonQuery,
-//     //     account: accountId,
-//     //     isActive: true,
-//     // }).populate('account', 'name').populate('receiptAccount', 'name').lean();
-
-//     // for (const receipt of receipts) {
-//     //     entries.push({
-//     //         date: receipt.date,
-//     //         type: 'Rcpt',
-//     //         billNumber: receipt.billNumber,
-//     //         paymentMode: 'Receipt',
-//     //         account: receipt.account?.name,
-//     //         accountType: receipt.receiptAccount?.name,
-//     //         debit: receipt.debit,
-//     //         credit: receipt.credit
-//     //     });
-//     // }
-
-//     // 6. Receipts
-//     const receipts = await Receipt.find({
-//         ...commonQuery,
-//         $or: [
-//             { account: accountId }, // Receipts where this account is the main account
-//             { receiptAccount: accountId } // Receipts where this account is the receipt account
-//         ],
-//         isActive: true,
-//     }).populate('account', 'name').populate('receiptAccount', 'name').lean();
-
-//     for (const receipt of receipts) {
-//         // If this account is the main account (receiving receipt)
-//         if (receipt.account && receipt.account._id.toString() === accountId) {
-//             entries.push({
-//                 date: receipt.date,
-//                 type: 'Rcpt',
-//                 billNumber: receipt.billNumber,
-//                 paymentMode: 'Receipt',
-//                 account: receipt.account?.name,
-//                 accountType: receipt.receiptAccount?.name,
-//                 debit: receipt.debit,  // This account receives debit
-//                 credit: receipt.credit // This account receives credit
-//             });
-//         }
-
-//         // If this account is the receipt account (source of receipt)
-//         if (receipt.receiptAccount && receipt.receiptAccount._id.toString() === accountId) {
-//             entries.push({
-//                 date: receipt.date,
-//                 type: 'Rcpt',
-//                 billNumber: receipt.billNumber,
-//                 paymentMode: 'Receipt',
-//                 account: receipt.receiptAccount?.name,
-//                 accountType: receipt.account?.name,
-//                 debit: receipt.credit,  // Reverse the transaction for receipt account
-//                 credit: receipt.debit   // Reverse the transaction for receipt account
-//             });
-//         }
-//     }
-
-//     // 7. Journal Vouchers
-//     const journalVouchers = await JournalVoucher.find({
-//         ...commonQuery,
-//         $or: [
-//             { 'debitAccounts.account': accountId },
-//             { 'creditAccounts.account': accountId }
-//         ]
-//     }).populate('debitAccounts.account', 'name').populate('creditAccounts.account', 'name').lean();
-
-//     for (const journal of journalVouchers) {
-//         // Check debit accounts
-//         const debitEntry = journal.debitAccounts.find(acc => acc.account._id.toString() === accountId);
-//         if (debitEntry) {
-//             entries.push({
-//                 date: journal.date,
-//                 type: 'Jrnl',
-//                 billNumber: journal.billNumber,
-//                 paymentMode: 'Journal',
-//                 accountType: 'Journal Entry',
-//                 debit: debitEntry.debit,
-//                 credit: 0
-//             });
-//         }
-
-//         // Check credit accounts
-//         const creditEntry = journal.creditAccounts.find(acc => acc.account._id.toString() === accountId);
-//         if (creditEntry) {
-//             entries.push({
-//                 date: journal.date,
-//                 type: 'Jrnl',
-//                 billNumber: journal.billNumber,
-//                 paymentMode: 'Journal',
-//                 accountType: 'Journal Entry',
-//                 debit: 0,
-//                 credit: creditEntry.credit
-//             });
-//         }
-//     }
-
-//     // 8. Debit Notes
-//     const debitNotes = await DebitNote.find({
-//         ...commonQuery,
-//         $or: [
-//             { 'debitAccounts.account': accountId },
-//             { 'creditAccounts.account': accountId }
-//         ]
-//     }).populate('debitAccounts.account', 'name').populate('creditAccounts.account', 'name').lean();
-
-//     for (const note of debitNotes) {
-//         // Check debit accounts
-//         const debitEntry = note.debitAccounts.find(acc => acc.account._id.toString() === accountId);
-//         if (debitEntry) {
-//             entries.push({
-//                 date: note.date,
-//                 type: 'DrNt',
-//                 billNumber: note.billNumber,
-//                 paymentMode: 'Dr Note',
-//                 accountType: 'Debit Note',
-//                 debit: debitEntry.debit,
-//                 credit: 0
-//             });
-//         }
-
-//         // Check credit accounts
-//         const creditEntry = note.creditAccounts.find(acc => acc.account._id.toString() === accountId);
-//         if (creditEntry) {
-//             entries.push({
-//                 date: note.date,
-//                 type: 'DrNt',
-//                 billNumber: note.billNumber,
-//                 paymentMode: 'Dr Note',
-//                 accountType: 'Debit Note',
-//                 debit: 0,
-//                 credit: creditEntry.credit
-//             });
-//         }
-//     }
-
-//     // 9. Credit Notes
-//     const creditNotes = await CreditNote.find({
-//         ...commonQuery,
-//         $or: [
-//             { 'debitAccounts.account': accountId },
-//             { 'creditAccounts.account': accountId }
-//         ]
-//     }).populate('debitAccounts.account', 'name').populate('creditAccounts.account', 'name').lean();
-
-//     for (const note of creditNotes) {
-//         // Check debit accounts
-//         const debitEntry = note.debitAccounts.find(acc => acc.account._id.toString() === accountId);
-//         if (debitEntry) {
-//             entries.push({
-//                 date: note.date,
-//                 type: 'CrNt',
-//                 billNumber: note.billNumber,
-//                 paymentMode: 'Cr Note',
-//                 accountType: 'Credit Note',
-//                 debit: debitEntry.debit,
-//                 credit: 0
-//             });
-//         }
-
-//         // Check credit accounts
-//         const creditEntry = note.creditAccounts.find(acc => acc.account._id.toString() === accountId);
-//         if (creditEntry) {
-//             entries.push({
-//                 date: note.date,
-//                 type: 'CrNt',
-//                 billNumber: note.billNumber,
-//                 paymentMode: 'Cr Note',
-//                 accountType: 'Credit Note',
-//                 debit: 0,
-//                 credit: creditEntry.credit
-//             });
-//         }
-//     }
-
-//     return entries.sort((a, b) => new Date(a.date) - new Date(b.date));
-// }
-
-// function prepareStatementWithOpeningBalanceAndTotals(openingBalance, transactions, fromDate, paymentMode, isTransactionBased) {
-//     let balance = openingBalance;
-//     let totalDebit = paymentMode !== 'cash' && openingBalance > 0 ? openingBalance : 0;
-//     let totalCredit = paymentMode !== 'cash' && openingBalance < 0 ? -openingBalance : 0;
-
-//     const statement = paymentMode !== 'cash' ? [
-//         {
-//             date: fromDate ? fromDate.toISOString().split('T')[0] : '',
-//             type: '',
-//             billNumber: '',
-//             paymentMode: '',
-//             paymentAccount: '',
-//             receiptAccount: '',
-//             debitAccount: '',
-//             creditAccount: '',
-//             accountType: 'Opening Balance',
-//             purchaseSalesType: '',
-//             purchaseSalesReturnType: '',
-//             journalAccountType: '',
-//             drCrNoteAccountType: '',
-//             account: '',
-//             debit: 0,
-//             credit: 0,
-//             balance: openingBalance,
-//             billId: ''
-//         }
-//     ] : [];
-
-//     const transactionsByBill = transactions.reduce((acc, tx) => {
-//         let billId = tx.billId || tx.billNumber;
-
-//         if (!acc[billId]) {
-//             acc[billId] = {
-//                 date: tx.date,
-//                 type: tx.type,
-//                 billNumber: tx.billNumber,
-//                 paymentMode: tx.paymentMode,
-//                 partyBillNumber: tx.partyBillNumber,
-//                 paymentAccount: tx.paymentAccount,
-//                 receiptAccount: tx.receiptAccount,
-//                 debitAccount: tx.debitAccount,
-//                 creditAccount: tx.creditAccount,
-//                 accountType: tx.accountType,
-//                 purchaseSalesType: tx.purchaseSalesType,
-//                 purchaseSalesReturnType: tx.purchaseSalesReturnType,
-//                 journalAccountType: tx.journalAccountType,
-//                 drCrNoteAccountType: tx.drCrNoteAccountType,
-//                 account: tx.account,
-//                 debit: 0,
-//                 credit: 0,
-//                 balance: 0,
-//                 billId: tx.billId
-//             };
-//         }
-//         acc[billId].debit += tx.debit || 0;
-//         acc[billId].credit += tx.credit || 0;
-//         return acc;
-//     }, {});
-
-//     // Process grouped transactions
-//     Object.values(transactionsByBill).forEach(tx => {
-//         balance += (tx.debit || 0) - (tx.credit || 0);
-//         totalDebit += tx.debit || 0;
-//         totalCredit += tx.credit || 0;
-
-//         statement.push({
-//             date: tx.date,
-//             type: tx.type,
-//             billNumber: tx.billNumber,
-//             paymentMode: tx.paymentMode,
-//             partyBillNumber: tx.partyBillNumber,
-//             paymentAccount: tx.paymentAccount,
-//             receiptAccount: tx.receiptAccount,
-//             debitAccount: tx.debitAccount,
-//             creditAccount: tx.creditAccount,
-//             accountType: tx.accountType,
-//             purchaseSalesType: tx.purchaseSalesType,
-//             purchaseSalesReturnType: tx.purchaseSalesReturnType,
-//             journalAccountType: tx.journalAccountType,
-//             drCrNoteAccountType: tx.drCrNoteAccountType,
-//             account: tx.account,
-//             debit: tx.debit,
-//             credit: tx.credit,
-//             balance: balance,
-//             billId: tx.billId,
-//         });
-//     });
-
-//     return { statement, totalDebit, totalCredit };
-// }
 
 module.exports = router;
