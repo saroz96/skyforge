@@ -15,7 +15,6 @@ import VirtualizedItemList from '../../VirtualizedItemList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
 
-
 const EditPurchase = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -26,12 +25,13 @@ const EditPurchase = () => {
         displayTransactionsForPurchaseReturn: false
     });
     const itemsTableRef = useRef(null);
-
+    const [showItemsModal, setShowItemsModal] = useState(false);
     // Add this state near your other state declarations
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSavePurchase') === 'true' || false
     );
-
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
+    const [pollInterval, setPollInterval] = useState(null);
     // Add these state variables with your existing state declarations
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState(''); // Store the last search
@@ -248,6 +248,96 @@ const EditPurchase = () => {
         fetchTransactionSettings();
     }, []);
 
+    useEffect(() => {
+        const handleF6KeyForAccounts = (e) => {
+            if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountCreationModal(true);
+                setShowAccountModal(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForAccounts);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForAccounts);
+        };
+    }, [showAccountModal]);
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
+
+    const fetchAccounts = async () => {
+        try {
+            const response = await api.get('/api/retailer/fetchlatest/accounts');
+            const sortedAccounts = response.data.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+            setFilteredAccounts(sortedAccounts);
+        } catch (error) {
+            console.error('Error fetching accounts:', error);
+            setNotification({
+                show: true,
+                message: 'Error refreshing accounts',
+                type: 'error'
+            });
+        }
+    };
+
+    // Add this function to close account creation modal
+    const handleAccountCreationModalClose = () => {
+        setShowAccountCreationModal(false);
+        setShowAccountModal(true);
+
+        // Refresh accounts data
+        fetchAccounts();
+    };
+
     const handleTransactionModalClose = () => {
         setShowTransactionModal(false);
         setTimeout(() => {
@@ -261,6 +351,22 @@ const EditPurchase = () => {
     };
 
     // Add global key handler for Escape key
+    // useEffect(() => {
+    //     const handleGlobalKeyDown = (e) => {
+    //         if (showTransactionModal) {
+    //             if (e.key === 'Escape') {
+    //                 e.preventDefault();
+    //                 handleTransactionModalClose();
+    //             }
+    //         }
+    //     };
+
+    //     document.addEventListener('keydown', handleGlobalKeyDown);
+    //     return () => {
+    //         document.removeEventListener('keydown', handleGlobalKeyDown);
+    //     };
+    // }, [showTransactionModal, handleTransactionModalClose]);
+
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             if (showTransactionModal) {
@@ -268,6 +374,9 @@ const EditPurchase = () => {
                     e.preventDefault();
                     handleTransactionModalClose();
                 }
+            } else if (showAccountCreationModal && e.key === 'Escape') {
+                e.preventDefault();
+                handleAccountCreationModalClose();
             }
         };
 
@@ -275,7 +384,7 @@ const EditPurchase = () => {
         return () => {
             document.removeEventListener('keydown', handleGlobalKeyDown);
         };
-    }, [showTransactionModal, handleTransactionModalClose]);
+    }, [showTransactionModal, showAccountCreationModal, handleTransactionModalClose, handleAccountCreationModalClose]);
 
     // Add this useEffect to handle modal focus
     useEffect(() => {
@@ -308,36 +417,6 @@ const EditPurchase = () => {
         });
         setShowAccountModal(false);
     };
-
-    // const handleItemSearch = (e) => {
-    //     const query = e.target.value.toLowerCase();
-    //     setShowItemDropdown(query.length > 0 || e.type === 'focus');
-
-    //     if (query.length === 0) {
-    //         // Show all items when search is empty
-    //         const filtered = allItems.filter(item => {
-    //             if (formData.isVatExempt === 'all') return true;
-    //             if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-    //             if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-    //             return true;
-    //         });
-    //         setFilteredItems(filtered);
-    //         return;
-    //     }
-
-    //     let filtered = allItems.filter(item => {
-    //         const matchesSearch = item.name.toLowerCase().includes(query) ||
-    //             (item.hscode && item.hscode.toString().toLowerCase().includes(query)) ||
-    //             (item.uniqueNumber && item.uniqueNumber.toString().toLowerCase().includes(query));
-
-    //         if (formData.isVatExempt === 'all') return matchesSearch;
-    //         if (formData.isVatExempt === 'false') return matchesSearch && item.vatStatus === 'vatable';
-    //         if (formData.isVatExempt === 'true') return matchesSearch && item.vatStatus === 'vatExempt';
-    //         return matchesSearch;
-    //     }).sort((a, b) => a.name.localeCompare(b.name));
-
-    //     setFilteredItems(filtered);
-    // };
 
     const handleItemSearch = (e) => {
         const query = e.target.value.toLowerCase();
@@ -517,39 +596,6 @@ const EditPurchase = () => {
         return today.toISOString().split('T')[0];
     };
 
-    // const updateItemField = (index, field, value) => {
-    //     const updatedItems = [...formData.items];
-    //     updatedItems[index][field] = value;
-
-    //     if (field === 'quantity' || field === 'puPrice') {
-    //         updatedItems[index].amount = (updatedItems[index].quantity * updatedItems[index].puPrice).toFixed(2);
-    //     }
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         items: updatedItems
-    //     }));
-
-    //     // Recalculate discounts if they have values
-    //     if (formData.discountPercentage || formData.discountAmount) {
-    //         const subTotal = calculateTotal(updatedItems).subTotal;
-
-    //         if (formData.discountPercentage) {
-    //             const discountAmount = (subTotal * formData.discountPercentage) / 100;
-    //             setFormData(prev => ({
-    //                 ...prev,
-    //                 discountAmount: discountAmount.toFixed(2)
-    //             }));
-    //         } else if (formData.discountAmount) {
-    //             const discountPercentage = subTotal > 0 ? (formData.discountAmount / subTotal) * 100 : 0;
-    //             setFormData(prev => ({
-    //                 ...prev,
-    //                 discountPercentage: discountPercentage.toFixed(2)
-    //             }));
-    //         }
-    //     }
-    // };
-
     const removeItem = (index) => {
         if (formData.items.length <= 1) {
             setNotification({
@@ -578,78 +624,6 @@ const EditPurchase = () => {
             }, 100);
         }
     };
-
-    // const calculateTotal = (itemsToCalculate = formData.items) => {
-    //     let subTotal = 0;
-    //     let taxableAmount = 0;
-    //     let nonTaxableAmount = 0;
-    //     let totalCCAmount = 0;
-    //     let taxableCCAmount = 0;
-    //     let nonTaxableCCAmount = 0;
-
-    //     itemsToCalculate.forEach(item => {
-    //         subTotal += parseFloat(item.amount) || 0;
-    //         totalCCAmount += parseFloat(item.itemCCAmount) || 0;
-
-    //         if (item.vatStatus === 'vatable') {
-    //             taxableAmount += parseFloat(item.amount) || 0;
-    //             taxableCCAmount += parseFloat(item.itemCCAmount) || 0;
-    //         } else {
-    //             nonTaxableAmount += parseFloat(item.amount) || 0;
-    //             nonTaxableCCAmount += parseFloat(item.itemCCAmount) || 0;
-    //         }
-    //     });
-
-    //     const discountPercentage = parseFloat(formData.discountPercentage) || 0;
-    //     const discountAmount = parseFloat(formData.discountAmount) || 0;
-
-    //     const discountForTaxable = (taxableAmount * discountPercentage) / 100;
-    //     const discountForNonTaxable = (nonTaxableAmount * discountPercentage) / 100;
-
-    //     const finalTaxableAmount = taxableAmount - discountForTaxable + taxableCCAmount;
-    //     const finalNonTaxableAmount = nonTaxableAmount - discountForNonTaxable + nonTaxableCCAmount;
-
-    //     let vatAmount = 0;
-    //     if (formData.isVatExempt === 'false' || formData.isVatExempt === 'all') {
-    //         vatAmount = (finalTaxableAmount * formData.vatPercentage) / 100;
-    //     }
-
-    //     const roundOffAmount = parseFloat(formData.roundOffAmount) || 0;
-    //     const totalAmount = finalTaxableAmount + finalNonTaxableAmount + vatAmount + roundOffAmount;
-
-    //     return {
-    //         subTotal,
-    //         taxableAmount: finalTaxableAmount,
-    //         nonTaxableAmount: finalNonTaxableAmount,
-    //         vatAmount,
-    //         totalAmount,
-    //         totalCCAmount
-    //     };
-    // };
-
-    // const handleDiscountPercentageChange = (e) => {
-    //     const value = parseFloat(e.target.value) || 0;
-    //     const subTotal = calculateTotal().subTotal;
-    //     const discountAmount = (subTotal * value) / 100;
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         discountPercentage: value,
-    //         discountAmount: discountAmount.toFixed(2)
-    //     }));
-    // };
-
-    // const handleDiscountAmountChange = (e) => {
-    //     const value = parseFloat(e.target.value) || 0;
-    //     const subTotal = calculateTotal().subTotal;
-    //     const discountPercentage = subTotal > 0 ? (value / subTotal) * 100 : 0;
-
-    //     setFormData(prev => ({
-    //         ...prev,
-    //         discountAmount: value,
-    //         discountPercentage: discountPercentage.toFixed(2)
-    //     }));
-    // };
 
     // Precision utility functions (add these at the top of the component)
     const preciseAdd = (a, b) => {
@@ -1731,7 +1705,7 @@ const EditPurchase = () => {
             <Header />
             <div className="card mt-4 shadow-lg p-4 animate__animated animate__fadeInUp expanded-card">
                 <div className="card-header">
-                    Update Purchase
+                    Update Purchase Entry
                 </div>
                 <div className="card-body">
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
@@ -2032,6 +2006,7 @@ const EditPurchase = () => {
                                     api={api}
                                     compact={true}
                                     dateFormat={company.dateFormat}
+                                    refreshTrigger={showAccountCreationModal}
                                 />
                                 <input type="hidden" id="accountId" name="accountId" value={formData.accountId} />
                             </div>
@@ -2433,41 +2408,6 @@ const EditPurchase = () => {
                             </table>
                         </div>
 
-                        {/* <div className="d-flex justify-content-end mt-4">
-                            <Button variant="secondary" className="me-2" onClick={handleBack}>
-                                <BiArrowBack /> Back
-                            </Button>
-                            <button
-                                type="submit"
-                                className="btn btn-primary mr-2 p-3"
-                                id="saveBill"
-                                disabled={isSaving}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        handleSubmit(e);
-                                    }
-                                }}
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <i className="bi bi-save"></i>
-                                )}
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-secondary p-3"
-                                onClick={(e) => handleSubmit(e, true)}
-                                disabled={isSaving}
-                            >
-                                <i className="bi bi-printer"></i>
-                            </button>
-                        </div> */}
-
                         <div className="d-flex justify-content-end mt-4">
                             {/* Add Print After Save Checkbox */}
                             <div className="form-check me-3 align-self-center">
@@ -2510,7 +2450,7 @@ const EditPurchase = () => {
             </div>
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
                     <div className="modal-dialog modal-xl modal-dialog-centered">
                         <div className="modal-content" style={{ height: '500px' }}>
@@ -2670,6 +2610,192 @@ const EditPurchase = () => {
                                                             </div>
                                                         </li>
                                                     ))
+                                            )
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {/* Account Modal */}
+            {showAccountModal && (
+                <div
+                    className="modal fade show"
+                    id="accountModal"
+                    tabIndex="-1"
+                    style={{ display: 'block' }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            setShowAccountModal(false);
+
+                            setTimeout(() => {
+                                document.getElementById('address').focus();
+                            }, 0);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-xl modal-dialog-centered">
+                        <div className="modal-content" style={{ height: '500px' }}>
+                            <div className="modal-header">
+                                <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
+                                {/* Add F6 hint here */}
+                                <small className="ms-auto text-muted">Press F6 to create new account</small>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowAccountModal(false)}
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div className="p-3 bg-white sticky-top">
+                                <input
+                                    type="text"
+                                    id="searchAccount"
+                                    className="form-control form-control-sm"
+                                    placeholder="Search Account"
+                                    autoFocus
+                                    autoComplete='off'
+                                    onChange={handleAccountSearch}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item');
+                                            if (firstAccountItem) {
+                                                firstAccountItem.focus();
+                                            }
+                                        } else if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item.active');
+                                            if (firstAccountItem) {
+                                                const accountId = firstAccountItem.getAttribute('data-account-id');
+                                                const account = filteredAccounts.length > 0
+                                                    ? filteredAccounts.find(a => a._id === accountId)
+                                                    : accounts.find(a => a._id === accountId);
+                                                if (account) {
+                                                    selectAccount(account);
+                                                    document.getElementById('address').focus();
+                                                }
+                                            }
+                                        }
+                                    }}
+                                    ref={accountSearchRef}
+                                />
+                            </div>
+                            <div className="modal-body p-0">
+                                <div className="overflow-auto" style={{ height: 'calc(400px - 120px)' }}>
+                                    <ul id="accountList" className="list-group">
+                                        {filteredAccounts.length > 0 ? (
+                                            filteredAccounts.map((account, index) => (
+                                                <li
+                                                    key={account._id}
+                                                    data-account-id={account._id}
+                                                    className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        selectAccount(account);
+                                                        document.getElementById('address').focus();
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'ArrowDown') {
+                                                            e.preventDefault();
+                                                            const nextItem = e.target.nextElementSibling;
+                                                            if (nextItem) {
+                                                                e.target.classList.remove('active');
+                                                                nextItem.classList.add('active');
+                                                                nextItem.focus();
+                                                            }
+                                                        } else if (e.key === 'ArrowUp') {
+                                                            e.preventDefault();
+                                                            const prevItem = e.target.previousElementSibling;
+                                                            if (prevItem) {
+                                                                e.target.classList.remove('active');
+                                                                prevItem.classList.add('active');
+                                                                prevItem.focus();
+                                                            } else {
+                                                                accountSearchRef.current.focus();
+                                                            }
+                                                        } else if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            selectAccount(account);
+                                                            document.getElementById('address').focus();
+                                                        } else if (e.key === 'Escape') {
+                                                            e.preventDefault();
+                                                            setShowAccountModal(false);
+                                                        }
+                                                    }}
+                                                    onFocus={(e) => {
+                                                        document.querySelectorAll('.account-item').forEach(item => {
+                                                            item.classList.remove('active');
+                                                        });
+                                                        e.target.classList.add('active');
+                                                    }}
+                                                >
+                                                    <div className="d-flex justify-content-between small">
+                                                        <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+                                                        <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+                                                    </div>
+                                                </li>
+                                            ))
+                                        ) : (
+                                            accountSearchRef.current?.value ? (
+                                                <li className="list-group-item text-center text-muted small py-2">No accounts found</li>
+                                            ) : (
+                                                accounts.map((account, index) => (
+                                                    <li
+                                                        key={account._id}
+                                                        data-account-id={account._id}
+                                                        className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            selectAccount(account);
+                                                            document.getElementById('address').focus();
+                                                        }}
+                                                        style={{ cursor: 'pointer' }}
+                                                        tabIndex={0}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'ArrowDown') {
+                                                                e.preventDefault();
+                                                                const nextItem = e.target.nextElementSibling;
+                                                                if (nextItem) {
+                                                                    e.target.classList.remove('active');
+                                                                    nextItem.classList.add('active');
+                                                                    nextItem.focus();
+                                                                }
+                                                            } else if (e.key === 'ArrowUp') {
+                                                                e.preventDefault();
+                                                                const prevItem = e.target.previousElementSibling;
+                                                                if (prevItem) {
+                                                                    e.target.classList.remove('active');
+                                                                    prevItem.classList.add('active');
+                                                                    prevItem.focus();
+                                                                } else {
+                                                                    accountSearchRef.current.focus();
+                                                                }
+                                                            } else if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                selectAccount(account);
+                                                                document.getElementById('address').focus();
+                                                            } else if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                setShowAccountModal(false);
+                                                            }
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            document.querySelectorAll('.account-item').forEach(item => {
+                                                                item.classList.remove('active');
+                                                            });
+                                                            e.target.classList.add('active');
+                                                        }}
+                                                    >
+                                                        <div className="d-flex justify-content-between small">
+                                                            <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+                                                            <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+                                                        </div>
+                                                    </li>
+                                                ))
                                             )
                                         )}
                                     </ul>
@@ -3049,6 +3175,77 @@ const EditPurchase = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Account Creation Modal */}
+            {showAccountCreationModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Account</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={handleAccountCreationModalClose}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/accounts"
+                                    title="Account Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleAccountCreationModalClose}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

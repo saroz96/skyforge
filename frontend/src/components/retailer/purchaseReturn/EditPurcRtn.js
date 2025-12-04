@@ -24,7 +24,7 @@ const EditPurcRtn = () => {
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
     const itemsTableRef = useRef(null);
-
+    const [showItemsModal, setShowItemsModal] = useState(false);
     const [transactionSettings, setTransactionSettings] = useState({
         displayTransactions: false,
         displayTransactionsForPurchase: false,
@@ -35,6 +35,9 @@ const EditPurcRtn = () => {
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSavePurchaseReturn') === 'true' || false
     );
+
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
+    const [pollInterval, setPollInterval] = useState(null);
 
     const [showProductModal, setShowProductModal] = useState(false);
     const continueButtonRef = useRef(null);
@@ -129,7 +132,7 @@ const EditPurcRtn = () => {
                     paymentMode: data.purchaseReturn.paymentMode || 'credit',
                     isVatExempt: data.purchaseReturn.isVatExempt ? 'true' : data.purchaseReturn.isVatAll ? 'all' : 'false',
                     discountPercentage: data.purchaseReturn.discountPercentage || 0,
-                    discountAmount: data.purchaseReturn.discountAmount || 0,
+                    discountAmount: Math.round(data.purchaseReturn.discountAmount * 100) / 100 || 0,
                     roundOffAmount: Math.round(data.purchaseReturn.roundOffAmount * 100) / 100 || 0,
                     vatPercentage: data.purchaseReturn.vatPercentage || 13,
                     subTotal: data.purchaseReturn.subTotal || 0,
@@ -217,20 +220,6 @@ const EditPurcRtn = () => {
         }
     }, [showTransactionModal]);
 
-    // useEffect(() => {
-    //     if (itemSearchRef.current?.value) {
-    //         handleItemSearch({ target: { value: itemSearchRef.current.value } });
-    //     } else {
-    //         const filtered = allItems.filter(item => {
-    //             if (formData.isVatExempt === 'all') return true;
-    //             if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-    //             if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-    //             return true;
-    //         });
-    //         setFilteredItems(filtered);
-    //     }
-    // }, [formData.isVatExempt, allItems]);
-
     useEffect(() => {
         return () => {
             // Reset search memory when component unmounts
@@ -239,8 +228,98 @@ const EditPurcRtn = () => {
         };
     }, []);
 
+    useEffect(() => {
+        const handleF6KeyForAccounts = (e) => {
+            if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountCreationModal(true);
+                setShowAccountModal(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForAccounts);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForAccounts);
+        };
+    }, [showAccountModal]);
+
     const handleBack = () => {
         navigate(-1);
+    };
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
+
+    const fetchAccounts = async () => {
+        try {
+            const response = await api.get('/api/retailer/fetchlatest/accounts');
+            const sortedAccounts = response.data.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+            setFilteredAccounts(sortedAccounts);
+        } catch (error) {
+            console.error('Error fetching accounts:', error);
+            setNotification({
+                show: true,
+                message: 'Error refreshing accounts',
+                type: 'error'
+            });
+        }
+    };
+
+    // Add this function to close account creation modal
+    const handleAccountCreationModalClose = () => {
+        setShowAccountCreationModal(false);
+        setShowAccountModal(true);
+
+        // Refresh accounts data
+        fetchAccounts();
     };
 
     const handleAccountSearch = (e) => {
@@ -263,29 +342,6 @@ const EditPurcRtn = () => {
         });
         setShowAccountModal(false);
     };
-
-    // const handleItemSearch = (e) => {
-    //     const query = e.target.value.toLowerCase();
-
-    //     if (query.length === 0) {
-    //         setFilteredItems([]);
-    //         return;
-    //     }
-
-    //     let filtered = allItems.filter(item => {
-    //         const matchesSearch = item.name.toLowerCase().includes(query) ||
-    //             (item.hscode && item.hscode.toString().toLowerCase().includes(query)) ||
-    //             (item.uniqueNumber && item.uniqueNumber.toString().toLowerCase().includes(query)) ||
-    //             (item.category && item.category.name.toLowerCase().includes(query));
-
-    //         if (formData.isVatExempt === 'all') return matchesSearch;
-    //         if (formData.isVatExempt === 'false') return matchesSearch && item.vatStatus === 'vatable';
-    //         if (formData.isVatExempt === 'true') return matchesSearch && item.vatStatus === 'vatExempt';
-    //         return matchesSearch;
-    //     }).sort((a, b) => a.name.localeCompare(b.name));
-
-    //     setFilteredItems(filtered);
-    // };
 
     const handleItemSearch = (e) => {
         const query = e.target.value.toLowerCase();
@@ -1264,6 +1320,23 @@ const EditPurcRtn = () => {
         }, 100);
     };
 
+    // useEffect(() => {
+    //     const handleGlobalKeyDown = (e) => {
+    //         if (showTransactionModal) {
+    //             if (e.key === 'Escape') {
+    //                 e.preventDefault();
+    //                 handleTransactionModalClose();
+    //             }
+    //         }
+    //     };
+
+    //     document.addEventListener('keydown', handleGlobalKeyDown);
+
+    //     return () => {
+    //         document.removeEventListener('keydown', handleGlobalKeyDown);
+    //     };
+    // }, [showTransactionModal, handleTransactionModalClose]);
+
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             if (showTransactionModal) {
@@ -1271,15 +1344,17 @@ const EditPurcRtn = () => {
                     e.preventDefault();
                     handleTransactionModalClose();
                 }
+            } else if (showAccountCreationModal && e.key === 'Escape') {
+                e.preventDefault();
+                handleAccountCreationModalClose();
             }
         };
 
         document.addEventListener('keydown', handleGlobalKeyDown);
-
         return () => {
             document.removeEventListener('keydown', handleGlobalKeyDown);
         };
-    }, [showTransactionModal, handleTransactionModalClose]);
+    }, [showTransactionModal, showAccountCreationModal, handleTransactionModalClose, handleAccountCreationModalClose]);
 
     if (isLoading) {
         return (
@@ -1303,7 +1378,7 @@ const EditPurcRtn = () => {
                 <div className="card-header">
                     <div className="row">
                         <div className="col-md-8 col-12">
-                            Purchase Return Entry - Edit
+                            Update Purchase Return Entry
                             {formData.billNumber === '' && (
                                 <span style={{ color: 'red' }}>Invoice is required!</span>
                             )}
@@ -1585,6 +1660,7 @@ const EditPurcRtn = () => {
                                     api={api}
                                     compact={true}
                                     dateFormat={company.dateFormat}
+                                    refreshTrigger={showAccountCreationModal}
                                 />
                                 <input type="hidden" id="accountId" name="accountId" value={formData.accountId} />
                             </div>
@@ -1772,223 +1848,6 @@ const EditPurcRtn = () => {
                         </div>
 
                         <hr style={{ border: "1px solid gray" }} />
-
-                        {/* <div className="form-group row">
-                            <div className="col">
-                                <label htmlFor="itemSearch">Search Item</label>
-                                <input
-                                    type="text"
-                                    id="itemSearch"
-                                    className="form-control"
-                                    placeholder="Search for an item"
-                                    autoComplete='off'
-                                    onChange={(e) => {
-                                        handleItemSearch(e);
-                                        setShowItemDropdown(true);
-                                    }}
-                                    onFocus={() => {
-                                        setShowItemDropdown(true);
-                                        document.querySelectorAll('.dropdown-item').forEach(item => {
-                                            item.classList.remove('active');
-                                        });
-                                    }}
-                                    ref={itemSearchRef}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const firstItem = document.querySelector('.dropdown-item');
-                                            if (firstItem) {
-                                                firstItem.classList.add('active');
-                                                firstItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const activeItem = document.querySelector('.dropdown-item.active');
-                                            if (activeItem) {
-                                                const index = parseInt(activeItem.getAttribute('data-index'));
-                                                const filteredItem = filteredItems.length > 0 ? filteredItems[index] : allItems[index];
-                                                if (filteredItem) {
-                                                    showBatchModalForItem(filteredItem);
-                                                }
-                                            } else if (!e.target.value && items.length > 0) {
-                                                setShowItemDropdown(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('discountPercentage')?.focus();
-                                                }, 0);
-                                            }
-                                        }
-                                    }}
-                                />
-                                {showItemDropdown && (
-                                    <div
-                                        id="dropdownMenu"
-                                        className="dropdown-menu show"
-                                        style={{
-                                            maxHeight: '280px',
-                                            height: '280px',
-                                            overflowY: 'auto',
-                                            position: 'absolute',
-                                            width: '100%',
-                                            zIndex: 1000,
-                                            border: '1px solid #ddd',
-                                            borderRadius: '4px'
-                                        }}
-                                        ref={itemDropdownRef}
-                                    >
-                                        <div className="dropdown-header" style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(7, 1fr)',
-                                            alignItems: 'center',
-                                            padding: '0 10px',
-                                            height: '40px',
-                                            background: '#f0f0f0',
-                                            fontWeight: 'bold',
-                                            borderBottom: '1px solid #dee2e6'
-                                        }}>
-                                            <div><strong>#</strong></div>
-                                            <div><strong>HSN</strong></div>
-                                            <div><strong>Description</strong></div>
-                                            <div><strong>Category</strong></div>
-                                            <div><strong>Qty</strong></div>
-                                            <div><strong>Unit</strong></div>
-                                            <div><strong>Rate</strong></div>
-                                        </div>
-
-                                        {filteredItems.length > 0 ? (
-                                            filteredItems.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    data-index={index}
-                                                    className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'} expiry-${calculateExpiryStatus(item)}`}
-                                                    style={{
-                                                        height: '40px',
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'repeat(7, 1fr)',
-                                                        alignItems: 'center',
-                                                        padding: '0 10px',
-                                                        borderBottom: '1px solid #eee',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    onClick={() => showBatchModalForItem(item)}
-                                                    tabIndex={0}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            showBatchModalForItem(item);
-                                                        } else if (e.key === 'ArrowDown') {
-                                                            e.preventDefault();
-                                                            const nextItem = e.target.nextElementSibling;
-                                                            if (nextItem) {
-                                                                e.target.classList.remove('active');
-                                                                nextItem.classList.add('active');
-                                                                nextItem.focus();
-                                                            }
-                                                        } else if (e.key === 'ArrowUp') {
-                                                            e.preventDefault();
-                                                            const prevItem = e.target.previousElementSibling;
-                                                            if (prevItem) {
-                                                                e.target.classList.remove('active');
-                                                                prevItem.classList.add('active');
-                                                                prevItem.focus();
-                                                            } else {
-                                                                itemSearchRef.current.focus();
-                                                            }
-                                                        }
-                                                    }}
-                                                    onFocus={(e) => {
-                                                        document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                            item.classList.remove('active');
-                                                        });
-                                                        e.target.classList.add('active');
-                                                    }}
-                                                >
-                                                    <div>{item.uniqueNumber || 'N/A'}</div>
-                                                    <div>{item.hscode || 'N/A'}</div>
-                                                    <div className="dropdown-items-name">{item.name}</div>
-                                                    <div>{item.category?.name || 'No Category'}</div>
-                                                    <div>{item.stock || 0}</div>
-                                                    <div>{item.unit?.name || ''}</div>
-                                                    <div>Rs.{Math.round(item.stockEntries?.[0]?.puPrice * 100) / 100 || 0}</div>
-                                                </div>
-                                            ))
-                                        ) : itemSearchRef.current?.value ? (
-                                            <div className="text-center py-3 text-muted">
-                                                No items found matching "{itemSearchRef.current.value}"
-                                            </div>
-                                        ) : allItems.length > 0 ? (
-                                            allItems
-                                                .filter(item => {
-                                                    if (formData.isVatExempt === 'all') return true;
-                                                    if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-                                                    if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-                                                    return true;
-                                                })
-                                                .map((item, index) => (
-                                                    <div
-                                                        key={index}
-                                                        data-index={index}
-                                                        className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'}`}
-                                                        style={{
-                                                            height: '40px',
-                                                            display: 'grid',
-                                                            gridTemplateColumns: 'repeat(7, 1fr)',
-                                                            alignItems: 'center',
-                                                            padding: '0 10px',
-                                                            borderBottom: '1px solid #eee',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                        onClick={() => showBatchModalForItem(item)}
-                                                        tabIndex={0}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                showBatchModalForItem(item);
-                                                            } else if (e.key === 'ArrowDown') {
-                                                                e.preventDefault();
-                                                                const nextItem = e.target.nextElementSibling;
-                                                                if (nextItem) {
-                                                                    e.target.classList.remove('active');
-                                                                    nextItem.classList.add('active');
-                                                                    nextItem.focus();
-                                                                }
-                                                            } else if (e.key === 'ArrowUp') {
-                                                                e.preventDefault();
-                                                                const prevItem = e.target.previousElementSibling;
-                                                                if (prevItem) {
-                                                                    e.target.classList.remove('active');
-                                                                    prevItem.classList.add('active');
-                                                                    prevItem.focus();
-                                                                } else {
-                                                                    itemSearchRef.current.focus();
-                                                                }
-                                                            }
-                                                        }}
-                                                        onFocus={(e) => {
-                                                            document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                                item.classList.remove('active');
-                                                            });
-                                                            e.target.classList.add('active');
-                                                        }}
-                                                    >
-                                                        <div>{item.uniqueNumber || 'N/A'}</div>
-                                                        <div>{item.hscode || 'N/A'}</div>
-                                                        <div className="dropdown-items-name">{item.name}</div>
-                                                        <div>{item.category?.name || 'No Category'}</div>
-                                                        <div>{item.stock || 0}</div>
-                                                        <div>{item.unit?.name || ''}</div>
-                                                        <div>Rs.{item.puPrice || 0}</div>
-                                                    </div>
-                                                ))
-                                        ) : (
-                                            <div className="text-center py-3 text-muted">
-                                                No items available
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div> */}
-
                         <div className="row mb-3">
                             <div className="col-12">
                                 <label htmlFor="itemSearch" className="form-label">Search Item</label>
@@ -1997,7 +1856,7 @@ const EditPurcRtn = () => {
                                         type="text"
                                         id="itemSearch"
                                         className="form-control"
-                                        placeholder="Search for an item"
+                                        placeholder="Search item (Press F6 to create new item)"
                                         autoComplete='off'
                                         value={searchQuery}
                                         onChange={handleItemSearch}
@@ -2242,7 +2101,7 @@ const EditPurcRtn = () => {
             </div>
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
                     <div className="modal-dialog modal-xl modal-dialog-centered">
                         <div className="modal-content" style={{ height: '500px' }}>
@@ -2374,6 +2233,192 @@ const EditPurcRtn = () => {
                                                                 e.preventDefault();
                                                                 selectAccount(account);
                                                                 document.getElementById('address').focus();
+                                                            }
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            document.querySelectorAll('.account-item').forEach(item => {
+                                                                item.classList.remove('active');
+                                                            });
+                                                            e.target.classList.add('active');
+                                                        }}
+                                                    >
+                                                        <div className="d-flex justify-content-between small">
+                                                            <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+                                                            <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+                                                        </div>
+                                                    </li>
+                                                ))
+                                            )
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {/* Account Modal */}
+            {showAccountModal && (
+                <div
+                    className="modal fade show"
+                    id="accountModal"
+                    tabIndex="-1"
+                    style={{ display: 'block' }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            setShowAccountModal(false);
+
+                            setTimeout(() => {
+                                document.getElementById('address').focus();
+                            }, 0);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-xl modal-dialog-centered">
+                        <div className="modal-content" style={{ height: '500px' }}>
+                            <div className="modal-header">
+                                <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
+                                {/* Add F6 hint here */}
+                                <small className="ms-auto text-muted">Press F6 to create new account</small>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowAccountModal(false)}
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div className="p-3 bg-white sticky-top">
+                                <input
+                                    type="text"
+                                    id="searchAccount"
+                                    className="form-control form-control-sm"
+                                    placeholder="Search Account"
+                                    autoFocus
+                                    autoComplete='off'
+                                    onChange={handleAccountSearch}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item');
+                                            if (firstAccountItem) {
+                                                firstAccountItem.focus();
+                                            }
+                                        } else if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item.active');
+                                            if (firstAccountItem) {
+                                                const accountId = firstAccountItem.getAttribute('data-account-id');
+                                                const account = filteredAccounts.length > 0
+                                                    ? filteredAccounts.find(a => a._id === accountId)
+                                                    : accounts.find(a => a._id === accountId);
+                                                if (account) {
+                                                    selectAccount(account);
+                                                    document.getElementById('address').focus();
+                                                }
+                                            }
+                                        }
+                                    }}
+                                    ref={accountSearchRef}
+                                />
+                            </div>
+                            <div className="modal-body p-0">
+                                <div className="overflow-auto" style={{ height: 'calc(400px - 120px)' }}>
+                                    <ul id="accountList" className="list-group">
+                                        {filteredAccounts.length > 0 ? (
+                                            filteredAccounts.map((account, index) => (
+                                                <li
+                                                    key={account._id}
+                                                    data-account-id={account._id}
+                                                    className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        selectAccount(account);
+                                                        document.getElementById('address').focus();
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'ArrowDown') {
+                                                            e.preventDefault();
+                                                            const nextItem = e.target.nextElementSibling;
+                                                            if (nextItem) {
+                                                                e.target.classList.remove('active');
+                                                                nextItem.classList.add('active');
+                                                                nextItem.focus();
+                                                            }
+                                                        } else if (e.key === 'ArrowUp') {
+                                                            e.preventDefault();
+                                                            const prevItem = e.target.previousElementSibling;
+                                                            if (prevItem) {
+                                                                e.target.classList.remove('active');
+                                                                prevItem.classList.add('active');
+                                                                prevItem.focus();
+                                                            } else {
+                                                                accountSearchRef.current.focus();
+                                                            }
+                                                        } else if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            selectAccount(account);
+                                                            document.getElementById('address').focus();
+                                                        } else if (e.key === 'Escape') {
+                                                            e.preventDefault();
+                                                            setShowAccountModal(false);
+                                                        }
+                                                    }}
+                                                    onFocus={(e) => {
+                                                        document.querySelectorAll('.account-item').forEach(item => {
+                                                            item.classList.remove('active');
+                                                        });
+                                                        e.target.classList.add('active');
+                                                    }}
+                                                >
+                                                    <div className="d-flex justify-content-between small">
+                                                        <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+                                                        <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+                                                    </div>
+                                                </li>
+                                            ))
+                                        ) : (
+                                            accountSearchRef.current?.value ? (
+                                                <li className="list-group-item text-center text-muted small py-2">No accounts found</li>
+                                            ) : (
+                                                accounts.map((account, index) => (
+                                                    <li
+                                                        key={account._id}
+                                                        data-account-id={account._id}
+                                                        className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            selectAccount(account);
+                                                            document.getElementById('address').focus();
+                                                        }}
+                                                        style={{ cursor: 'pointer' }}
+                                                        tabIndex={0}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'ArrowDown') {
+                                                                e.preventDefault();
+                                                                const nextItem = e.target.nextElementSibling;
+                                                                if (nextItem) {
+                                                                    e.target.classList.remove('active');
+                                                                    nextItem.classList.add('active');
+                                                                    nextItem.focus();
+                                                                }
+                                                            } else if (e.key === 'ArrowUp') {
+                                                                e.preventDefault();
+                                                                const prevItem = e.target.previousElementSibling;
+                                                                if (prevItem) {
+                                                                    e.target.classList.remove('active');
+                                                                    prevItem.classList.add('active');
+                                                                    prevItem.focus();
+                                                                } else {
+                                                                    accountSearchRef.current.focus();
+                                                                }
+                                                            } else if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                selectAccount(account);
+                                                                document.getElementById('address').focus();
+                                                            } else if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                setShowAccountModal(false);
                                                             }
                                                         }}
                                                         onFocus={(e) => {
@@ -2658,6 +2703,77 @@ const EditPurcRtn = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Account Creation Modal */}
+            {showAccountCreationModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Account</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={handleAccountCreationModalClose}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/accounts"
+                                    title="Account Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleAccountCreationModalClose}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

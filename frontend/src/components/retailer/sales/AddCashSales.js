@@ -13,6 +13,7 @@ import ProductModal from '../dashboard/modals/ProductModal';
 
 import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemList from '../../VirtualizedItemList';
+import AccountCreationModal from './AccountCreationModal';
 
 const AddCashSales = () => {
     const navigate = useNavigate();
@@ -25,7 +26,9 @@ const AddCashSales = () => {
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSave') === 'true' || false
     );
-
+    const [pollInterval, setPollInterval] = useState(null);
+    const [showItemsModal, setShowItemsModal] = useState(false);
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
     const [showProductModal, setShowProductModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState('');
@@ -141,22 +144,6 @@ const AddCashSales = () => {
         calculateTotal();
     }, [items, formData]);
 
-    // useEffect(() => {
-    //     if (itemSearchRef.current?.value) {
-    //         handleItemSearch({ target: { value: itemSearchRef.current.value } });
-    //     } else {
-    //         const filtered = allItems.filter(item => {
-    //             if (formData.isVatExempt === 'all') return true;
-    //             if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-    //             if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-    //             return true;
-    //         });
-    //         setFilteredItems(filtered);
-    //     }
-    // }, [formData.isVatExempt, allItems]);
-
-    // Update the useEffect that initializes stock maps
-
     useEffect(() => {
         if (allItems.length > 0) {
             const newItemStockMap = new Map();
@@ -179,19 +166,130 @@ const AddCashSales = () => {
         }
     }, [allItems]);
 
+    // useEffect(() => {
+    //     // Add F9 key handler here
+    //     const handF9leKeyDown = (e) => {
+    //         if (e.key === 'F9') {
+    //             e.preventDefault();
+    //             setShowProductModal(prev => !prev); // Toggle modal visibility
+    //         }
+    //     };
+    //     window.addEventListener('keydown', handF9leKeyDown);
+    //     return () => {
+    //         window.removeEventListener('keydown', handF9leKeyDown);
+    //     };
+    // }, []);
+
     useEffect(() => {
-        // Add F9 key handler here
-        const handF9leKeyDown = (e) => {
+        const handleKeyDown = (e) => {
+            // F9 toggles product modal
             if (e.key === 'F9') {
                 e.preventDefault();
-                setShowProductModal(prev => !prev); // Toggle modal visibility
+                setShowProductModal(prev => !prev);
+            }
+            // F6 opens account creation modal when account modal is open
+            else if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountModal(false);
+                setShowAccountCreationModal(true);
             }
         };
-        window.addEventListener('keydown', handF9leKeyDown);
+
+        window.addEventListener('keydown', handleKeyDown);
         return () => {
-            window.removeEventListener('keydown', handF9leKeyDown);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showAccountModal]); // Add showAccountModal to dependencies
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
         };
     }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
+
+    // Add account creation handler
+    const handleAccountCreated = async (newAccountData) => {
+        try {
+            // Refresh accounts list
+            const response = await api.get('/api/retailer/cash-sales');
+            const { data } = response;
+            const sortedAccounts = data.data.accounts.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+
+            // Automatically select the newly created account
+            if (newAccountData?.name) {
+                setFormData({
+                    ...formData,
+                    cashAccount: newAccountData.name,
+                    cashAccountId: newAccountData._id,
+                    cashAccountAddress: newAccountData.address || '',
+                    cashAccountPan: newAccountData.pan || '',
+                    cashAccountEmail: newAccountData.email || '',
+                    cashAccountPhone: newAccountData.phone || ''
+                });
+
+                setNotification({
+                    show: true,
+                    message: 'Account created and selected!',
+                    type: 'success'
+                });
+            }
+
+            setShowAccountCreationModal(false);
+
+            // Focus on address field
+            setTimeout(() => {
+                addressRef.current?.focus();
+            }, 100);
+        } catch (error) {
+            console.error('Error refreshing accounts:', error);
+        }
+    };
+
 
     // Function to calculate used stock across all items
     const calculateUsedStock = (items) => {
@@ -666,71 +764,6 @@ const AddCashSales = () => {
             discountPercentage: discountPercentage.toFixed(2)
         });
     };
-
-    // const resetForm = async () => {
-    //     try {
-    //         setIsLoading(true); // Show loading state while refreshing data
-
-    //         // Fetch fresh data from the backend
-    //         const response = await api.get('/api/retailer/cash-sales');
-    //         const { data } = response;
-
-    //         // Update all necessary states
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             cashAccount: '',
-    //             cashAccountAddress: '',
-    //             cashAccountPan: '',
-    //             cashAccountEmail: '',
-    //             cashAccountPhone: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: currentRomanDate,
-    //             billNumber: data.data.nextSalesBillNumber,
-    //             paymentMode: 'cash',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         // Update all data states with fresh data
-    //         setAllItems(data.data.items.sort((a, b) => a.name.localeCompare(b.name)));
-    //         // const sortedAccounts = data.data.accounts.sort((a, b) => a.name.localeCompare(b.name));
-    //         const sortedAccounts = data.data.accounts.sort((a, b) => a.name.localeCompare(b.name));
-    //         setAccounts(sortedAccounts);
-    //         setFilteredAccounts([]); // Reset filtered accounts
-    //         setNextBillNumber(data.data.nextSalesBillNumber);
-    //         setItems([]);
-    //         setQuantityErrors({}); // Clear quantity errors
-
-    //         // Clear the account search input if it exists
-    //         if (accountSearchRef.current) {
-    //             accountSearchRef.current.value = '';
-    //         }
-
-    //         // Focus back to the date field
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
 
     const resetForm = async () => {
         try {
@@ -1734,7 +1767,7 @@ const AddCashSales = () => {
                                         type="text"
                                         id="itemSearch"
                                         className="form-control"
-                                        placeholder="Search for an item"
+                                        placeholder="Search item (Press F6 to create new item)"
                                         autoComplete='off'
                                         value={searchQuery}
                                         onChange={handleItemSearch}
@@ -2125,6 +2158,51 @@ const AddCashSales = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {showAccountCreationModal && (
+                <AccountCreationModal
+                    show={showAccountCreationModal}
+                    onClose={() => setShowAccountCreationModal(false)}
+                    onAccountCreated={handleAccountCreated}
+                    companyId={company?._id}
+                    fiscalYear={company?.fiscalYear?._id}
+                />
+            )}
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

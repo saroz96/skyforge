@@ -11,6 +11,7 @@ import '../../../stylesheet/noDateIcon.css'
 import ProductModal from '../dashboard/modals/ProductModal';
 import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemList from '../../VirtualizedItemList';
+import AccountCreationModal from '../sales/AccountCreationModal';
 
 const AddCashSalesReturn = () => {
     const navigate = useNavigate();
@@ -21,7 +22,8 @@ const AddCashSalesReturn = () => {
     const addressRef = useRef(null);
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const itemsTableRef = useRef(null);
-
+    const [showItemsModal, setShowItemsModal] = useState(false);
+    const [pollInterval, setPollInterval] = useState(null);
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -31,7 +33,7 @@ const AddCashSalesReturn = () => {
         transactionDateNepali: '',
         nepaliDate: ''
     });
-
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
     // Add this state near your other state declarations
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSaveCashSalesReturn') === 'true' || false
@@ -129,19 +131,40 @@ const AddCashSalesReturn = () => {
         }
     }, [isInitialDataLoaded, company.dateFormat]);
 
+    // useEffect(() => {
+    //     // Add F9 key handler here
+    //     const handF9leKeyDown = (e) => {
+    //         if (e.key === 'F9') {
+    //             e.preventDefault();
+    //             setShowProductModal(prev => !prev); // Toggle modal visibility
+    //         }
+    //     };
+    //     window.addEventListener('keydown', handF9leKeyDown);
+    //     return () => {
+    //         window.removeEventListener('keydown', handF9leKeyDown);
+    //     };
+    // }, []);
+
     useEffect(() => {
-        // Add F9 key handler here
-        const handF9leKeyDown = (e) => {
+        const handleKeyDown = (e) => {
+            // F9 toggles product modal
             if (e.key === 'F9') {
                 e.preventDefault();
-                setShowProductModal(prev => !prev); // Toggle modal visibility
+                setShowProductModal(prev => !prev);
+            }
+            // F6 opens account creation modal when account modal is open
+            else if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountModal(false);
+                setShowAccountCreationModal(true);
             }
         };
-        window.addEventListener('keydown', handF9leKeyDown);
+
+        window.addEventListener('keydown', handleKeyDown);
         return () => {
-            window.removeEventListener('keydown', handF9leKeyDown);
+            window.removeEventListener('keydown', handleKeyDown);
         };
-    }, []);
+    }, [showAccountModal]); // Add showAccountModal to dependencies
 
     useEffect(() => {
         calculateTotal();
@@ -160,6 +183,119 @@ const AddCashSalesReturn = () => {
             setFilteredItems(filtered);
         }
     }, [formData.isVatExempt, allItems]);
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const handleAccountCreated = async (newAccountData) => {
+        try {
+            // Refresh accounts list
+            const { accounts: refreshedAccounts } = await fetchItemsAndAccounts();
+            const sortedAccounts = refreshedAccounts.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+
+            // Automatically select the newly created account
+            if (newAccountData?.name) {
+                setFormData({
+                    ...formData,
+                    cashAccount: newAccountData.name,
+                    cashAccountId: newAccountData._id,
+                    cashAccountAddress: newAccountData.address || '',
+                    cashAccountPan: newAccountData.pan || '',
+                    cashAccountEmail: newAccountData.email || '',
+                    cashAccountPhone: newAccountData.phone || ''
+                });
+
+                setNotification({
+                    show: true,
+                    message: 'Account created and selected!',
+                    type: 'success'
+                });
+            }
+
+            setShowAccountCreationModal(false);
+
+            // Focus on address field
+            setTimeout(() => {
+                addressRef.current?.focus();
+            }, 100);
+        } catch (error) {
+            console.error('Error refreshing accounts:', error);
+            setNotification({
+                show: true,
+                message: 'Error refreshing accounts list',
+                type: 'error'
+            });
+        }
+    };
+
+    const fetchItemsAndAccounts = async () => {
+        try {
+            const response = await api.get('/api/retailer/cash/sales-return');
+            const { data } = response;
+
+            const sortedItems = data.data.items.sort((a, b) => a.name.localeCompare(b.name));
+            const sortedAccounts = data.data.accounts.sort((a, b) => a.name.localeCompare(b.name));
+
+            setAllItems(sortedItems);
+            setAccounts(sortedAccounts);
+
+            return {
+                items: sortedItems,
+                accounts: sortedAccounts
+            };
+        } catch (error) {
+            console.error('Error fetching items and accounts:', error);
+            throw error;
+        }
+    };
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
 
     const handleAccountSearch = (e) => {
         const searchText = e.target.value.toLowerCase();
@@ -1528,7 +1664,7 @@ const AddCashSalesReturn = () => {
                                         type="text"
                                         id="itemSearch"
                                         className="form-control"
-                                        placeholder="Search item"
+                                        placeholder="Search item (Press F6 to create new item)"
                                         autoComplete='off'
                                         value={searchQuery}
                                         onChange={handleItemSearch}
@@ -1982,6 +2118,51 @@ const AddCashSalesReturn = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAccountCreationModal && (
+                <AccountCreationModal
+                    show={showAccountCreationModal}
+                    onClose={() => setShowAccountCreationModal(false)}
+                    onAccountCreated={handleAccountCreated}
+                    companyId={company?._id}
+                    fiscalYear={company?.fiscalYear?._id}
+                />
+            )}
         </div >
     );
 };

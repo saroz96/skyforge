@@ -24,11 +24,17 @@ const AddSalesReturn = () => {
         displayTransactionsForSalesReturn: false,
         displayTransactionsForPurchaseReturn: false
     });
+    const [showItemsModal, setShowItemsModal] = useState(false);
     const itemsTableRef = useRef(null);
     // Add this state near your other state declarations
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSaveSalesReturn') === 'true' || false
     );
+    // Add to your existing state declarations
+    const [salesInvoiceData, setSalesInvoiceData] = useState(null);
+    const [salesInvoiceLoading, setSalesInvoiceLoading] = useState(false);
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
+    const [pollInterval, setPollInterval] = useState(null);
 
     // Add these state variables with your existing state declarations
     const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +76,7 @@ const AddSalesReturn = () => {
         discountAmount: 0,
         roundOffAmount: 0,
         vatPercentage: 13,
+        salesInvoiceNumber: '',
         items: []
     });
 
@@ -208,6 +215,98 @@ const AddSalesReturn = () => {
         }
     }, [showTransactionModal]);
 
+    useEffect(() => {
+        const handleF6KeyForAccounts = (e) => {
+            if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountCreationModal(true);
+                setShowAccountModal(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForAccounts);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForAccounts);
+        };
+    }, [showAccountModal]);
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
+
+
+
+    const fetchAccounts = async () => {
+        try {
+            const response = await api.get('/api/retailer/fetchlatest/accounts');
+            const sortedAccounts = response.data.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+            setFilteredAccounts(sortedAccounts);
+        } catch (error) {
+            console.error('Error fetching accounts:', error);
+            setNotification({
+                show: true,
+                message: 'Error refreshing accounts',
+                type: 'error'
+            });
+        }
+    };
+
+    // Add this function to close account creation modal
+    const handleAccountCreationModalClose = () => {
+        setShowAccountCreationModal(false);
+        setShowAccountModal(true);
+
+        // Refresh accounts data
+        fetchAccounts();
+    };
+
     const handleAccountSearch = (e) => {
         const searchText = e.target.value.toLowerCase();
         const filtered = accounts.filter(account =>
@@ -229,33 +328,6 @@ const AddSalesReturn = () => {
         setShowAccountModal(false);
     };
 
-    // const handleItemSearch = (e) => {
-    //     const query = e.target.value.toLowerCase();
-
-    //     if (query.length === 0) {
-    //         setFilteredItems([]);
-    //         return;
-    //     }
-
-    //     let filtered = allItems.filter(item => {
-    //         const matchesSearch = item.name.toLowerCase().includes(query) ||
-    //             (item.hscode && item.hscode.toString().toLowerCase().includes(query)) ||
-    //             (item.uniqueNumber && item.uniqueNumber.toString().toLowerCase().includes(query)) ||
-    //             (item.category && item.category.name.toLowerCase().includes(query));
-
-    //         if (formData.isVatExempt === 'all') {
-    //             return matchesSearch;
-    //         } else if (formData.isVatExempt === 'false') {
-    //             return matchesSearch && item.vatStatus === 'vatable';
-    //         } else if (formData.isVatExempt === 'true') {
-    //             return matchesSearch && item.vatStatus === 'vatExempt';
-    //         }
-    //         return matchesSearch;
-    //     }).sort((a, b) => a.name.localeCompare(b.name));
-
-    //     setFilteredItems(filtered);
-    // };
-
     const handleItemSearch = (e) => {
         const query = e.target.value.toLowerCase();
         setSearchQuery(query);
@@ -268,81 +340,825 @@ const AddSalesReturn = () => {
         setShowItemDropdown(true);
     };
 
-    // const addItemToBill = async (item) => {
-    //     const newItem = {
-    //         item: item._id,
-    //         uniqueNumber: item.uniqueNumber || 'N/A',
-    //         hscode: item.hscode,
-    //         name: item.name,
-    //         batchNumber: 'XXX',
-    //         expiryDate: getDefaultExpiryDate(),
-    //         quantity: 0,
-    //         unit: item.unit,
-    //         price: item.latestPrice,
-    //         amount: 0,
-    //         vatStatus: item.vatStatus
-    //     };
+    // const fetchSalesBillDetails = async (e) => {
+    //     const invoiceNumber = e?.target?.value || formData.salesInvoiceNumber;
 
-    //     setItems([...items, newItem]);
-    //     setShowItemDropdown(false);
-    //     itemSearchRef.current.value = '';
+    //     if (!invoiceNumber) return;
 
-    //     // Update the transaction fetching part
-    //     if (transactionSettings.displayTransactions && formData.accountId) {
-    //         const cacheKey = `${item._id}-${formData.accountId}`;
+    //     setSalesInvoiceLoading(true);
+    //     try {
+    //         const response = await api.get(`/api/retailer/sales-bill-by-number/${invoiceNumber}`);
 
-    //         // Check cache first
-    //         if (transactionCache.has(cacheKey)) {
-    //             const cachedTransactions = transactionCache.get(cacheKey);
-    //             if (cachedTransactions.length > 0) {
-    //                 setTransactions(cachedTransactions);
-    //                 setShowTransactionModal(true);
-    //                 return;
-    //             }
-    //         }
+    //         if (response.data.success) {
+    //             const billData = response.data.data.bill;
 
-    //         try {
-    //             setIsLoadingTransactions(true);
+    //             // Update account information
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 accountId: billData.account?._id || '',
+    //                 accountName: billData.account?.name || '',
+    //                 accountAddress: billData.account?.address || '',
+    //                 accountPan: billData.account?.pan || '',
+    //                 // You might want to copy other relevant data
+    //             }));
 
-    //             const controller = new AbortController();
-    //             const timeoutId = setTimeout(() => controller.abort(), 3000);
+    //             // Transform and set items
+    //             const transformedItems = billData.items.map((item, index) => ({
+    //                 item: item.item?._id || item.item,
+    //                 uniqueNumber: item.item?.uniqueNumber || '',
+    //                 hscode: item.item?.hscode || '',
+    //                 name: item.item?.name || '',
+    //                 batchNumber: item.batchNumber || 'XXX',
+    //                 expiryDate: item.expiryDate || getDefaultExpiryDate(),
+    //                 quantity: 0, // Start with 0 for return, user can modify
+    //                 unit: item.unit || item.item?.unit,
+    //                 price: item.price || item.item?.sellingPrice || 0,
+    //                 amount: 0,
+    //                 vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable'
+    //             }));
 
-    //             const response = await api.get(`/api/retailer/transactions/${item._id}/${formData.accountId}/Sales`, {
-    //                 signal: controller.signal
+    //             setItems(transformedItems);
+    //             setSalesInvoiceData(billData);
+
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Sales bill loaded successfully',
+    //                 type: 'success'
     //             });
 
-    //             clearTimeout(timeoutId);
-
-    //             if (response.data.success) {
-    //                 setTransactionCache(prev => new Map(prev.set(cacheKey, response.data.data.transactions)));
-
-    //                 if (response.data.data.transactions.length > 0) {
-    //                     setTransactions(response.data.data.transactions);
-    //                     setShowTransactionModal(true);
-    //                     return;
+    //             // Focus on first item's quantity
+    //             setTimeout(() => {
+    //                 if (transformedItems.length > 0) {
+    //                     const batchNumberInput = document.getElementById(`batchNumber-0`);
+    //                     if (batchNumberInput) {
+    //                         batchNumberInput.focus();
+    //                         batchNumberInput.select();
+    //                     }
     //                 }
-    //             }
-    //         } catch (error) {
-    //             if (error.name !== 'AbortError') {
-    //                 console.error('Error fetching transactions:', error);
-    //             }
-    //         } finally {
-    //             setIsLoadingTransactions(false);
-    //         }
-    //     }
+    //             }, 100);
 
-    //     setTimeout(() => {
-    //         const newItemIndex = items.length;
-    //         const batchNumberInput = document.getElementById(`batchNumber-${newItemIndex}`);
-    //         if (batchNumberInput) {
-    //             batchNumberInput.focus();
-    //             batchNumberInput.select();
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: response.data.error || 'Sales bill not found',
+    //                 type: 'error'
+    //             });
     //         }
-    //     }, 100);
+    //     } catch (error) {
+    //         console.error('Error fetching sales bill:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error fetching sales bill details',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setSalesInvoiceLoading(false);
+    //     }
+    // };
+    // const fetchSalesBillDetails = async (e) => {
+    //     const invoiceNumber = e?.target?.value || formData.salesInvoiceNumber;
+
+    //     if (!invoiceNumber) return;
+
+    //     setSalesInvoiceLoading(true);
+    //     try {
+    //         const response = await api.get(`/api/retailer/sales-bill-by-number/${invoiceNumber}`);
+
+    //         if (response.data.success) {
+    //             const billData = response.data.data.bill;
+
+    //             if (billData.items && billData.items.length > 0) {
+    //                 console.log('First item details:', billData.items[0]);
+    //                 console.log('First item expiryDate:', billData.items[0].expiryDate);
+    //                 console.log('First item batchNumber:', billData.items[0].batchNumber);
+    //             }
+
+    //             // Update account information
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 accountId: billData.account?._id || '',
+    //                 accountName: billData.account?.name || '',
+    //                 accountAddress: billData.account?.address || '',
+    //                 accountPan: billData.account?.pan || '',
+    //                 // Copy bill summary details
+    //                 discountPercentage: billData.billSummary?.discountPercentage || 0,
+    //                 discountAmount: billData.billSummary?.discountAmount || 0,
+    //                 vatPercentage: billData.billSummary?.vatPercentage || 13,
+    //                 paymentMode: billData.billSummary?.paymentMode || 'credit',
+    //                 isVatExempt: billData.billSummary?.isVatExempt ? 'true' : 'false',
+    //                 roundOffAmount: billData.billSummary?.roundOffAmount || 0
+    //             }));
+
+    //             // Transform and set items with original quantities
+    //             const transformedItems = billData.items.map((item, index) => {
+    //                 // Use available quantity as default, but user can change it
+    //                 const defaultQuantity = Math.max(0, item.availableQuantity);
+
+    //                 return {
+    //                     item: item.item?._id || item.item,
+    //                     uniqueNumber: item.item?.uniqueNumber || '',
+    //                     hscode: item.item?.hscode || '',
+    //                     name: item.item?.name || '',
+    //                     batchNumber: item.batchNumber || 'XXX',
+    //                     // expiryDate: new Date(item.expiryDate) || getDefaultExpiryDate(),
+    //                     expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+    //                     quantity: defaultQuantity, // Set to available quantity
+    //                     unit: item.unit || item.item?.unit,
+    //                     price: item.originalPrice || item.item?.sellingPrice || 0,
+    //                     amount: (defaultQuantity * (item.originalPrice || item.item?.sellingPrice || 0)).toFixed(2),
+    //                     vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable',
+    //                     // Store original data for reference
+    //                     originalQuantity: item.originalQuantity,
+    //                     availableQuantity: item.availableQuantity,
+    //                     returnedQuantity: item.returnedQuantity
+    //                 };
+    //             });
+
+    //             setItems(transformedItems);
+    //             setSalesInvoiceData(billData);
+
+    //             setNotification({
+    //                 show: true,
+    //                 message: `Sales bill ${invoiceNumber} loaded successfully. ${transformedItems.length} items found.`,
+    //                 type: 'success'
+    //             });
+
+    //             // Focus on first item's quantity
+    //             setTimeout(() => {
+    //                 if (transformedItems.length > 0) {
+    //                     const batchNumberInput = document.getElementById(`batchNumber-0`);
+    //                     if (batchNumberInput) {
+    //                         batchNumberInput.focus();
+    //                         batchNumberInput.select();
+    //                     }
+    //                 }
+    //             }, 100);
+
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: response.data.error || 'Sales bill not found',
+    //                 type: 'error'
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching sales bill:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error fetching sales bill details',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setSalesInvoiceLoading(false);
+    //     }
     // };
 
-    const addItemToBill = async (item) => {
+    // const fetchSalesBillDetails = async (e) => {
+    //     const invoiceNumber = e?.target?.value || formData.salesInvoiceNumber;
 
+    //     if (!invoiceNumber) return;
+
+    //     setSalesInvoiceLoading(true);
+    //     try {
+    //         const response = await api.get(`/api/retailer/sales-bill-by-number/${invoiceNumber}`);
+
+    //         if (response.data.success) {
+    //             const billData = response.data.data.bill;
+
+    //             if (billData.items && billData.items.length > 0) {
+    //                 console.log('First item details:', billData.items[0]);
+    //                 console.log('First item expiryDate:', billData.items[0].expiryDate);
+    //                 console.log('First item batchNumber:', billData.items[0].batchNumber);
+    //                 console.log('First item unit:', billData.items[0].unit); // Check this!
+    //             }
+
+    //             // Calculate VAT status based on items in the bill
+    //             let isVatExemptValue = 'all'; // Default to 'all'
+
+    //             if (billData.items && billData.items.length > 0) {
+    //                 // Get all vat statuses from items
+    //                 const vatStatuses = billData.items.map(item => {
+    //                     return item.item?.vatStatus || item.vatStatus || 'vatable';
+    //                 });
+
+    //                 console.log('VAT statuses in bill:', vatStatuses);
+
+    //                 // Check if all items are vatable
+    //                 const allVatable = vatStatuses.every(status => status === 'vatable');
+    //                 // Check if all items are vatExempt
+    //                 const allVatExempt = vatStatuses.every(status => status === 'vatExempt');
+
+    //                 console.log('All vatable?', allVatable);
+    //                 console.log('All vatExempt?', allVatExempt);
+
+    //                 // Apply logic:
+    //                 if (allVatable) {
+    //                     isVatExemptValue = 'false'; // All items are vatable, so show 13%
+    //                 } else if (allVatExempt) {
+    //                     isVatExemptValue = 'true'; // All items are exempt, so show Exempt
+    //                 } else {
+    //                     isVatExemptValue = 'all'; // Mixed items, show All
+    //                 }
+
+    //                 console.log('Setting isVatExempt to:', isVatExemptValue);
+    //             }
+
+    //             // Update account information
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 accountId: billData.account?._id || '',
+    //                 accountName: billData.account?.name || '',
+    //                 accountAddress: billData.account?.address || '',
+    //                 accountPan: billData.account?.pan || '',
+    //                 // Copy bill summary details
+    //                 discountPercentage: billData.billSummary?.discountPercentage || 0,
+    //                 discountAmount: billData.billSummary?.discountAmount || 0,
+    //                 vatPercentage: billData.billSummary?.vatPercentage || 13,
+    //                 paymentMode: billData.billSummary?.paymentMode || 'credit',
+    //                 isVatExempt: isVatExemptValue,
+    //                 roundOffAmount: billData.billSummary?.roundOffAmount || 0
+    //             }));
+
+    //             // CRITICAL FIX: Transform items correctly
+    //             const transformedItems = billData.items.map((item, index) => {
+    //                 console.log(`Processing item ${index}:`, {
+    //                     itemData: item,
+    //                     unitType: typeof item.unit,
+    //                     unitValue: item.unit,
+    //                     expiryDateType: typeof item.expiryDate,
+    //                     expiryDateValue: item.expiryDate
+    //                 });
+
+    //                 // Handle unit - ensure it has the correct structure
+    //                 let unit = item.unit;
+    //                 if (unit && typeof unit === 'string') {
+    //                     // If unit is just an ID string, convert to object format
+    //                     unit = { _id: unit };
+    //                 } else if (unit && unit._id) {
+    //                     // Already in correct format, keep as is
+    //                     unit = { _id: unit._id, name: unit.name || '' };
+    //                 } else {
+    //                     // Default unit structure
+    //                     unit = { _id: null, name: '' };
+    //                 }
+
+    //                 // Handle expiry date - convert to YYYY-MM-DD format
+    //                 let expiryDate = item.expiryDate;
+    //                 if (expiryDate) {
+    //                     if (typeof expiryDate === 'string' && expiryDate.includes('T')) {
+    //                         // ISO string like "2027-11-28T00:00:00.000Z"
+    //                         expiryDate = expiryDate.split('T')[0];
+    //                     } else if (expiryDate instanceof Date) {
+    //                         // Date object
+    //                         expiryDate = expiryDate.toISOString().split('T')[0];
+    //                     }
+    //                     // If it's already in YYYY-MM-DD format, keep it
+    //                 } else {
+    //                     // No expiry date, use default
+    //                     expiryDate = getDefaultExpiryDate();
+    //                 }
+
+    //                 // Use available quantity as default, but user can change it
+    //                 const defaultQuantity = Math.max(0, item.availableQuantity || 0);
+
+    //                 return {
+    //                     item: item.item?._id || item.item,
+    //                     uniqueNumber: item.item?.uniqueNumber || '',
+    //                     hscode: item.item?.hscode || '',
+    //                     name: item.item?.name || '',
+    //                     batchNumber: item.batchNumber || 'XXX',
+    //                     expiryDate: expiryDate,
+    //                     quantity: defaultQuantity,
+    //                     unit: unit, // Now correctly formatted
+    //                     price: item.originalPrice || item.price || item.item?.sellingPrice || 0,
+    //                     amount: (defaultQuantity * (item.originalPrice || item.price || item.item?.sellingPrice || 0)).toFixed(2),
+    //                     vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable',
+    //                     // DON'T include these fields in the final submission
+    //                     // They're only for reference
+    //                     _originalQuantity: item.originalQuantity,
+    //                     _availableQuantity: item.availableQuantity,
+    //                     _returnedQuantity: item.returnedQuantity
+    //                 };
+    //             });
+
+    //             console.log('Transformed items:', transformedItems);
+    //             console.log('First transformed item unit:', transformedItems[0]?.unit);
+
+    //             setItems(transformedItems);
+    //             setSalesInvoiceData(billData);
+
+    //             setNotification({
+    //                 show: true,
+    //                 message: `Sales bill ${invoiceNumber} loaded successfully. ${transformedItems.length} items found.`,
+    //                 type: 'success'
+    //             });
+
+    //             // Focus on first item's quantity
+    //             setTimeout(() => {
+    //                 if (transformedItems.length > 0) {
+    //                     const batchNumberInput = document.getElementById(`batchNumber-0`);
+    //                     if (batchNumberInput) {
+    //                         batchNumberInput.focus();
+    //                         batchNumberInput.select();
+    //                     }
+    //                 }
+    //             }, 100);
+
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: response.data.error || 'Sales bill not found',
+    //                 type: 'error'
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching sales bill:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error fetching sales bill details',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setSalesInvoiceLoading(false);
+    //     }
+    // };
+
+    // const fetchSalesBillDetails = async (e) => {
+    //     const invoiceNumber = e?.target?.value || formData.salesInvoiceNumber;
+
+    //     if (!invoiceNumber) return;
+
+    //     setSalesInvoiceLoading(true);
+    //     try {
+    //         const response = await api.get(`/api/retailer/sales-bill-by-number/${invoiceNumber}`);
+
+    //         if (response.data.success) {
+    //             const billData = response.data.data.bill;
+
+    //             // Check if this bill already has existing returns
+    //             if (billData.hasExistingReturns && billData.existingReturns.length > 0) {
+    //                 setSalesInvoiceLoading(false);
+
+    //                 // Show detailed warning message
+    //                 const returnDetails = billData.existingReturns
+    //                     .map((ret, idx) =>
+    //                         `Return ${idx + 1}: ${ret.billNumber} (${new Date(ret.date).toLocaleDateString()}) - Rs. ${ret.totalAmount?.toFixed(2) || '0.00'}`
+    //                     )
+    //                     .join('\n');
+
+    //                 setNotification({
+    //                     show: true,
+    //                     message: `⚠️ Sales return already exists for invoice ${invoiceNumber}!\n\nExisting Returns:\n${returnDetails}\n\nYou cannot create another return for the same invoice.`,
+    //                     type: 'warning'
+    //                 });
+
+
+
+    //                 // Clear the input field
+    //                 setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+
+    //                 // Clear any loaded data
+    //                 setSalesInvoiceData(null);
+    //                 setItems([]);
+
+    //                 return;
+    //             }
+
+    //             // Calculate VAT status based on items in the bill
+    //             let isVatExemptValue = 'all'; // Default to 'all'
+
+    //             if (billData.items && billData.items.length > 0) {
+    //                 // Get all vat statuses from items
+    //                 const vatStatuses = billData.items.map(item => {
+    //                     return item.item?.vatStatus || item.vatStatus || 'vatable';
+    //                 });
+
+    //                 console.log('VAT statuses in bill:', vatStatuses);
+
+    //                 // Check if all items are vatable
+    //                 const allVatable = vatStatuses.every(status => status === 'vatable');
+    //                 // Check if all items are vatExempt
+    //                 const allVatExempt = vatStatuses.every(status => status === 'vatExempt');
+
+    //                 console.log('All vatable?', allVatable);
+    //                 console.log('All vatExempt?', allVatExempt);
+
+    //                 // Apply logic:
+    //                 if (allVatable) {
+    //                     isVatExemptValue = 'false'; // All items are vatable, so show 13%
+    //                 } else if (allVatExempt) {
+    //                     isVatExemptValue = 'true'; // All items are exempt, so show Exempt
+    //                 } else {
+    //                     isVatExemptValue = 'all'; // Mixed items, show All
+    //                 }
+
+    //                 console.log('Setting isVatExempt to:', isVatExemptValue);
+    //             }
+
+    //             // Update account information
+    //             setFormData(prev => ({
+    //                 ...prev,
+    //                 accountId: billData.account?._id || '',
+    //                 accountName: billData.account?.name || '',
+    //                 accountAddress: billData.account?.address || '',
+    //                 accountPan: billData.account?.pan || '',
+    //                 // Copy bill summary details
+    //                 discountPercentage: billData.billSummary?.discountPercentage || 0,
+    //                 discountAmount: billData.billSummary?.discountAmount || 0,
+    //                 vatPercentage: billData.billSummary?.vatPercentage || 13,
+    //                 paymentMode: billData.billSummary?.paymentMode || 'credit',
+    //                 isVatExempt: isVatExemptValue, // Use calculated value
+    //                 roundOffAmount: billData.billSummary?.roundOffAmount || 0
+    //             }));
+
+    //             // CRITICAL FIX: Transform items correctly
+    //             const transformedItems = billData.items.map((item, index) => {
+    //                 console.log(`Processing item ${index}:`, {
+    //                     itemData: item,
+    //                     unitType: typeof item.unit,
+    //                     unitValue: item.unit,
+    //                     expiryDateType: typeof item.expiryDate,
+    //                     expiryDateValue: item.expiryDate,
+    //                     vatStatus: item.item?.vatStatus || item.vatStatus
+    //                 });
+
+    //                 // Handle unit - ensure it has the correct structure
+    //                 let unit = item.unit;
+    //                 if (unit && typeof unit === 'string') {
+    //                     // If unit is just an ID string, convert to object format
+    //                     unit = { _id: unit };
+    //                 } else if (unit && unit._id) {
+    //                     // Already in correct format, keep as is
+    //                     unit = { _id: unit._id, name: unit.name || '' };
+    //                 } else {
+    //                     // Default unit structure
+    //                     unit = { _id: null, name: '' };
+    //                 }
+
+    //                 // Handle expiry date - convert to YYYY-MM-DD format
+    //                 let expiryDate = item.expiryDate;
+    //                 if (expiryDate) {
+    //                     if (typeof expiryDate === 'string' && expiryDate.includes('T')) {
+    //                         // ISO string like "2027-11-28T00:00:00.000Z"
+    //                         expiryDate = expiryDate.split('T')[0];
+    //                     } else if (expiryDate instanceof Date) {
+    //                         // Date object
+    //                         expiryDate = expiryDate.toISOString().split('T')[0];
+    //                     }
+    //                     // If it's already in YYYY-MM-DD format, keep it
+    //                 } else {
+    //                     // No expiry date, use default
+    //                     expiryDate = getDefaultExpiryDate();
+    //                 }
+
+    //                 // Use available quantity as default, but user can change it
+    //                 const defaultQuantity = Math.max(0, item.availableQuantity || 0);
+
+    //                 return {
+    //                     item: item.item?._id || item.item,
+    //                     uniqueNumber: item.item?.uniqueNumber || '',
+    //                     hscode: item.item?.hscode || '',
+    //                     name: item.item?.name || '',
+    //                     batchNumber: item.batchNumber || 'XXX',
+    //                     expiryDate: expiryDate,
+    //                     quantity: defaultQuantity,
+    //                     unit: unit, // Now correctly formatted
+    //                     price: item.originalPrice || item.price || item.item?.sellingPrice || 0,
+    //                     amount: (defaultQuantity * (item.originalPrice || item.price || item.item?.sellingPrice || 0)).toFixed(2),
+    //                     vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable',
+    //                     // DON'T include these fields in the final submission
+    //                     // They're only for reference
+    //                     _originalQuantity: item.originalQuantity,
+    //                     _availableQuantity: item.availableQuantity,
+    //                     _returnedQuantity: item.returnedQuantity
+    //                 };
+    //             });
+
+    //             console.log('Transformed items:', transformedItems);
+    //             console.log('First transformed item unit:', transformedItems[0]?.unit);
+    //             console.log('Setting VAT dropdown to:', isVatExemptValue);
+
+    //             setItems(transformedItems);
+    //             setSalesInvoiceData(billData);
+
+    //             setNotification({
+    //                 show: true,
+    //                 message: `Sales bill ${invoiceNumber} loaded successfully. ${transformedItems.length} items found. VAT setting: ${isVatExemptValue === 'false' ? '13%' : isVatExemptValue === 'true' ? 'Exempt' : 'All'}`,
+    //                 type: 'success'
+    //             });
+
+    //             // Focus on first item's quantity
+    //             setTimeout(() => {
+    //                 if (transformedItems.length > 0) {
+    //                     const batchNumberInput = document.getElementById(`batchNumber-0`);
+    //                     if (batchNumberInput) {
+    //                         batchNumberInput.focus();
+    //                         batchNumberInput.select();
+    //                     }
+    //                 }
+    //             }, 100);
+
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: response.data.error || 'Sales bill not found',
+    //                 type: 'error'
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching sales bill:', error);
+    //         setNotification({
+    //             show: true,
+    //             message: 'Error fetching sales bill details',
+    //             type: 'error'
+    //         });
+    //     } finally {
+    //         setSalesInvoiceLoading(false);
+    //     }
+    // };
+
+    const fetchSalesBillDetails = async (e) => {
+        const invoiceNumber = e?.target?.value || formData.salesInvoiceNumber;
+
+        if (!invoiceNumber) return;
+
+        setSalesInvoiceLoading(true);
+        try {
+            const response = await api.get(`/api/retailer/sales-bill-by-number/${invoiceNumber}`);
+
+            if (response.data.success) {
+                const billData = response.data.data.bill;
+
+                // Check if this is a credit sales bill
+                if (billData.billType !== 'credit') {
+                    setSalesInvoiceLoading(false);
+
+                    setNotification({
+                        show: true,
+                        message: `Bill ${invoiceNumber} is not a credit sales bill. Please check the bill type.`,
+                        type: 'warning'
+                    });
+
+                    setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+                    setSalesInvoiceData(null);
+                    setItems([]);
+
+                    return;
+                }
+
+                // Check if this bill already has existing returns
+                if (billData.hasExistingReturns && billData.existingReturns.length > 0) {
+                    setSalesInvoiceLoading(false);
+
+                    // Show detailed warning message
+                    const returnDetails = billData.existingReturns
+                        .map((ret, idx) =>
+                            `Return ${idx + 1}: ${ret.billNumber} (${new Date(ret.date).toLocaleDateString()}) - Rs. ${ret.totalAmount?.toFixed(2) || '0.00'}`
+                        )
+                        .join('\n');
+
+                    setNotification({
+                        show: true,
+                        message: `⚠️ Sales return already exists for invoice ${invoiceNumber}!\n\nExisting Returns:\n${returnDetails}\n\nYou cannot create another return for the same invoice.`,
+                        type: 'warning'
+                    });
+
+                    // Clear the input field
+                    setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+
+                    // Clear any loaded data
+                    setSalesInvoiceData(null);
+                    setItems([]);
+
+                    return;
+                }
+
+                // Check if bill is fully returned
+                if (billData.isFullyReturned) {
+                    setSalesInvoiceLoading(false);
+
+                    setNotification({
+                        show: true,
+                        message: `All items from invoice ${invoiceNumber} have already been returned.`,
+                        type: 'warning'
+                    });
+
+                    setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+                    setSalesInvoiceData(null);
+                    setItems([]);
+
+                    return;
+                }
+
+                // Calculate VAT status based on items in the bill
+                let isVatExemptValue = 'all'; // Default to 'all'
+
+                if (billData.items && billData.items.length > 0) {
+                    // Get all vat statuses from items
+                    const vatStatuses = billData.items.map(item => {
+                        return item.item?.vatStatus || item.vatStatus || 'vatable';
+                    });
+
+                    console.log('VAT statuses in bill:', vatStatuses);
+
+                    // Check if all items are vatable
+                    const allVatable = vatStatuses.every(status => status === 'vatable');
+                    // Check if all items are vatExempt
+                    const allVatExempt = vatStatuses.every(status => status === 'vatExempt');
+
+                    console.log('All vatable?', allVatable);
+                    console.log('All vatExempt?', allVatExempt);
+
+                    // Apply logic:
+                    if (allVatable) {
+                        isVatExemptValue = 'false'; // All items are vatable, so show 13%
+                    } else if (allVatExempt) {
+                        isVatExemptValue = 'true'; // All items are exempt, so show Exempt
+                    } else {
+                        isVatExemptValue = 'all'; // Mixed items, show All
+                    }
+
+                    console.log('Setting isVatExempt to:', isVatExemptValue);
+                }
+
+                // Update account information
+                setFormData(prev => ({
+                    ...prev,
+                    accountId: billData.account?._id || '',
+                    accountName: billData.account?.name || '',
+                    accountAddress: billData.account?.address || '',
+                    accountPan: billData.account?.pan || '',
+                    // Copy bill summary details
+                    discountPercentage: billData.billSummary?.discountPercentage || 0,
+                    discountAmount: billData.billSummary?.discountAmount || 0,
+                    vatPercentage: billData.billSummary?.vatPercentage || 13,
+                    paymentMode: billData.billSummary?.paymentMode || 'credit',
+                    isVatExempt: isVatExemptValue, // Use calculated value
+                    roundOffAmount: billData.billSummary?.roundOffAmount || 0,
+                    salesInvoiceNumber: invoiceNumber // Ensure this is set
+                }));
+
+                // CRITICAL FIX: Transform items correctly
+                const transformedItems = billData.items.map((item, index) => {
+                    console.log(`Processing item ${index}:`, {
+                        itemData: item,
+                        unitType: typeof item.unit,
+                        unitValue: item.unit,
+                        expiryDateType: typeof item.expiryDate,
+                        expiryDateValue: item.expiryDate,
+                        vatStatus: item.item?.vatStatus || item.vatStatus
+                    });
+
+                    // Handle unit - ensure it has the correct structure
+                    let unit = item.unit;
+                    if (unit && typeof unit === 'string') {
+                        // If unit is just an ID string, convert to object format
+                        unit = { _id: unit };
+                    } else if (unit && unit._id) {
+                        // Already in correct format, keep as is
+                        unit = { _id: unit._id, name: unit.name || '' };
+                    } else {
+                        // Default unit structure
+                        unit = { _id: null, name: '' };
+                    }
+
+                    // Handle expiry date - convert to YYYY-MM-DD format
+                    let expiryDate = item.expiryDate;
+                    if (expiryDate) {
+                        if (typeof expiryDate === 'string' && expiryDate.includes('T')) {
+                            // ISO string like "2027-11-28T00:00:00.000Z"
+                            expiryDate = expiryDate.split('T')[0];
+                        } else if (expiryDate instanceof Date) {
+                            // Date object
+                            expiryDate = expiryDate.toISOString().split('T')[0];
+                        }
+                        // If it's already in YYYY-MM-DD format, keep it
+                    } else {
+                        // No expiry date, use default
+                        expiryDate = getDefaultExpiryDate();
+                    }
+
+                    // Use available quantity as default, but user can change it
+                    const defaultQuantity = Math.max(0, item.availableQuantity || 0);
+
+                    return {
+                        item: item.item?._id || item.item,
+                        _id: item.item?._id || item.item, // Add _id for reference
+                        uniqueNumber: item.item?.uniqueNumber || '',
+                        hscode: item.item?.hscode || '',
+                        name: item.item?.name || '',
+                        batchNumber: item.batchNumber || 'XXX',
+                        expiryDate: expiryDate,
+                        quantity: defaultQuantity,
+                        unit: unit, // Now correctly formatted
+                        price: item.originalPrice || item.price || item.item?.sellingPrice || 0,
+                        amount: (defaultQuantity * (item.originalPrice || item.price || item.item?.sellingPrice || 0)).toFixed(2),
+                        vatStatus: item.item?.vatStatus || item.vatStatus || 'vatable',
+                        // DON'T include these fields in the final submission
+                        // They're only for reference
+                        _originalQuantity: item.originalQuantity,
+                        _availableQuantity: item.availableQuantity,
+                        _returnedQuantity: item.returnedQuantity
+                    };
+                });
+
+                console.log('Transformed items:', transformedItems);
+                console.log('First transformed item unit:', transformedItems[0]?.unit);
+                console.log('Setting VAT dropdown to:', isVatExemptValue);
+
+                setItems(transformedItems);
+                setSalesInvoiceData(billData);
+
+                setNotification({
+                    show: true,
+                    message: `✅ Sales bill ${invoiceNumber} loaded successfully. ${transformedItems.length} items found.}`,
+                    type: 'success'
+                });
+
+                // Focus on first item's quantity
+                setTimeout(() => {
+                    if (transformedItems.length > 0) {
+                        const batchNumberInput = document.getElementById(`batchNumber-0`);
+                        if (batchNumberInput) {
+                            batchNumberInput.focus();
+                            batchNumberInput.select();
+                        }
+                    }
+                }, 100);
+
+            } else {
+                // Handle specific error cases from backend
+                const errorData = response.data;
+
+                if (errorData.isCashSales) {
+                    // This is a cash sales bill
+                    setNotification({
+                        show: true,
+                        message: `❌ ${invoiceNumber} is a Cash Sales bill!\n\nCash Account: ${errorData.cashAccount || 'N/A'}\nAddress: ${errorData.cashAccountAddress || 'N/A'}\n\nCash sales returns should be created from the Cash Sales Return section.`,
+                        type: 'error'
+                    });
+                } else if (errorData.isCreditSales === false) {
+                    // Not a valid credit sales bill
+                    setNotification({
+                        show: true,
+                        message: `❌ ${invoiceNumber} is not a valid credit sales bill.\nPlease check the bill type.`,
+                        type: 'error'
+                    });
+                } else {
+                    // Generic error
+                    setNotification({
+                        show: true,
+                        message: errorData.error || 'Sales bill not found',
+                        type: 'error'
+                    });
+                }
+
+                // Clear the input field on error
+                setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+                setSalesInvoiceData(null);
+                setItems([]);
+            }
+        } catch (error) {
+            console.error('Error fetching sales bill:', error);
+
+            // Check for specific error responses from backend
+            if (error.response?.data?.isCashSales) {
+                const errorData = error.response.data;
+                setNotification({
+                    show: true,
+                    message: `❌ ${invoiceNumber} is a Cash Sales bill!\n\nCash Account: ${errorData.cashAccount || 'N/A'}\nAddress: ${errorData.cashAccountAddress || 'N/A'}\n\nCash sales returns should be created from the Cash Sales Return section.`,
+                    type: 'error'
+                });
+            } else if (error.response?.data?.isCreditSales === false) {
+                setNotification({
+                    show: true,
+                    message: `❌ ${invoiceNumber} is not a valid credit sales bill.\nPlease check the bill type.`,
+                    type: 'error'
+                });
+            } else if (error.response?.data?.error) {
+                setNotification({
+                    show: true,
+                    message: error.response.data.error,
+                    type: 'error'
+                });
+            } else {
+                setNotification({
+                    show: true,
+                    message: 'Error fetching sales bill details',
+                    type: 'error'
+                });
+            }
+
+            // Clear the input field on error
+            setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+            setSalesInvoiceData(null);
+            setItems([]);
+        } finally {
+            setSalesInvoiceLoading(false);
+        }
+    };
+
+    const addItemToBill = async (item) => {
         // Store the current search query before clearing
         if (itemSearchRef.current?.value) {
             setLastSearchQuery(itemSearchRef.current.value);
@@ -710,6 +1526,9 @@ const AddSalesReturn = () => {
                 items: []
             });
 
+            setSalesInvoiceData(null);
+            setSalesInvoiceLoading(false);
+
             // Update all data states with fresh data
             setAllItems(data.data.items.sort((a, b) => a.name.localeCompare(b.name)));
             const sortedAccounts = data.data.accounts.sort((a, b) => a.name.localeCompare(b.name));
@@ -773,61 +1592,51 @@ const AddSalesReturn = () => {
     //             discountPercentage: formData.discountPercentage,
     //             paymentMode: formData.paymentMode,
     //             roundOffAmount: formData.roundOffAmount,
+    //             originalSalesBill: salesInvoiceData?._id || null, // Add this
+    //             originalSalesBillNumber: formData.salesInvoiceNumber || '', // Add this
     //             print
     //         };
 
+    //         // Log the data being sent for debugging
+    //         console.log('Submitting sales return data:', JSON.stringify(billData, null, 2));
+    //         console.log('Items being submitted:', billData.items);
+
     //         const response = await api.post('/api/retailer/sales-return', billData);
 
-    //         setNotification({
-    //             show: true,
-    //             message: 'Sales return saved successfully!',
-    //             type: 'success'
-    //         });
+    //         if (response.data.success) {
+    //             setNotification({
+    //                 show: true,
+    //                 message: 'Sales return saved successfully!',
+    //                 type: 'success'
+    //             });
 
-    //         setItems([]);
-    //         clearCreditSalesReturnDraft();
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: currentNepaliDate,
-    //             transactionDateRoman: new Date().toISOString().split('T')[0],
-    //             nepaliDate: currentNepaliDate,
-    //             billDate: new Date().toISOString().split('T')[0],
-    //             billNumber: nextBillNumber,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             items: []
-    //         });
-
-    //         setItems([]);
-
-    //         if (print) {
-    //             setIsSaving(false);
-    //             navigate(`/api/retailer/sales-return/${response.data.data.bill._id}/print`);
-    //         } else {
     //             setItems([]);
-    //             setIsSaving(false);
-    //             resetForm()
+    //             clearCreditSalesReturnDraft();
 
-    //             // Focus back to the first field
-    //             setTimeout(() => {
-    //                 if (transactionDateRef.current) {
-    //                     transactionDateRef.current.focus();
-    //                 }
-    //             }, 100);
+    //             if (print && response.data.data?.bill?._id) {
+    //                 setIsSaving(false);
+    //                 await printImmediately(response.data.data.bill._id);
+    //                 setTimeout(() => {
+    //                     resetForm();
+    //                 }, 1000);
+    //             } else {
+    //                 setIsSaving(false);
+    //                 resetForm();
+    //             }
+
+    //         } else {
+    //             setNotification({
+    //                 show: true,
+    //                 message: response.data.error || 'Failed to save sales return',
+    //                 type: 'error'
+    //             });
+    //             setIsSaving(false);
     //         }
     //     } catch (error) {
     //         console.error('Error saving sales return:', error);
     //         setNotification({
     //             show: true,
-    //             message: 'Failed to save sales return. Please try again.',
+    //             message: error.response?.data?.error || 'Failed to save sales return. Please try again.',
     //             type: 'error'
     //         });
     //         setIsSaving(false);
@@ -836,31 +1645,114 @@ const AddSalesReturn = () => {
 
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
+
+        if (salesInvoiceData?.hasExistingReturns) {
+            setNotification({
+                show: true,
+                message: `Cannot save: Sales return already exists for invoice ${formData.salesInvoiceNumber}`,
+                type: 'error'
+            });
+            return;
+        }
+
+        // Validation
+        if (!formData.accountId) {
+            setNotification({
+                show: true,
+                message: 'Please select an account first',
+                type: 'error'
+            });
+            return;
+        }
+
+        if (items.length === 0) {
+            setNotification({
+                show: true,
+                message: 'Please add at least one item',
+                type: 'error'
+            });
+            return;
+        }
+
         setIsSaving(true);
 
         try {
-            const billData = {
-                ...formData,
-                items: items.map(item => ({
+            // Debug: Log the current items structure
+            console.log('Current items structure before submission:', items);
+            console.log('First item structure:', items[0]);
+            console.log('First item unit:', items[0]?.unit);
+            console.log('First item unit type:', typeof items[0]?.unit);
+            console.log('First item unit._id:', items[0]?.unit?._id);
+
+            // Prepare items for submission - handle both cases
+            const preparedItems = items.map(item => {
+                console.log('Processing item for submission:', {
+                    originalItem: item,
+                    unit: item.unit,
+                    unitType: typeof item.unit,
+                    unitHasId: item.unit?._id !== undefined
+                });
+
+                // Extract unit ID correctly
+                let unitId = null;
+                if (item.unit) {
+                    if (typeof item.unit === 'object' && item.unit._id) {
+                        unitId = item.unit._id;
+                    } else if (typeof item.unit === 'string') {
+                        unitId = item.unit;
+                    }
+                }
+
+                // Format expiry date
+                let expiryDate = item.expiryDate;
+                if (expiryDate) {
+                    if (typeof expiryDate === 'string' && expiryDate.includes('T')) {
+                        expiryDate = expiryDate.split('T')[0];
+                    } else if (expiryDate instanceof Date) {
+                        expiryDate = expiryDate.toISOString().split('T')[0];
+                    }
+                } else {
+                    // Default expiry date
+                    const defaultDate = new Date();
+                    defaultDate.setFullYear(defaultDate.getFullYear() + 2);
+                    expiryDate = defaultDate.toISOString().split('T')[0];
+                }
+
+                // Remove any underscore-prefixed fields (reference fields)
+                const submissionItem = {
                     item: item.item,
-                    batchNumber: item.batchNumber,
-                    expiryDate: item.expiryDate,
-                    quantity: item.quantity,
-                    unit: item.unit?._id,
-                    price: item.price,
-                    vatStatus: item.vatStatus
-                })),
-                vatPercentage: formData.vatPercentage,
+                    batchNumber: item.batchNumber || 'XXX',
+                    expiryDate: expiryDate,
+                    quantity: Number(item.quantity) || 0,
+                    unit: unitId, // Send just the ID
+                    price: Number(item.price) || 0,
+                    vatStatus: item.vatStatus || 'vatable'
+                };
+
+                console.log('Submission item:', submissionItem);
+                return submissionItem;
+            });
+
+            // Prepare bill data
+            const billData = {
+                accountId: formData.accountId,
+                items: preparedItems,
+                vatPercentage: Number(formData.vatPercentage) || 13,
                 transactionDateNepali: formData.transactionDateNepali,
                 transactionDateRoman: formData.transactionDateRoman,
                 billDate: formData.billDate,
                 nepaliDate: formData.nepaliDate,
                 isVatExempt: formData.isVatExempt,
-                discountPercentage: formData.discountPercentage,
+                discountPercentage: Number(formData.discountPercentage) || 0,
+                discountAmount: Number(formData.discountAmount) || 0,
                 paymentMode: formData.paymentMode,
-                roundOffAmount: formData.roundOffAmount,
-                print
+                roundOffAmount: Number(formData.roundOffAmount) || 0,
+                originalSalesBill: salesInvoiceData?._id || null,
+                originalSalesBillNumber: formData.salesInvoiceNumber || ''
             };
+
+            console.log('Final bill data for submission:', JSON.stringify(billData, null, 2));
+            console.log('First item in submission:', billData.items[0]);
 
             const response = await api.post('/api/retailer/sales-return', billData);
 
@@ -872,6 +1764,7 @@ const AddSalesReturn = () => {
                 });
 
                 setItems([]);
+                setSalesInvoiceData(null);
                 clearCreditSalesReturnDraft();
 
                 if (print && response.data.data?.bill?._id) {
@@ -886,18 +1779,21 @@ const AddSalesReturn = () => {
                 }
 
             } else {
+                console.error('Server error response:', response.data);
                 setNotification({
                     show: true,
-                    message: response.data.error || 'Failed to save sales return',
+                    message: response.data.message || response.data.error || 'Failed to save sales return',
                     type: 'error'
                 });
                 setIsSaving(false);
             }
         } catch (error) {
-            console.error('Error saving sales return:', error);
+            console.error('Full error:', error);
+            console.error('Error response data:', error.response?.data);
+
             setNotification({
                 show: true,
-                message: error.response?.data?.error || 'Failed to save sales return. Please try again.',
+                message: error.response?.data?.message || error.response?.data?.error || 'Failed to save sales return',
                 type: 'error'
             });
             setIsSaving(false);
@@ -1211,6 +2107,45 @@ const AddSalesReturn = () => {
         }, 100);
     };
 
+    // useEffect(() => {
+    //     const handleGlobalKeyDown = (e) => {
+    //         if (showTransactionModal) {
+    //             if (e.key === 'Escape') {
+    //                 e.preventDefault();
+    //                 handleTransactionModalClose();
+    //             }
+    //         }
+    //     };
+
+    //     document.addEventListener('keydown', handleGlobalKeyDown);
+
+    //     return () => {
+    //         document.removeEventListener('keydown', handleGlobalKeyDown);
+    //     };
+    // }, [showTransactionModal, handleTransactionModalClose]);
+
+    // Memoized dropdown component
+
+    // useEffect(() => {
+    //     const handleGlobalKeyDown = (e) => {
+    //         if (showTransactionModal) {
+    //             if (e.key === 'Escape') {
+    //                 e.preventDefault();
+    //                 handleTransactionModalClose();
+    //             }
+    //         } else if (showAccountCreationModal && e.key === 'Escape') {
+    //             e.preventDefault();
+    //             handleAccountCreationModalClose();
+    //         }
+    //     };
+
+    //     document.addEventListener('keydown', handleGlobalKeyDown);
+    //     return () => {
+    //         document.removeEventListener('keydown', handleGlobalKeyDown);
+    //     };
+    // }, [showTransactionModal, showAccountCreationModal, handleTransactionModalClose, handleAccountCreationModalClose]);
+
+    // Update your global keydown handler to include items modal
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             if (showTransactionModal) {
@@ -1218,17 +2153,26 @@ const AddSalesReturn = () => {
                     e.preventDefault();
                     handleTransactionModalClose();
                 }
+            } else if (showAccountCreationModal && e.key === 'Escape') {
+                e.preventDefault();
+                handleAccountCreationModalClose();
+            } else if (showItemsModal && e.key === 'Escape') {
+                e.preventDefault();
+                setShowItemsModal(false);
+                // Focus back to item search
+                setTimeout(() => {
+                    itemSearchRef.current?.focus();
+                }, 100);
             }
         };
 
         document.addEventListener('keydown', handleGlobalKeyDown);
-
         return () => {
             document.removeEventListener('keydown', handleGlobalKeyDown);
         };
-    }, [showTransactionModal, handleTransactionModalClose]);
+    }, [showTransactionModal, showAccountCreationModal, showItemsModal, handleTransactionModalClose, handleAccountCreationModalClose]);
 
-    // Memoized dropdown component
+
     const ItemDropdown = React.useMemo(() => {
         if (!showItemDropdown) return null;
 
@@ -1511,6 +2455,35 @@ const AddSalesReturn = () => {
                                     <option value="cash">cash</option>
                                 </select>
                             </div>
+                            <div className="col">
+                                <label htmlFor="salesInvoiceNumber">Org. Invoice No:</label>
+                                <div className="input-group">
+                                    <input
+                                        type="text"
+                                        name="salesInvoiceNumber"
+                                        id="salesInvoiceNumber"
+                                        className="form-control"
+                                        autoComplete='off'
+                                        value={formData.salesInvoiceNumber || ''}
+                                        onChange={(e) => setFormData({ ...formData, salesInvoiceNumber: e.target.value })}
+                                        onBlur={fetchSalesBillDetails}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                fetchSalesBillDetails(e);
+                                                handleKeyDown(e, 'salesInvoiceNumber');
+                                            }
+                                        }}
+                                        placeholder="Enter sales inv. number"
+                                        disabled={salesInvoiceLoading}
+                                    />
+                                    {salesInvoiceLoading && (
+                                        <span className="input-group-text">
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
 
                             <div className="col">
                                 <label htmlFor="isVatExempt">VAT:</label>
@@ -1559,6 +2532,7 @@ const AddSalesReturn = () => {
                                     compact={true}
                                     transactionType="receipt" // Add this prop
                                     dateFormat={company.dateFormat}
+                                    refreshTrigger={showAccountCreationModal}
                                 />
                                 <input type="hidden" id="accountId" name="accountId" value={formData.accountId} />
                             </div>
@@ -1752,7 +2726,7 @@ const AddSalesReturn = () => {
                                         type="text"
                                         id="itemSearch"
                                         className="form-control"
-                                        placeholder="Search item"
+                                        placeholder="Search item (Press F6 to create new item)"
                                         autoComplete='off'
                                         value={searchQuery}
                                         onChange={handleItemSearch}
@@ -1994,7 +2968,7 @@ const AddSalesReturn = () => {
             </div>
 
             {/* Account Modal */}
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
                     <div className="modal-dialog modal-xl modal-dialog-centered">
                         <div className="modal-content" style={{ height: '500px' }}>
@@ -2126,6 +3100,192 @@ const AddSalesReturn = () => {
                                                                 e.preventDefault();
                                                                 selectAccount(account);
                                                                 document.getElementById('address').focus();
+                                                            }
+                                                        }}
+                                                        onFocus={(e) => {
+                                                            document.querySelectorAll('.account-item').forEach(item => {
+                                                                item.classList.remove('active');
+                                                            });
+                                                            e.target.classList.add('active');
+                                                        }}
+                                                    >
+                                                        <div className="d-flex justify-content-between small">
+                                                            <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+                                                            <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+                                                        </div>
+                                                    </li>
+                                                ))
+                                            )
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )} */}
+
+            {/* Account Modal */}
+            {showAccountModal && (
+                <div
+                    className="modal fade show"
+                    id="accountModal"
+                    tabIndex="-1"
+                    style={{ display: 'block' }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            setShowAccountModal(false);
+
+                            setTimeout(() => {
+                                document.getElementById('address').focus();
+                            }, 0);
+                        }
+                    }}
+                >
+                    <div className="modal-dialog modal-xl modal-dialog-centered">
+                        <div className="modal-content" style={{ height: '500px' }}>
+                            <div className="modal-header">
+                                <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
+                                {/* Add F6 hint here */}
+                                <small className="ms-auto text-muted">Press F6 to create new account</small>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowAccountModal(false)}
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div className="p-3 bg-white sticky-top">
+                                <input
+                                    type="text"
+                                    id="searchAccount"
+                                    className="form-control form-control-sm"
+                                    placeholder="Search Account"
+                                    autoFocus
+                                    autoComplete='off'
+                                    onChange={handleAccountSearch}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item');
+                                            if (firstAccountItem) {
+                                                firstAccountItem.focus();
+                                            }
+                                        } else if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item.active');
+                                            if (firstAccountItem) {
+                                                const accountId = firstAccountItem.getAttribute('data-account-id');
+                                                const account = filteredAccounts.length > 0
+                                                    ? filteredAccounts.find(a => a._id === accountId)
+                                                    : accounts.find(a => a._id === accountId);
+                                                if (account) {
+                                                    selectAccount(account);
+                                                    document.getElementById('address').focus();
+                                                }
+                                            }
+                                        }
+                                    }}
+                                    ref={accountSearchRef}
+                                />
+                            </div>
+                            <div className="modal-body p-0">
+                                <div className="overflow-auto" style={{ height: 'calc(400px - 120px)' }}>
+                                    <ul id="accountList" className="list-group">
+                                        {filteredAccounts.length > 0 ? (
+                                            filteredAccounts.map((account, index) => (
+                                                <li
+                                                    key={account._id}
+                                                    data-account-id={account._id}
+                                                    className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        selectAccount(account);
+                                                        document.getElementById('address').focus();
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'ArrowDown') {
+                                                            e.preventDefault();
+                                                            const nextItem = e.target.nextElementSibling;
+                                                            if (nextItem) {
+                                                                e.target.classList.remove('active');
+                                                                nextItem.classList.add('active');
+                                                                nextItem.focus();
+                                                            }
+                                                        } else if (e.key === 'ArrowUp') {
+                                                            e.preventDefault();
+                                                            const prevItem = e.target.previousElementSibling;
+                                                            if (prevItem) {
+                                                                e.target.classList.remove('active');
+                                                                prevItem.classList.add('active');
+                                                                prevItem.focus();
+                                                            } else {
+                                                                accountSearchRef.current.focus();
+                                                            }
+                                                        } else if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            selectAccount(account);
+                                                            document.getElementById('address').focus();
+                                                        } else if (e.key === 'Escape') {
+                                                            e.preventDefault();
+                                                            setShowAccountModal(false);
+                                                        }
+                                                    }}
+                                                    onFocus={(e) => {
+                                                        document.querySelectorAll('.account-item').forEach(item => {
+                                                            item.classList.remove('active');
+                                                        });
+                                                        e.target.classList.add('active');
+                                                    }}
+                                                >
+                                                    <div className="d-flex justify-content-between small">
+                                                        <strong>{account.uniqueNumber || 'N/A'} {account.name}</strong>
+                                                        <span>📍 {account.address || 'N/A'} | 🆔 PAN: {account.pan || 'N/A'}</span>
+                                                    </div>
+                                                </li>
+                                            ))
+                                        ) : (
+                                            accountSearchRef.current?.value ? (
+                                                <li className="list-group-item text-center text-muted small py-2">No accounts found</li>
+                                            ) : (
+                                                accounts.map((account, index) => (
+                                                    <li
+                                                        key={account._id}
+                                                        data-account-id={account._id}
+                                                        className={`list-group-item account-item py-2 ${index === 0 ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            selectAccount(account);
+                                                            document.getElementById('address').focus();
+                                                        }}
+                                                        style={{ cursor: 'pointer' }}
+                                                        tabIndex={0}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'ArrowDown') {
+                                                                e.preventDefault();
+                                                                const nextItem = e.target.nextElementSibling;
+                                                                if (nextItem) {
+                                                                    e.target.classList.remove('active');
+                                                                    nextItem.classList.add('active');
+                                                                    nextItem.focus();
+                                                                }
+                                                            } else if (e.key === 'ArrowUp') {
+                                                                e.preventDefault();
+                                                                const prevItem = e.target.previousElementSibling;
+                                                                if (prevItem) {
+                                                                    e.target.classList.remove('active');
+                                                                    prevItem.classList.add('active');
+                                                                    prevItem.focus();
+                                                                } else {
+                                                                    accountSearchRef.current.focus();
+                                                                }
+                                                            } else if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                selectAccount(account);
+                                                                document.getElementById('address').focus();
+                                                            } else if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                setShowAccountModal(false);
                                                             }
                                                         }}
                                                         onFocus={(e) => {
@@ -2284,6 +3444,77 @@ const AddSalesReturn = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {/* Account Creation Modal */}
+            {showAccountCreationModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Account</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={handleAccountCreationModalClose}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/accounts"
+                                    title="Account Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleAccountCreationModalClose}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

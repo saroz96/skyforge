@@ -1607,19 +1607,13 @@ const EditSalesQuotation = () => {
                                         type="text"
                                         id="itemSearch"
                                         className="form-control"
-                                        placeholder="Search for an item"
+                                        placeholder="Search item (Press F6 to create new item)"
                                         autoComplete='off'
                                         onFocus={handleSearchFocus}
                                         onChange={(e) => {
                                             handleItemSearch(e);
                                             setShowItemDropdown(true);
                                         }}
-                                        // onFocus={() => {
-                                        //     setShowItemDropdown(true);
-                                        //     document.querySelectorAll('.dropdown-item').forEach(item => {
-                                        //         item.classList.remove('active');
-                                        //     });
-                                        // }}
                                         ref={itemSearchRef}
                                         onKeyDown={(e) => {
                                             if (e.key === 'ArrowDown') {
@@ -2004,6 +1998,7 @@ const EditSalesQuotation = () => {
                         <div className="modal-content" style={{ height: '500px' }}>
                             <div className="modal-header">
                                 <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
+                                <small className="ms-auto text-muted">Press F6 to create new account</small>
                                 <button type="button" className="btn-close" onClick={() => setShowAccountModal(false)}></button>
                             </div>
                             <div className="p-3 bg-white sticky-top">

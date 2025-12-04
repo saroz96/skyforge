@@ -9,7 +9,7 @@ import '../../../stylesheet/retailer/sales/AddCashSales.css';
 import { calculateExpiryStatus } from '../dashboard/modals/ExpiryStatus';
 import '../../../stylesheet/noDateIcon.css';
 import ProductModal from '../dashboard/modals/ProductModal';
-import AccountCreationModal from './AccountCreationModal';
+import AccountCreationModal from './AccountCreationModalForPos';
 import '../../../stylesheet/retailer/sales/POSStylesSales.css';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import DiscountModal from './DiscountModal';
@@ -573,45 +573,6 @@ const PosCashSalesModal = ({ show, onClose, onSaleComplete }) => {
         setSelectedSearchIndex(-1);
         barcodeInputRef.current?.focus();
     };
-
-    // const updateItemField = (index, field, value) => {
-    //     const updatedItems = items.map((item, i) => {
-    //         if (i === index) {
-    //             const updatedItem = { ...item, [field]: value };
-    //             if (field === 'quantity' || field === 'price') {
-    //                 updatedItem.amount = (updatedItem.quantity * updatedItem.price).toFixed(2);
-    //             }
-    //             return updatedItem;
-    //         }
-    //         return item;
-    //     });
-
-    //     setItems(updatedItems);
-
-    //     if (field === 'quantity') {
-    //         const item = updatedItems[index];
-    //         const itemId = item.item;
-    //         if (stockValidation.itemStockMap.has(itemId)) {
-    //             const isValid = validateQuantity(index, value, updatedItems);
-    //             const remainingStock = getRemainingStock(item, updatedItems);
-    //             const availableStock = getAvailableStockForDisplay(item);
-    //             if (!isValid) {
-    //                 setQuantityErrors(prev => ({ ...prev, [index]: `Stock: ${availableStock} | Rem.: ${remainingStock}` }));
-    //             } else {
-    //                 setQuantityErrors(prev => {
-    //                     const newErrors = { ...prev };
-    //                     delete newErrors[index];
-    //                     return newErrors;
-    //                 });
-    //             }
-    //         }
-    //     }
-
-    //     if (field === 'quantity' || field === 'price') {
-    //         calculateDiscounts(updatedItems);
-    //     }
-    // };
-
 
     const updateItemField = (index, field, value) => {
         const updatedItems = items.map((item, i) => {

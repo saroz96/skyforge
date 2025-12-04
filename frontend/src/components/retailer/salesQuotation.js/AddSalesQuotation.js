@@ -179,20 +179,6 @@ const AddSalesQuotation = () => {
         };
     }, []);
 
-    // useEffect(() => {
-    //     const handleF6KeyForItems = (e) => {
-    //         if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
-    //             e.preventDefault();
-    //             setShowItemsModal(true);
-    //         }
-    //     };
-
-    //     window.addEventListener('keydown', handleF6KeyForItems);
-    //     return () => {
-    //         window.removeEventListener('keydown', handleF6KeyForItems);
-    //     };
-    // }, []);
-
     useEffect(() => {
         const handleF6KeyForItems = (e) => {
             if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
@@ -1678,225 +1664,6 @@ const AddSalesQuotation = () => {
                             </div>
 
                             <hr className="my-2" />
-
-                            {/* Item Search */}
-                            {/* <div className="row mb-3">
-                                <div className="col-12">
-                                    <label htmlFor="itemSearch" className="form-label">Search Item</label>
-                                    <div className="position-relative">
-                                        <input
-                                            type="text"
-                                            id="itemSearch"
-                                            className="form-control form-control-sm"
-                                            placeholder="Search for an item"
-                                            autoComplete='off'
-                                            onChange={(e) => {
-                                                handleItemSearch(e);
-                                                setShowItemDropdown(true);
-                                            }}
-                                            onFocus={() => {
-                                                setShowItemDropdown(true);
-                                                document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                    item.classList.remove('active');
-                                                });
-                                            }}
-                                            ref={itemSearchRef}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'ArrowDown') {
-                                                    e.preventDefault();
-                                                    const firstItem = document.querySelector('.dropdown-item');
-                                                    if (firstItem) {
-                                                        firstItem.classList.add('active');
-                                                        firstItem.focus();
-                                                    }
-                                                } else if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    const activeItem = document.querySelector('.dropdown-item.active');
-                                                    if (activeItem) {
-                                                        const index = parseInt(activeItem.getAttribute('data-index'));
-                                                        const filteredItem = filteredItems.length > 0 ? filteredItems[index] : allItems[index];
-                                                        if (filteredItem) {
-                                                            addItemToBill(filteredItem);
-                                                        }
-                                                    } else if (!e.target.value && items.length > 0) {
-                                                        setShowItemDropdown(false);
-                                                        setTimeout(() => {
-                                                            document.getElementById('discountPercentage')?.focus();
-                                                        }, 0);
-                                                    }
-                                                }
-                                            }}
-                                        />
-                                        {showItemDropdown && (
-                                            <div
-                                                id="dropdownMenu"
-                                                className="dropdown-menu show w-100"
-                                                style={{
-                                                    maxHeight: '280px',
-                                                    height: '280px',
-                                                    overflowY: 'auto',
-                                                    position: 'absolute',
-                                                    zIndex: 1000,
-                                                    border: '1px solid #ddd',
-                                                    borderRadius: '4px'
-                                                }}
-                                                ref={itemDropdownRef}
-                                            >
-                                                <div className="dropdown-header" style={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: 'repeat(7, 1fr)',
-                                                    alignItems: 'center',
-                                                    padding: '0 10px',
-                                                    height: '40px',
-                                                    background: '#f0f0f0',
-                                                    fontWeight: 'bold',
-                                                    borderBottom: '1px solid #dee2e6'
-                                                }}>
-                                                    <div><strong>#</strong></div>
-                                                    <div><strong>HSN</strong></div>
-                                                    <div><strong>Description</strong></div>
-                                                    <div><strong>Category</strong></div>
-                                                    <div><strong>Qty</strong></div>
-                                                    <div><strong>Unit</strong></div>
-                                                    <div><strong>Rate</strong></div>
-                                                </div>
-
-                                                {filteredItems.length > 0 ? (
-                                                    filteredItems.map((item, index) => (
-                                                        <div
-                                                            key={index}
-                                                            data-index={index}
-                                                            className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'} expiry-${calculateExpiryStatus(item)}`}
-                                                            style={{
-                                                                height: '40px',
-                                                                display: 'grid',
-                                                                gridTemplateColumns: 'repeat(7, 1fr)',
-                                                                alignItems: 'center',
-                                                                padding: '0 10px',
-                                                                borderBottom: '1px solid #eee',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                            onClick={() => addItemToBill(item)}
-                                                            tabIndex={0}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.preventDefault();
-                                                                    addItemToBill(item);
-                                                                } else if (e.key === 'ArrowDown') {
-                                                                    e.preventDefault();
-                                                                    const nextItem = e.target.nextElementSibling;
-                                                                    if (nextItem) {
-                                                                        e.target.classList.remove('active');
-                                                                        nextItem.classList.add('active');
-                                                                        nextItem.focus();
-                                                                    }
-                                                                } else if (e.key === 'ArrowUp') {
-                                                                    e.preventDefault();
-                                                                    const prevItem = e.target.previousElementSibling;
-                                                                    if (prevItem) {
-                                                                        e.target.classList.remove('active');
-                                                                        prevItem.classList.add('active');
-                                                                        prevItem.focus();
-                                                                    } else {
-                                                                        itemSearchRef.current.focus();
-                                                                    }
-                                                                }
-                                                            }}
-                                                            onFocus={(e) => {
-                                                                document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                                    item.classList.remove('active');
-                                                                });
-                                                                e.target.classList.add('active');
-                                                            }}
-                                                        >
-                                                            <div>{item.uniqueNumber || 'N/A'}</div>
-                                                            <div>{item.hscode || 'N/A'}</div>
-                                                            <div className="dropdown-items-name">{item.name}</div>
-                                                            <div>{item.category?.name || 'No Category'}</div>
-                                                            <div>{item.stock || 0}</div>
-                                                            <div>{item.unit?.name || ''}</div>
-                                                            <div>Rs.{item.stockEntries?.[0]?.price || 0}</div>
-                                                        </div>
-                                                    ))
-                                                ) : itemSearchRef.current?.value ? (
-                                                    <div className="text-center py-3 text-muted">
-                                                        No items found matching "{itemSearchRef.current.value}"
-                                                    </div>
-                                                ) : allItems.length > 0 ? (
-                                                    allItems
-                                                        .filter(item => {
-                                                            if (formData.isVatExempt === 'all') return true;
-                                                            if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-                                                            if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-                                                            return true;
-                                                        })
-                                                        .map((item, index) => (
-                                                            <div
-                                                                key={index}
-                                                                data-index={index}
-                                                                className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'}`}
-                                                                style={{
-                                                                    height: '40px',
-                                                                    display: 'grid',
-                                                                    gridTemplateColumns: 'repeat(7, 1fr)',
-                                                                    alignItems: 'center',
-                                                                    padding: '0 10px',
-                                                                    borderBottom: '1px solid #eee',
-                                                                    cursor: 'pointer'
-                                                                }}
-                                                                onClick={() => addItemToBill(item)}
-                                                                tabIndex={0}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        addItemToBill(item);
-                                                                    } else if (e.key === 'ArrowDown') {
-                                                                        e.preventDefault();
-                                                                        const nextItem = e.target.nextElementSibling;
-                                                                        if (nextItem) {
-                                                                            e.target.classList.remove('active');
-                                                                            nextItem.classList.add('active');
-                                                                            nextItem.focus();
-                                                                        }
-                                                                    } else if (e.key === 'ArrowUp') {
-                                                                        e.preventDefault();
-                                                                        const prevItem = e.target.previousElementSibling;
-                                                                        if (prevItem) {
-                                                                            e.target.classList.remove('active');
-                                                                            prevItem.classList.add('active');
-                                                                            prevItem.focus();
-                                                                        } else {
-                                                                            itemSearchRef.current.focus();
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                onFocus={(e) => {
-                                                                    document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                                        item.classList.remove('active');
-                                                                    });
-                                                                    e.target.classList.add('active');
-                                                                }}
-                                                            >
-                                                                <div>{item.uniqueNumber || 'N/A'}</div>
-                                                                <div>{item.hscode || 'N/A'}</div>
-                                                                <div className="dropdown-items-name">{item.name}</div>
-                                                                <div>{item.category?.name || 'No Category'}</div>
-                                                                <div>{item.stock || 0}</div>
-                                                                <div>{item.unit?.name || ''}</div>
-                                                                <div>Rs.{item.price || 0}</div>
-                                                            </div>
-                                                        ))
-                                                ) : (
-                                                    <div className="text-center py-3 text-muted">
-                                                        No items available
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div> */}
-
                             {/* Item Search */}
                             <div className="row mb-3">
                                 <div className="col-12">
@@ -1906,7 +1673,7 @@ const AddSalesQuotation = () => {
                                             type="text"
                                             id="itemSearch"
                                             className="form-control form-control-sm"
-                                            placeholder="Search for an item"
+                                            placeholder="Search item (Press F6 to create new item)"
                                             autoComplete='off'
                                             value={searchQuery}
                                             onChange={handleItemSearch}
@@ -2174,6 +1941,7 @@ const AddSalesQuotation = () => {
                             <div className="modal-content" style={{ height: '500px' }}>
                                 <div className="modal-header">
                                     <h5 className="modal-title" id="accountModalLabel">Select an Account</h5>
+                                    <small className="ms-auto text-muted">Press F6 to create new account</small>
                                     <button
                                         type="button"
                                         className="btn-close"

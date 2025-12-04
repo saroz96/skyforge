@@ -4103,6 +4103,7 @@ router.get('/credit-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureComp
     }
 });
 
+
 router.get('/cash-sales/edit/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     if (req.tradeType === 'retailer') {
         try {

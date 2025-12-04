@@ -13,11 +13,12 @@ import VirtualizedItemList from '../../VirtualizedItemList';
 import { Button } from 'react-bootstrap';
 import { BiArrowBack } from 'react-icons/bi';
 import ProductModal from '../dashboard/modals/ProductModal';
+import AccountCreationModal from './AccountCreationModal';
 
 const EditCashSales = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-
+    const itemsTableRef = useRef(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
@@ -27,6 +28,9 @@ const EditCashSales = () => {
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSave') === 'true' || false
     );
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
+    const [pollInterval, setPollInterval] = useState(null);
+    const [showItemsModal, setShowItemsModal] = useState(false);
     const transactionDateRef = useRef(null);
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
     const addressRef = useRef(null);
@@ -186,19 +190,40 @@ const EditCashSales = () => {
         fetchBillData();
     }, [id]);
 
+    // useEffect(() => {
+    //     // Add F9 key handler here
+    //     const handF9leKeyDown = (e) => {
+    //         if (e.key === 'F9') {
+    //             e.preventDefault();
+    //             setShowProductModal(prev => !prev); // Toggle modal visibility
+    //         }
+    //     };
+    //     window.addEventListener('keydown', handF9leKeyDown);
+    //     return () => {
+    //         window.removeEventListener('keydown', handF9leKeyDown);
+    //     };
+    // }, []);
+
     useEffect(() => {
-        // Add F9 key handler here
-        const handF9leKeyDown = (e) => {
+        const handleKeyDown = (e) => {
+            // F9 toggles product modal
             if (e.key === 'F9') {
                 e.preventDefault();
-                setShowProductModal(prev => !prev); // Toggle modal visibility
+                setShowProductModal(prev => !prev);
+            }
+            // F6 opens account creation modal when account modal is open
+            else if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountModal(false);
+                setShowAccountCreationModal(true);
             }
         };
-        window.addEventListener('keydown', handF9leKeyDown);
+
+        window.addEventListener('keydown', handleKeyDown);
         return () => {
-            window.removeEventListener('keydown', handF9leKeyDown);
+            window.removeEventListener('keydown', handleKeyDown);
         };
-    }, []);
+    }, [showAccountModal]); // Add showAccountModal to dependencies
 
     useEffect(() => {
         if (isInitialDataLoaded && transactionDateRef.current) {
@@ -212,6 +237,98 @@ const EditCashSales = () => {
     useEffect(() => {
         calculateTotal();
     }, [items, formData]);
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const handleAccountCreated = async (newAccountData) => {
+        try {
+            // Refresh accounts list
+            const { accounts: refreshedAccounts } = await fetchItemsAndAccounts();
+            const sortedAccounts = refreshedAccounts.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+
+            // Automatically select the newly created account
+            if (newAccountData?.name) {
+                setFormData({
+                    ...formData,
+                    cashAccount: newAccountData.name,
+                    cashAccountId: newAccountData._id,
+                    cashAccountAddress: newAccountData.address || '',
+                    cashAccountPan: newAccountData.pan || '',
+                    cashAccountEmail: newAccountData.email || '',
+                    cashAccountPhone: newAccountData.phone || ''
+                });
+
+                setNotification({
+                    show: true,
+                    message: 'Account created and selected!',
+                    type: 'success'
+                });
+            }
+
+            setShowAccountCreationModal(false);
+
+            // Focus on address field
+            setTimeout(() => {
+                addressRef.current?.focus();
+            }, 100);
+        } catch (error) {
+            console.error('Error refreshing accounts:', error);
+            setNotification({
+                show: true,
+                message: 'Error refreshing accounts list',
+                type: 'error'
+            });
+        }
+    };
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
 
     const handleAccountSearch = (e) => {
         const searchTerm = e.target.value.toLowerCase();
@@ -242,27 +359,17 @@ const EditCashSales = () => {
         }, 100);
     };
 
-    // const handleItemSearch = (e) => {
-    //     const query = e.target.value.toLowerCase();
-
-    //     if (query.length === 0) {
-    //         setFilteredItems([]);
-    //         return;
-    //     }
-
-    //     let filtered = allItems.filter(item => {
-    //         const matchesSearch = item.name.toLowerCase().includes(query) ||
-    //             (item.hscode && item.hscode.toString().toLowerCase().includes(query)) ||
-    //             (item.uniqueNumber && item.uniqueNumber.toString().toLowerCase().includes(query));
-
-    //         if (formData.isVatExempt === 'all') return matchesSearch;
-    //         if (formData.isVatExempt === 'false') return matchesSearch && item.vatStatus === 'vatable';
-    //         if (formData.isVatExempt === 'true') return matchesSearch && item.vatStatus === 'vatExempt';
-    //         return matchesSearch;
-    //     }).sort((a, b) => a.name.localeCompare(b.name));
-
-    //     setFilteredItems(filtered);
-    // };
+    const scrollToItemsTable = () => {
+        if (itemsTableRef.current) {
+            // Add a small delay to ensure the DOM is updated
+            setTimeout(() => {
+                itemsTableRef.current.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
+    };
 
     const handleItemSearch = (e) => {
         const query = e.target.value.toLowerCase();
@@ -276,6 +383,19 @@ const EditCashSales = () => {
         setShowItemDropdown(true);
     };
 
+    // const handleSearchFocus = () => {
+    //     setShowItemDropdown(true);
+
+    //     // If we have a last search query and the input is empty, show those results
+    //     if (lastSearchQuery && !searchQuery) {
+    //         setShouldShowLastSearchResults(true);
+    //     }
+
+    //     document.querySelectorAll('.dropdown-item').forEach(item => {
+    //         item.classList.remove('active');
+    //     });
+    // };
+
     const handleSearchFocus = () => {
         setShowItemDropdown(true);
 
@@ -287,6 +407,9 @@ const EditCashSales = () => {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
+
+        // Scroll to items table
+        scrollToItemsTable();
     };
 
     const showBatchModalForItem = (item) => {
@@ -366,6 +489,8 @@ const EditCashSales = () => {
         if (itemSearchRef.current) {
             itemSearchRef.current.value = '';
         }
+
+        scrollToItemsTable();
 
         setTimeout(() => {
             const quantityInput = document.getElementById(`quantity-${items.length}`);
@@ -515,84 +640,6 @@ const EditCashSales = () => {
             throw error;
         }
     };
-
-    // const handleSubmit = async (e, print = false) => {
-    //     e.preventDefault();
-    //     setIsSaving(true);
-
-    //     try {
-    //         const billData = {
-    //             cashAccount: formData.cashAccount,
-    //             cashAccountAddress: formData.cashAccountAddress,
-    //             cashAccountPan: formData.cashAccountPan,
-    //             cashAccountEmail: formData.cashAccountEmail,
-    //             cashAccountPhone: formData.cashAccountPhone,
-    //             vatPercentage: formData.vatPercentage,
-    //             transactionDateRoman: formData.transactionDateRoman,
-    //             transactionDateNepali: formData.transactionDateNepali,
-    //             billDate: formData.billDate,
-    //             nepaliDate: formData.nepaliDate,
-    //             isVatExempt: formData.isVatExempt,
-    //             discountPercentage: formData.discountPercentage,
-    //             paymentMode: formData.paymentMode,
-    //             roundOffAmount: formData.roundOffAmount,
-    //             items: items.map(item => ({
-    //                 item: item.item,
-    //                 batchNumber: item.batchNumber,
-    //                 expiryDate: item.expiryDate,
-    //                 quantity: item.quantity,
-    //                 unit: item.unit?._id,
-    //                 price: item.price,
-    //                 puPrice: item.puPrice,
-    //                 netPuPrice: item.netPuPrice,
-    //                 vatStatus: item.vatStatus,
-    //                 uniqueUuId: item.uniqueUuId
-    //             })),
-    //             print
-    //         };
-
-    //         const response = await api.put(`/api/retailer/cash-sales/edit/${id}`, billData);
-
-    //         if (response.data.success) {
-    //             setNotification({
-    //                 show: true,
-    //                 message: 'Cash sales bill updated successfully!',
-    //                 type: 'success'
-    //             });
-
-    //             await fetchItemsAndAccounts()
-
-    //             if (print && response.data.data?.bill?._id) {
-    //                 setItems([]);
-    //                 setIsSaving(false);
-    //                 await printImmediately(response.data.data.bill._id);
-    //                 setTimeout(() => {
-    //                     handleBack();
-    //                 }, 1000);
-    //             } else {
-    //                 setItems([]);
-    //                 setIsSaving(false);
-    //                 handleBack();
-    //             }
-
-    //         } else {
-    //             setNotification({
-    //                 show: true,
-    //                 message: response.data.error || 'Failed to update cash sales bill',
-    //                 type: 'error'
-    //             });
-    //             setIsSaving(false);
-    //         }
-    //     } catch (error) {
-    //         console.error('Error updating cash sales bill:', error);
-    //         setNotification({
-    //             show: true,
-    //             message: error.response?.data?.error || 'Failed to update cash sales bill. Please try again.',
-    //             type: 'error'
-    //         });
-    //         setIsSaving(false);
-    //     }
-    // };
 
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
@@ -980,6 +1027,8 @@ const EditCashSales = () => {
 
         setShowBatchModal(false);
         setSelectedItemForBatch(null);
+
+         scrollToItemsTable();
     };
 
     // Memoized dropdown component
@@ -1271,7 +1320,7 @@ const EditCashSales = () => {
 
                         <hr style={{ border: "1px solid gray" }} />
 
-                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }}>
+                        <div id="bill-details-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px" }} ref={itemsTableRef}>
                             <table className="table table-bordered compact-table" id="itemsTable">
                                 <thead>
                                     <tr>
@@ -1405,222 +1454,6 @@ const EditCashSales = () => {
 
                         <hr style={{ border: "1px solid gray" }} />
 
-                        {/* <div className="form-group row">
-                            <div className="col">
-                                <label htmlFor="itemSearch">Search Item</label>
-                                <input
-                                    type="text"
-                                    id="itemSearch"
-                                    className="form-control"
-                                    placeholder="Search for an item"
-                                    autoComplete='off'
-                                    onChange={(e) => {
-                                        handleItemSearch(e);
-                                        setShowItemDropdown(true);
-                                    }}
-                                    onFocus={() => {
-                                        setShowItemDropdown(true);
-                                        document.querySelectorAll('.dropdown-item').forEach(item => {
-                                            item.classList.remove('active');
-                                        });
-                                    }}
-                                    ref={itemSearchRef}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const firstItem = document.querySelector('.dropdown-item');
-                                            if (firstItem) {
-                                                firstItem.classList.add('active');
-                                                firstItem.focus();
-                                            }
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const activeItem = document.querySelector('.dropdown-item.active');
-                                            if (activeItem) {
-                                                const index = parseInt(activeItem.getAttribute('data-index'));
-                                                const filteredItem = filteredItems.length > 0 ? filteredItems[index] : allItems[index];
-                                                if (filteredItem) {
-                                                    showBatchModalForItem(filteredItem);
-                                                }
-                                            } else if (!e.target.value && items.length > 0) {
-                                                setShowItemDropdown(false);
-                                                setTimeout(() => {
-                                                    document.getElementById('discountPercentage')?.focus();
-                                                }, 0);
-                                            }
-                                        }
-                                    }}
-                                />
-                                {showItemDropdown && (
-                                    <div
-                                        id="dropdownMenu"
-                                        className="dropdown-menu show"
-                                        style={{
-                                            maxHeight: '280px',
-                                            height: '280px',
-                                            overflowY: 'auto',
-                                            position: 'absolute',
-                                            width: '100%',
-                                            zIndex: 1000,
-                                            border: '1px solid #ddd',
-                                            borderRadius: '4px'
-                                        }}
-                                        ref={itemDropdownRef}
-                                    >
-                                        <div className="dropdown-header" style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(7, 1fr)',
-                                            alignItems: 'center',
-                                            padding: '0 10px',
-                                            height: '40px',
-                                            background: '#f0f0f0',
-                                            fontWeight: 'bold',
-                                            borderBottom: '1px solid #dee2e6'
-                                        }}>
-                                            <div><strong>#</strong></div>
-                                            <div><strong>HSN</strong></div>
-                                            <div><strong>Description</strong></div>
-                                            <div><strong>Category</strong></div>
-                                            <div><strong>Qty</strong></div>
-                                            <div><strong>Unit</strong></div>
-                                            <div><strong>Rate</strong></div>
-                                        </div>
-
-                                        {filteredItems.length > 0 ? (
-                                            filteredItems.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    data-index={index}
-                                                    className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'} expiry-${calculateExpiryStatus(item)}`}
-                                                    style={{
-                                                        height: '40px',
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'repeat(7, 1fr)',
-                                                        alignItems: 'center',
-                                                        padding: '0 10px',
-                                                        borderBottom: '1px solid #eee',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    onClick={() => showBatchModalForItem(item)}
-                                                    tabIndex={0}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            showBatchModalForItem(item);
-                                                        } else if (e.key === 'ArrowDown') {
-                                                            e.preventDefault();
-                                                            const nextItem = e.target.nextElementSibling;
-                                                            if (nextItem) {
-                                                                e.target.classList.remove('active');
-                                                                nextItem.classList.add('active');
-                                                                nextItem.focus();
-                                                            }
-                                                        } else if (e.key === 'ArrowUp') {
-                                                            e.preventDefault();
-                                                            const prevItem = e.target.previousElementSibling;
-                                                            if (prevItem) {
-                                                                e.target.classList.remove('active');
-                                                                prevItem.classList.add('active');
-                                                                prevItem.focus();
-                                                            } else {
-                                                                itemSearchRef.current.focus();
-                                                            }
-                                                        }
-                                                    }}
-                                                    onFocus={(e) => {
-                                                        document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                            item.classList.remove('active');
-                                                        });
-                                                        e.target.classList.add('active');
-                                                    }}
-                                                >
-                                                    <div>{item.uniqueNumber || 'N/A'}</div>
-                                                    <div>{item.hscode || 'N/A'}</div>
-                                                    <div className="dropdown-items-name">{item.name}</div>
-                                                    <div>{item.category?.name || 'No Category'}</div>
-                                                    <div>{item.stock || 0}</div>
-                                                    <div>{item.unit?.name || ''}</div>
-                                                    <div>Rs.{item.stockEntries?.[0]?.price || 0}</div>
-                                                </div>
-                                            ))
-                                        ) : itemSearchRef.current?.value ? (
-                                            <div className="text-center py-3 text-muted">
-                                                No items found matching "{itemSearchRef.current.value}"
-                                            </div>
-                                        ) : allItems.length > 0 ? (
-                                            allItems
-                                                .filter(item => {
-                                                    if (formData.isVatExempt === 'all') return true;
-                                                    if (formData.isVatExempt === 'false') return item.vatStatus === 'vatable';
-                                                    if (formData.isVatExempt === 'true') return item.vatStatus === 'vatExempt';
-                                                    return true;
-                                                })
-                                                .map((item, index) => (
-                                                    <div
-                                                        key={index}
-                                                        data-index={index}
-                                                        className={`dropdown-item ${item.vatStatus === 'vatable' ? 'vatable' : 'vatExempt'}`}
-                                                        style={{
-                                                            height: '40px',
-                                                            display: 'grid',
-                                                            gridTemplateColumns: 'repeat(7, 1fr)',
-                                                            alignItems: 'center',
-                                                            padding: '0 10px',
-                                                            borderBottom: '1px solid #eee',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                        onClick={() => showBatchModalForItem(item)}
-                                                        tabIndex={0}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                showBatchModalForItem(item);
-                                                            } else if (e.key === 'ArrowDown') {
-                                                                e.preventDefault();
-                                                                const nextItem = e.target.nextElementSibling;
-                                                                if (nextItem) {
-                                                                    e.target.classList.remove('active');
-                                                                    nextItem.classList.add('active');
-                                                                    nextItem.focus();
-                                                                }
-                                                            } else if (e.key === 'ArrowUp') {
-                                                                e.preventDefault();
-                                                                const prevItem = e.target.previousElementSibling;
-                                                                if (prevItem) {
-                                                                    e.target.classList.remove('active');
-                                                                    prevItem.classList.add('active');
-                                                                    prevItem.focus();
-                                                                } else {
-                                                                    itemSearchRef.current.focus();
-                                                                }
-                                                            }
-                                                        }}
-                                                        onFocus={(e) => {
-                                                            document.querySelectorAll('.dropdown-item').forEach(item => {
-                                                                item.classList.remove('active');
-                                                            });
-                                                            e.target.classList.add('active');
-                                                        }}
-                                                    >
-                                                        <div>{item.uniqueNumber || 'N/A'}</div>
-                                                        <div>{item.hscode || 'N/A'}</div>
-                                                        <div className="dropdown-items-name">{item.name}</div>
-                                                        <div>{item.category?.name || 'No Category'}</div>
-                                                        <div>{item.stock || 0}</div>
-                                                        <div>{item.unit?.name || ''}</div>
-                                                        <div>Rs.{item.price || 0}</div>
-                                                    </div>
-                                                ))
-                                        ) : (
-                                            <div className="text-center py-3 text-muted">
-                                                No items available
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div> */}
-
                         <div className="form-group row">
                             <div className="col">
                                 <label htmlFor="itemSearch">Search Item</label>
@@ -1628,7 +1461,7 @@ const EditCashSales = () => {
                                     type="text"
                                     id="itemSearch"
                                     className="form-control"
-                                    placeholder="Search for an item"
+                                    placeholder="Search item (Press F6 to create new item)"
                                     autoComplete='off'
                                     value={searchQuery}
                                     onChange={handleItemSearch}
@@ -1794,33 +1627,6 @@ const EditCashSales = () => {
                                 </tbody>
                             </table>
                         </div>
-
-                        {/* <div className="d-flex justify-content-end mt-4">
-                            <Button variant="secondary" className="me-2" onClick={handleBack}>
-                                <BiArrowBack /> Back
-                            </Button>
-                            <button
-                                type="button"
-                                className="btn btn-primary mr-2 p-3"
-                                id="saveBill"
-                                onClick={(e) => handleSubmit(e, false)}
-                                disabled={isSaving}
-                            >
-                                {isSaving ? (
-                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                ) : (
-                                    <i className="bi bi-save"></i>
-                                )}
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-secondary p-3"
-                                onClick={(e) => handleSubmit(e, true)}
-                                disabled={isSaving}
-                            >
-                                <i className="bi bi-printer"></i>
-                            </button>
-                        </div> */}
 
                         {/* Action Buttons */}
                         <div className="d-flex justify-content-end mt-4">
@@ -2094,121 +1900,6 @@ const EditCashSales = () => {
                 </div>
             )}
 
-            {/* {showBatchModal && selectedItemForBatch && (
-                <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block' }}>
-                    <div className="modal-dialog modal-lg">
-                        <div className="modal-content">
-                            <div className="modal-header py-2">
-                                <h5 className="modal-title mb-0" style={{ fontSize: '1rem' }}>Batch Info: {selectedItemForBatch.name}</h5>
-                                <button type="button" className="close p-0" style={{ fontSize: '1.5rem' }} onClick={() => setShowBatchModal(false)}>
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-                            <div className="modal-body p-0" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                                {selectedItemForBatch.stockEntries.every(entry => entry.quantity === 0) ? (
-                                    <div className="alert alert-warning py-1 px-2 mb-0" style={{ fontSize: '0.85rem' }}>Out of Stock</div>
-                                ) : (
-                                    <table className="table table-sm mb-0">
-                                        <thead>
-                                            <tr className="small">
-                                                <th className="py-1">Batch</th>
-                                                <th className="py-1">Expiry</th>
-                                                <th className="py-1">Qty</th>
-                                                <th className="py-1">S.P</th>
-                                                <th className="py-1">C.P</th>
-                                                <th className="py-1">%</th>
-                                                <th className="py-1">Mrp</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedItemForBatch.stockEntries
-                                                .filter(entry => entry.quantity > 0)
-                                                .map((entry, index) => (
-                                                    <tr
-                                                        key={index}
-                                                        className={`batch-row small ${index === 0 ? 'bg-primary text-white' : ''}`}
-                                                        style={{ height: '30px', cursor: 'pointer' }}
-                                                        onClick={() => handleBatchRowClick({
-                                                            batchNumber: entry.batchNumber,
-                                                            expiryDate: entry.expiryDate,
-                                                            price: entry.price,
-                                                            puPrice: entry.puPrice,
-                                                            netPuPrice: entry.netPuPrice,
-                                                            uniqueUuId: entry.uniqueUuId
-                                                        })}
-                                                        tabIndex={0}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                handleBatchRowClick({
-                                                                    batchNumber: entry.batchNumber,
-                                                                    expiryDate: entry.expiryDate,
-                                                                    price: entry.price,
-                                                                    puPrice: entry.puPrice,
-                                                                    netPuPrice: entry.netPuPrice,
-                                                                    uniqueUuId: entry.uniqueUuId
-                                                                });
-                                                            } else if (e.key === 'ArrowDown') {
-                                                                e.preventDefault();
-                                                                const nextRow = e.currentTarget.nextElementSibling;
-                                                                if (nextRow) {
-                                                                    e.currentTarget.classList.remove('bg-primary', 'text-white');
-                                                                    nextRow.classList.add('bg-primary', 'text-white');
-                                                                    nextRow.focus();
-                                                                }
-                                                            } else if (e.key === 'ArrowUp') {
-                                                                e.preventDefault();
-                                                                const prevRow = e.currentTarget.previousElementSibling;
-                                                                if (prevRow) {
-                                                                    e.currentTarget.classList.remove('bg-primary', 'text-white');
-                                                                    prevRow.classList.add('bg-primary', 'text-white');
-                                                                    prevRow.focus();
-                                                                } else {
-                                                                    e.currentTarget.focus();
-                                                                }
-                                                            }
-                                                        }}
-                                                        onFocus={(e) => {
-                                                            document.querySelectorAll('.batch-row').forEach(row => {
-                                                                row.classList.remove('bg-primary', 'text-white');
-                                                            });
-                                                            e.currentTarget.classList.add('bg-primary', 'text-white');
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            document.querySelectorAll('.batch-row').forEach(row => {
-                                                                row.classList.remove('bg-primary', 'text-white');
-                                                            });
-                                                            e.currentTarget.classList.add('bg-primary', 'text-white');
-                                                        }}
-                                                    >
-                                                        <td className="py-1">{entry.batchNumber || 'N/A'}</td>
-                                                        <td className="py-1">{formatDateForInput(entry.expiryDate)}</td>
-                                                        <td className="py-1">{entry.quantity}</td>
-                                                        <td className="py-1">{Math.round(entry.price * 100) / 100}</td>
-                                                        <td className="py-1">{Math.round(entry.puPrice * 100) / 100}</td>
-                                                        <td className="py-1">{Math.round(entry.marginPercentage * 100) / 100}</td>
-                                                        <td className="py-1">{Math.round(entry.mrp * 100) / 100}</td>
-                                                    </tr>
-                                                ))
-                                            }
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-                            <div className="modal-footer py-1">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary btn-sm py-0 px-2"
-                                    onClick={() => setShowBatchModal(false)}
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )} */}
-
             {showBatchModal && selectedItemForBatch && (
                 <div className="modal fade show" id="batchModal" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -2354,6 +2045,51 @@ const EditCashSales = () => {
             {/* Product modal */}
             {showProductModal && (
                 <ProductModal onClose={() => setShowProductModal(false)} />
+            )}
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAccountCreationModal && (
+                <AccountCreationModal
+                    show={showAccountCreationModal}
+                    onClose={() => setShowAccountCreationModal(false)}
+                    onAccountCreated={handleAccountCreated}
+                    companyId={company?._id}
+                    fiscalYear={company?.fiscalYear?._id}
+                />
             )}
         </div>
     );

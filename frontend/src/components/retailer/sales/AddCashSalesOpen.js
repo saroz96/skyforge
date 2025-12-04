@@ -12,16 +12,18 @@ import ProductModal from '../dashboard/modals/ProductModal';
 
 import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemList from '../../VirtualizedItemList';
+import AccountCreationModal from './AccountCreationModal';
 
 const AddCashSalesOpen = () => {
     const navigate = useNavigate();
+    const [pollInterval, setPollInterval] = useState(null);
     const [quantityErrors, setQuantityErrors] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [lastSearchQuery, setLastSearchQuery] = useState('');
     const [shouldShowLastSearchResults, setShouldShowLastSearchResults] = useState(false);
     const debouncedSearchQuery = useDebounce(searchQuery, 50);
     const itemsTableRef = useRef(null);
-
+    const [showItemsModal, setShowItemsModal] = useState(false);
     const [printAfterSave, setPrintAfterSave] = useState(
         localStorage.getItem('printAfterSave') === 'true' || false
     );
@@ -31,6 +33,7 @@ const AddCashSalesOpen = () => {
         batchStockMap: new Map(), // Maps batch unique ID to available stock
         usedStockMap: new Map(), // Maps batch unique ID to used quantity across all entries
     });
+    const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
     const [showProductModal, setShowProductModal] = useState(false);
     const transactionDateRef = useRef(null);
     const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
@@ -147,19 +150,130 @@ const AddCashSalesOpen = () => {
         }
     }, [isInitialDataLoaded, company.dateFormat]);
 
+    // useEffect(() => {
+    //     // Add F9 key handler here
+    //     const handF9leKeyDown = (e) => {
+    //         if (e.key === 'F9') {
+    //             e.preventDefault();
+    //             setShowProductModal(prev => !prev); // Toggle modal visibility
+    //         }
+    //     };
+    //     window.addEventListener('keydown', handF9leKeyDown);
+    //     return () => {
+    //         window.removeEventListener('keydown', handF9leKeyDown);
+    //     };
+    // }, []);
+
     useEffect(() => {
-        // Add F9 key handler here
-        const handF9leKeyDown = (e) => {
+        const handleKeyDown = (e) => {
+            // F9 toggles product modal
             if (e.key === 'F9') {
                 e.preventDefault();
-                setShowProductModal(prev => !prev); // Toggle modal visibility
+                setShowProductModal(prev => !prev);
+            }
+            // F6 opens account creation modal when account modal is open
+            else if (e.key === 'F6' && showAccountModal) {
+                e.preventDefault();
+                setShowAccountModal(false);
+                setShowAccountCreationModal(true);
             }
         };
-        window.addEventListener('keydown', handF9leKeyDown);
+
+        window.addEventListener('keydown', handleKeyDown);
         return () => {
-            window.removeEventListener('keydown', handF9leKeyDown);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showAccountModal]); // Add showAccountModal to dependencies
+
+    useEffect(() => {
+        const handleF6KeyForItems = (e) => {
+            if (e.key === 'F6' && document.activeElement === itemSearchRef.current) {
+                e.preventDefault();
+                setShowItemsModal(true);
+                // Clear search when opening modal
+                setSearchQuery('');
+                if (itemSearchRef.current) {
+                    itemSearchRef.current.value = '';
+                }
+                setShowItemDropdown(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleF6KeyForItems);
+        return () => {
+            window.removeEventListener('keydown', handleF6KeyForItems);
         };
     }, []);
+
+    useEffect(() => {
+        if (showItemsModal) {
+            const interval = setInterval(fetchItems, 2000); // Poll every 2 seconds
+            setPollInterval(interval);
+        } else {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                setPollInterval(null);
+            }
+        }
+
+        return () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        };
+    }, [showItemsModal]);
+
+    const fetchItems = async () => {
+        try {
+            const response = await api.get('/api/retailer/items');
+            if (response.data.success) {
+                const sortedItems = response.data.items.sort((a, b) => a.name.localeCompare(b.name));
+                setAllItems(sortedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+        }
+    };
+
+    // Add account creation handler
+    const handleAccountCreated = async (newAccountData) => {
+        try {
+            // Refresh accounts list
+            const response = await api.get('/api/retailer/cash-sales/open');
+            const { data } = response;
+            const sortedAccounts = data.data.accounts.sort((a, b) => a.name.localeCompare(b.name));
+            setAccounts(sortedAccounts);
+
+            // Automatically select the newly created account
+            if (newAccountData?.name) {
+                setFormData({
+                    ...formData,
+                    cashAccount: newAccountData.name,
+                    cashAccountId: newAccountData._id,
+                    cashAccountAddress: newAccountData.address || '',
+                    cashAccountPan: newAccountData.pan || '',
+                    cashAccountEmail: newAccountData.email || '',
+                    cashAccountPhone: newAccountData.phone || ''
+                });
+
+                setNotification({
+                    show: true,
+                    message: 'Account created and selected!',
+                    type: 'success'
+                });
+            }
+
+            setShowAccountCreationModal(false);
+
+            // Focus on address field
+            setTimeout(() => {
+                addressRef.current?.focus();
+            }, 100);
+        } catch (error) {
+            console.error('Error refreshing accounts:', error);
+        }
+    };
+
 
     useEffect(() => {
         calculateTotal();
@@ -1597,7 +1711,7 @@ const AddCashSalesOpen = () => {
                                         type="text"
                                         id="itemSearch"
                                         className="form-control"
-                                        placeholder="Search for an item"
+                                        placeholder="Search item (Press F6 to create new item)"
                                         autoComplete='off'
                                         value={searchQuery}
                                         onChange={handleItemSearch}
@@ -1844,7 +1958,7 @@ const AddCashSalesOpen = () => {
                     </form>
                 </div>
             </div>
-            {showAccountModal && (
+            {/* {showAccountModal && (
                 <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
                     <div className="modal-dialog modal-xl modal-dialog-centered">
                         <div className="modal-content" style={{ height: '500px' }}>
@@ -2070,6 +2184,162 @@ const AddCashSalesOpen = () => {
                         </div>
                     </div>
                 </div>
+            )} */}
+
+            {showAccountModal && (
+                <div className="modal fade show" id="accountModal" tabIndex="-1" style={{ display: 'block' }}>
+                    <div className="modal-dialog modal-xl modal-dialog-centered">
+                        <div className="modal-content" style={{ height: '500px' }}>
+                            <div className="modal-header">
+                                <h5 className="modal-title" id="accountModalLabel">Select or Enter Cash Account</h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowAccountModal(false)}
+                                ></button>
+                            </div>
+                            <div className="p-3 bg-white sticky-top">
+                                <input
+                                    type="text"
+                                    id="searchAccount"
+                                    autoComplete='off'
+                                    className="form-control form-control-lg"
+                                    placeholder="Type to search or enter new account name"
+                                    autoFocus
+                                    value={formData.cashAccount}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            cashAccount: value,
+                                            cashAccountAddress: '',
+                                            cashAccountPhone: ''
+                                        }));
+
+                                        // Filter accounts based on search
+                                        if (value === '') {
+                                            setFilteredAccounts([]);
+                                        } else {
+                                            const filtered = accounts.filter(account =>
+                                                account.name.toLowerCase().includes(value.toLowerCase())
+                                            );
+                                            setFilteredAccounts(filtered);
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'ArrowDown') {
+                                            e.preventDefault();
+                                            const firstAccountItem = document.querySelector('.account-item');
+                                            if (firstAccountItem) {
+                                                firstAccountItem.focus();
+                                            }
+                                        } else if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            // Always use the typed text when pressing Enter in the input
+                                            setShowAccountModal(false);
+                                            setTimeout(() => {
+                                                addressRef.current?.focus();
+                                            }, 100);
+                                        }
+                                    }}
+                                    ref={accountSearchRef}
+                                />
+                            </div>
+                            <div className="modal-body p-0">
+                                <div className="overflow-auto" style={{ height: 'calc(400px - 120px)' }}>
+                                    <ul id="accountList" className="list-group">
+                                        {(filteredAccounts.length > 0 ? filteredAccounts : accounts).map((account, index) => (
+                                            <li
+                                                key={account._id}
+                                                data-account-id={account._id}
+                                                className={`list-group-item account-item py-2`}
+                                                onClick={() => {
+                                                    setFormData({
+                                                        ...formData,
+                                                        cashAccount: account.name,
+                                                        cashAccountAddress: account.address,
+                                                        cashAccountPhone: account.phone
+                                                    });
+                                                    setShowAccountModal(false);
+                                                    setTimeout(() => {
+                                                        addressRef.current?.focus();
+                                                    }, 100);
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                                tabIndex={0}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        const nextItem = e.target.nextElementSibling;
+                                                        if (nextItem) {
+                                                            e.target.classList.remove('active');
+                                                            nextItem.classList.add('active');
+                                                            nextItem.focus();
+                                                        }
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        e.preventDefault();
+                                                        const prevItem = e.target.previousElementSibling;
+                                                        if (prevItem) {
+                                                            e.target.classList.remove('active');
+                                                            prevItem.classList.add('active');
+                                                            prevItem.focus();
+                                                        } else {
+                                                            accountSearchRef.current?.focus();
+                                                        }
+                                                    } else if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        setFormData({
+                                                            ...formData,
+                                                            cashAccount: account.name,
+                                                            cashAccountAddress: account.address,
+                                                            cashAccountPhone: account.phone
+                                                        });
+                                                        setShowAccountModal(false);
+                                                        setTimeout(() => {
+                                                            addressRef.current?.focus();
+                                                        }, 100);
+                                                    }
+                                                }}
+                                                onFocus={(e) => {
+                                                    document.querySelectorAll('.account-item').forEach(item => {
+                                                        item.classList.remove('active');
+                                                    });
+                                                    e.target.classList.add('active');
+                                                }}
+                                            >
+                                                <div className="d-flex justify-content-between small">
+                                                    <strong>{account.name}</strong>
+                                                    <span>📍 {account.address || 'N/A'} | 📞 {account.phone || 'N/A'}</span>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                        setShowAccountModal(false);
+                                        setTimeout(() => {
+                                            addressRef.current?.focus();
+                                        }, 100);
+                                    }}
+                                >
+                                    Use Entered Name
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowAccountModal(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {showBatchModal && selectedItemForBatch && (
@@ -2218,6 +2488,51 @@ const AddCashSalesOpen = () => {
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+
+            {showAccountCreationModal && (
+                <AccountCreationModal
+                    show={showAccountCreationModal}
+                    onClose={() => setShowAccountCreationModal(false)}
+                    onAccountCreated={handleAccountCreated}
+                    companyId={company?._id}
+                    fiscalYear={company?.fiscalYear?._id}
+                />
+            )}
+
+            {showItemsModal && (
+                <div className="modal fade show" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-fullscreen">
+                        <div className="modal-content" style={{ height: '95vh', margin: '2.5vh auto' }}>
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Create New Item</h5>
+                                <div className="d-flex align-items-center">
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() => setShowItemsModal(false)}
+                                    ></button>
+                                </div>
+                            </div>
+                            <div className="modal-body p-0">
+                                <iframe
+                                    src="/retailer/items"
+                                    title="Item Creation"
+                                    style={{ width: '100%', height: '100%', border: 'none' }}
+                                />
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowItemsModal(false)}
+                                >
+                                    <i className="bi bi-arrow-left me-2"></i>Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

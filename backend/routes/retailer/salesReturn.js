@@ -203,7 +203,378 @@ router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelect
     }
 });
 
+// router.get('/sales-bill-by-number/:billNumber', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     if (req.tradeType !== 'retailer') {
+//         return res.status(403).json({
+//             success: false,
+//             error: 'Access forbidden for this trade type'
+//         });
+//     }
+
+//     try {
+//         const { billNumber } = req.params;
+//         const companyId = req.session.currentCompany;
+//         const fiscalYear = req.session.currentFiscalYear?.id;
+
+//         if (!billNumber) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Bill number is required'
+//             });
+//         }
+
+//         // Find the sales bill by number
+//         const salesBill = await SalesBill.findOne({
+//             billNumber: billNumber,
+//             company: companyId,
+//             purchaseSalesType: 'Sales',
+//             fiscalYear: fiscalYear
+//         })
+//             .populate({
+//                 path: 'items.item',
+//                 select: 'name hscode uniqueNumber vatStatus unit sellingPrice category',
+//                 populate: [
+//                     { path: 'unit', select: 'name _id' },
+//                     { path: 'category', select: 'name _id' }
+//                 ]
+//             })
+//             .populate({
+//                 path: 'items.unit',
+//                 select: 'name _id'
+//             })
+//             .populate({
+//                 path: 'account',
+//                 select: 'name address pan phone email _id'
+//             })
+//             .populate('user', 'name')
+//             .lean()
+//             .exec();
+
+//         if (!salesBill) {
+//             return res.status(404).json({
+//                 success: false,
+//                 error: 'Sales bill not found'
+//             });
+//         }
+
+//         // Check if this bill already has returns
+//         const existingReturns = await SalesReturn.find({
+//             originalSalesBill: salesBill._id,
+//             company: companyId
+//         })
+//             .select('billNumber date totalAmount items')
+//             .sort({ date: -1 })
+//             .lean();
+
+//         // CRITICAL FIX: Calculate returned quantities correctly
+//         const returnedQuantities = {};
+//         existingReturns.forEach(returnBill => {
+//             if (returnBill.items && Array.isArray(returnBill.items)) {
+//                 returnBill.items.forEach(returnItem => {
+//                     if (returnItem.item && returnItem.batchNumber) {
+//                         const key = `${returnItem.item}_${returnItem.batchNumber}`;
+//                         if (!returnedQuantities[key]) {
+//                             returnedQuantities[key] = 0;
+//                         }
+//                         returnedQuantities[key] += returnItem.quantity || 0;
+//                     }
+//                 });
+//             }
+//         });
+
+//         // Process items for the response
+//         const processedItems = salesBill.items.map((item, index) => {
+//             const itemData = item.item || {};
+
+//             // Create key for matching returned items
+//             const key = `${item.item?._id}_${item.batchNumber}`;
+//             const returnedQty = returnedQuantities[key] || 0;
+//             const availableQty = Math.max(0, item.quantity - returnedQty);
+
+//             return {
+//                 ...item,
+//                 item: {
+//                     _id: itemData._id,
+//                     name: itemData.name || '',
+//                     hscode: itemData.hscode || '',
+//                     uniqueNumber: itemData.uniqueNumber || '',
+//                     vatStatus: itemData.vatStatus || 'vatable',
+//                     category: itemData.category || null,
+//                     expiryDate: itemData.expiryDate || null,
+//                     unit: itemData.unit || null,
+//                     sellingPrice: itemData.sellingPrice || 0
+//                 },
+//                 unit: item.unit || (itemData.unit ? {
+//                     _id: itemData.unit._id,
+//                     name: itemData.unit.name
+//                 } : null),
+//                 returnedQuantity: returnedQty,
+//                 availableQuantity: availableQty,
+//                 originalQuantity: item.quantity,
+//                 originalPrice: item.price,
+//                 originalAmount: (item.quantity * item.price).toFixed(2),
+//                 // Include batchNumber and expiryDate from the sales bill item
+//                 batchNumber: item.batchNumber || '',
+//                 expiryDate: item.expiryDate || null
+//             };
+//         });
+
+//         // Calculate total available quantity
+//         const totalAvailableQuantity = processedItems.reduce((sum, item) => sum + item.availableQuantity, 0);
+
+//         // Get return details for frontend display
+//         const returnDetails = existingReturns.map(ret => ({
+//             billNumber: ret.billNumber,
+//             date: ret.date,
+//             totalAmount: ret.totalAmount || 0
+//         }));
+
+//         // Determine if there are any active (non-cancelled) returns
+//         const hasActiveReturns = existingReturns.length > 0;
+
+//         res.json({
+//             success: true,
+//             data: {
+//                 bill: {
+//                     ...salesBill,
+//                     items: processedItems,
+//                     hasExistingReturns: hasActiveReturns,
+//                     existingReturns: returnDetails,
+//                     returnCount: existingReturns.length,
+//                     totalItems: salesBill.items.reduce((sum, item) => sum + item.quantity, 0),
+//                     totalAvailableItems: totalAvailableQuantity,
+//                     // Check if all quantities are already returned
+//                     isFullyReturned: processedItems.every(item => item.availableQuantity === 0),
+//                     // Include bill summary details
+//                     billSummary: {
+//                         subTotal: salesBill.subTotal || 0,
+//                         discountPercentage: salesBill.discountPercentage || 0,
+//                         discountAmount: salesBill.discountAmount || 0,
+//                         vatPercentage: salesBill.vatPercentage || 13,
+//                         vatAmount: salesBill.vatAmount || 0,
+//                         totalAmount: salesBill.totalAmount || 0,
+//                         taxableAmount: salesBill.taxableAmount || 0,
+//                         nonVatSales: salesBill.nonVatSales || 0,
+//                         roundOffAmount: salesBill.roundOffAmount || 0,
+//                         isVatExempt: salesBill.isVatExempt || false,
+//                         isVatAll: salesBill.isVatAll || '',
+//                         paymentMode: salesBill.paymentMode || 'credit'
+//                     }
+//                 }
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error fetching sales bill by number:', error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Error fetching sales bill',
+//             details: error.message
+//         });
+//     }
+// });
+
 // Fetch all sales return bills
+
+router.get('/sales-bill-by-number/:billNumber', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    if (req.tradeType !== 'retailer') {
+        return res.status(403).json({
+            success: false,
+            error: 'Access forbidden for this trade type'
+        });
+    }
+
+    try {
+        const { billNumber } = req.params;
+        const companyId = req.session.currentCompany;
+        const fiscalYear = req.session.currentFiscalYear?.id;
+
+        if (!billNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Bill number is required'
+            });
+        }
+
+        // Find the sales bill by number
+        const salesBill = await SalesBill.findOne({
+            billNumber: billNumber,
+            company: companyId,
+            purchaseSalesType: 'Sales',
+            fiscalYear: fiscalYear
+        })
+            .populate({
+                path: 'items.item',
+                select: 'name hscode uniqueNumber vatStatus unit sellingPrice category',
+                populate: [
+                    { path: 'unit', select: 'name _id' },
+                    { path: 'category', select: 'name _id' }
+                ]
+            })
+            .populate({
+                path: 'items.unit',
+                select: 'name _id'
+            })
+            .populate({
+                path: 'account',
+                select: 'name address pan phone email _id'
+            })
+            .populate('user', 'name')
+            .lean()
+            .exec();
+
+        if (!salesBill) {
+            return res.status(404).json({
+                success: false,
+                error: 'Sales bill not found'
+            });
+        }
+
+        // VALIDATION: Check if this is a cash sales bill
+        // Cash sales bills have cashAccount field populated (string)
+        // Credit sales bills have account field populated (object reference)
+        if (salesBill.cashAccount && salesBill.cashAccount.trim() !== '') {
+            return res.status(400).json({
+                success: false,
+                error: `Bill ${billNumber} is a Cash Sales bill. Cash sales returns should be created from Cash Sales Return section.`,
+                isCashSales: true,
+                billType: 'cash',
+                cashAccount: salesBill.cashAccount,
+                cashAccountAddress: salesBill.cashAccountAddress || '',
+                cashAccountPan: salesBill.cashAccountPan || '',
+                cashAccountEmail: salesBill.cashAccountEmail || '',
+                cashAccountPhone: salesBill.cashAccountPhone || ''
+            });
+        }
+
+        // VALIDATION: Check if this is a credit sales bill (should have account)
+        if (!salesBill.account) {
+            return res.status(400).json({
+                success: false,
+                error: `Bill ${billNumber} is not a valid credit sales bill. Account information is missing.`,
+                isCreditSales: false
+            });
+        }
+
+        // Check if this bill already has returns
+        const existingReturns = await SalesReturn.find({
+            originalSalesBill: salesBill._id,
+            company: companyId
+        })
+        .select('billNumber date totalAmount items')
+        .sort({ date: -1 })
+        .lean();
+
+        // Calculate returned quantities for each item
+        const returnedQuantities = {};
+        existingReturns.forEach(returnBill => {
+            if (returnBill.items && Array.isArray(returnBill.items)) {
+                returnBill.items.forEach(returnItem => {
+                    if (returnItem.item && returnItem.batchNumber) {
+                        const key = `${returnItem.item}_${returnItem.batchNumber}`;
+                        if (!returnedQuantities[key]) {
+                            returnedQuantities[key] = 0;
+                        }
+                        returnedQuantities[key] += returnItem.quantity || 0;
+                    }
+                });
+            }
+        });
+
+        // Process items for the response
+        const processedItems = salesBill.items.map((item, index) => {
+            const itemData = item.item || {};
+            
+            // Create key for matching returned items
+            const key = `${item.item?._id}_${item.batchNumber}`;
+            const returnedQty = returnedQuantities[key] || 0;
+            const availableQty = Math.max(0, item.quantity - returnedQty);
+
+            return {
+                ...item,
+                item: {
+                    _id: itemData._id,
+                    name: itemData.name || '',
+                    hscode: itemData.hscode || '',
+                    uniqueNumber: itemData.uniqueNumber || '',
+                    vatStatus: itemData.vatStatus || 'vatable',
+                    category: itemData.category || null,
+                    expiryDate: itemData.expiryDate || null,
+                    unit: itemData.unit || null,
+                    sellingPrice: itemData.sellingPrice || 0
+                },
+                unit: item.unit || (itemData.unit ? {
+                    _id: itemData.unit._id,
+                    name: itemData.unit.name
+                } : null),
+                returnedQuantity: returnedQty,
+                availableQuantity: availableQty,
+                originalQuantity: item.quantity,
+                originalPrice: item.price,
+                originalAmount: (item.quantity * item.price).toFixed(2),
+                // Include batchNumber and expiryDate from the sales bill item
+                batchNumber: item.batchNumber || '',
+                expiryDate: item.expiryDate || null
+            };
+        });
+
+        // Calculate total available quantity
+        const totalAvailableQuantity = processedItems.reduce((sum, item) => sum + item.availableQuantity, 0);
+
+        // Get return details for frontend display
+        const returnDetails = existingReturns.map(ret => ({
+            billNumber: ret.billNumber,
+            date: ret.date,
+            totalAmount: ret.totalAmount || 0
+        }));
+
+        // Determine if there are any active (non-cancelled) returns
+        const hasActiveReturns = existingReturns.length > 0;
+
+        res.json({
+            success: true,
+            data: {
+                bill: {
+                    ...salesBill,
+                    items: processedItems,
+                    hasExistingReturns: hasActiveReturns,
+                    existingReturns: returnDetails,
+                    returnCount: existingReturns.length,
+                    totalItems: salesBill.items.reduce((sum, item) => sum + item.quantity, 0),
+                    totalAvailableItems: totalAvailableQuantity,
+                    // Check if all quantities are already returned
+                    isFullyReturned: processedItems.every(item => item.availableQuantity === 0),
+                    // Bill type information
+                    billType: 'credit', // Indicate this is a credit sales bill
+                    // Include bill summary details
+                    billSummary: {
+                        subTotal: salesBill.subTotal || 0,
+                        discountPercentage: salesBill.discountPercentage || 0,
+                        discountAmount: salesBill.discountAmount || 0,
+                        vatPercentage: salesBill.vatPercentage || 13,
+                        vatAmount: salesBill.vatAmount || 0,
+                        totalAmount: salesBill.totalAmount || 0,
+                        taxableAmount: salesBill.taxableAmount || 0,
+                        nonVatSales: salesBill.nonVatSales || 0,
+                        roundOffAmount: salesBill.roundOffAmount || 0,
+                        isVatExempt: salesBill.isVatExempt || false,
+                        isVatAll: salesBill.isVatAll || '',
+                        paymentMode: salesBill.paymentMode || 'credit'
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching sales bill by number:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error fetching sales bill',
+            details: error.message
+        });
+    }
+});
+
 router.get('/sales-return/register', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
         if (req.tradeType === 'retailer') {
@@ -323,7 +694,7 @@ router.post('/sales-return', ensureAuthenticated, ensureCompanySelected, ensureT
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
-            const { accountId, items, vatPercentage, transactionDateNepali, transactionDateRoman, billDate, nepaliDate, isVatExempt, discountPercentage, paymentMode, roundOffAmount: manualRoundOffAmount } = req.body;
+            const { accountId, items, vatPercentage, transactionDateNepali, transactionDateRoman, billDate, nepaliDate, isVatExempt, discountPercentage, paymentMode, roundOffAmount: manualRoundOffAmount, originalSalesBill, originalSalesBillNumber } = req.body;
             const companyId = req.session.currentCompany;
             const currentFiscalYear = req.session.currentFiscalYear.id;
             const fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
@@ -441,6 +812,8 @@ router.post('/sales-return', ensureAuthenticated, ensureCompanySelected, ensureT
                 paymentMode,
                 date: nepaliDate ? nepaliDate : new Date(billDate),
                 transactionDate: transactionDateNepali ? transactionDateNepali : new Date(transactionDateRoman),
+                originalSalesBill,
+                originalSalesBillNumber,
                 company: companyId,
                 user: userId,
                 fiscalYear: currentFiscalYear,

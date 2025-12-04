@@ -15,6 +15,13 @@ const SalesReturnSchema = new Schema({
         type: Number,
         default: 0
     },
+    originalSalesBill: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SalesBill'
+    },
+    originalSalesBillNumber: {
+        type: String
+    },
     purchaseSalesReturnType: { type: String },
     originalCopies: { type: Number, default: 1 },
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },

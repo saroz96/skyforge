@@ -499,6 +499,7 @@ const SalesReturnPrint = () => {
                             </div>
                             <div className="right">
                                 <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+                                <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || 'N/A'}</div>
                                 <div><strong>Transaction Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
                                 <div><strong>Invoice Issue Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
                                 <div><strong>Mode of Payment:</strong> {billData.bill.paymentMode}</div>
@@ -619,6 +620,7 @@ const SalesReturnPrint = () => {
                         </div>
                         <div>
                             <div><strong>Invoice No:</strong> {billData.bill.billNumber}</div>
+                            <div><strong>Org. Inv.:</strong> {billData.bill.originalSalesBillNumber || 'N/A'}</div>
                             <div><strong>Transaction Date:</strong> {new Date(billData.bill.transactionDate).toLocaleDateString()}</div>
                             <div><strong>Invoice Issue Date:</strong> {new Date(billData.bill.date).toLocaleDateString()}</div>
                             <div><strong>Mode of Payment:</strong> {billData.bill.paymentMode}</div>
