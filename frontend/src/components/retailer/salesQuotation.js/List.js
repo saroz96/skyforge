@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../Header';
@@ -8,10 +8,25 @@ import '../../../stylesheet/retailer/salesQuotation/List.css';
 import '../../../stylesheet/noDateIcon.css'
 import Loader from '../../Loader';
 import ProductModal from '../dashboard/modals/ProductModal';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 const SalesQuotationList = () => {
     const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const currentEnglishDate = new Date().toISOString().split('T')[0];
+
+    // Add to your existing state declarations
+    const [dateErrors, setDateErrors] = useState({
+        fromDate: '',
+        toDate: ''
+    });
+
+    const [notification, setNotification] = useState({
+        show: false,
+        message: '',
+        type: 'success',
+        duration: 3000
+    });
 
     const { salesQuotationDraftSave, setSalesQuotationDraftSave, clearSalesQuotationDraft } = usePageNotRefreshContext();
 
@@ -57,6 +72,27 @@ const SalesQuotationList = () => {
     });
 
     const [showProductModal, setShowProductModal] = useState(false);
+
+    // Add column resizing state
+    const [columnWidths, setColumnWidths] = useState({
+        date: 90,
+        quotNo: 120,
+        partyName: 180,
+        payMode: 80,
+        subTotal: 80,
+        discount: 120,
+        taxable: 70,
+        vat: 70,
+        roundOff: 90,
+        total: 100,
+        user: 100,
+        actions: 140
+    });
+
+    const [isResizing, setIsResizing] = useState(false);
+    const [resizingColumn, setResizingColumn] = useState(null);
+    const [startX, setStartX] = useState(0);
+    const [startWidth, setStartWidth] = useState(0);
 
     // Fetch company and fiscal year info when component mounts
     useEffect(() => {
@@ -134,6 +170,22 @@ const SalesQuotationList = () => {
             }
         });
     }, [data, searchQuery, paymentModeFilter, selectedRowIndex]);
+
+    // Save/load column widths
+    useEffect(() => {
+        const savedWidths = localStorage.getItem('salesQuotationTableColumnWidths');
+        if (savedWidths) {
+            try {
+                setColumnWidths(JSON.parse(savedWidths));
+            } catch (e) {
+                console.error('Failed to load column widths:', e);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('salesQuotationTableColumnWidths', JSON.stringify(columnWidths));
+    }, [columnWidths]);
 
     // Fetch data when generate report is clicked
     useEffect(() => {
@@ -256,11 +308,6 @@ const SalesQuotationList = () => {
                     e.preventDefault();
                     setSelectedRowIndex(prev => Math.min(filteredQuotations.length - 1, prev + 1));
                     break;
-                case 'Enter':
-                    if (selectedRowIndex >= 0 && selectedRowIndex < filteredQuotations.length) {
-                        navigate(`/retailer/sales-quotation/${filteredQuotations[selectedRowIndex]._id}/print`);
-                    }
-                    break;
                 default:
                     break;
             }
@@ -270,29 +317,28 @@ const SalesQuotationList = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [filteredQuotations, selectedRowIndex, navigate]);
 
-    // Scroll to selected row
-    useEffect(() => {
-        if (tableBodyRef.current && filteredQuotations.length > 0) {
-            const rows = tableBodyRef.current.querySelectorAll('tr');
-            if (rows.length > selectedRowIndex) {
-                const selectedRow = rows[selectedRowIndex];
-                const tableContainer = tableBodyRef.current.parentElement;
-                const rowTop = selectedRow.offsetTop;
-                const rowHeight = selectedRow.offsetHeight;
-                const containerHeight = tableContainer.offsetHeight;
-                const scrollTop = tableContainer.scrollTop;
+    // Shallow equal function for memoization
+    function shallowEqual(objA, objB) {
+        if (objA === objB) return true;
 
-                // Calculate if the row is out of view
-                if (rowTop < scrollTop || rowTop + rowHeight > scrollTop + containerHeight) {
-                    // Smooth scroll to the row
-                    tableContainer.scrollTo({
-                        top: rowTop - containerHeight / 2 + rowHeight / 2,
-                        behavior: 'smooth'
-                    });
-                }
+        if (typeof objA !== 'object' || objA === null ||
+            typeof objB !== 'object' || objB === null) {
+            return false;
+        }
+
+        const keysA = Object.keys(objA);
+        const keysB = Object.keys(objB);
+
+        if (keysA.length !== keysB.length) return false;
+
+        for (let i = 0; i < keysA.length; i++) {
+            if (!objB.hasOwnProperty(keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
+                return false;
             }
         }
-    }, [selectedRowIndex, filteredQuotations]);
+
+        return true;
+    }
 
     const handleDateChange = (e) => {
         const { name, value } = e.target;
@@ -474,7 +520,7 @@ const SalesQuotationList = () => {
         printWindow.document.close();
     };
 
-    const formatCurrency = (num) => {
+    const formatCurrency = useCallback((num) => {
         const number = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : Number(num) || 0;
         if (company.dateFormat === 'nepali') {
             // Indian grouping, two decimals, English digits
@@ -488,15 +534,15 @@ const SalesQuotationList = () => {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-    };
+    }, [company.dateFormat]);
 
-    const handleRowClick = (index) => {
+    const handleRowClick = useCallback((index) => {
         setSelectedRowIndex(index);
-    };
+    }, []);
 
-    const handleRowDoubleClick = (quotationId) => {
+    const handleRowDoubleClick = useCallback((quotationId) => {
         navigate(`/retailer/sales-quotation/${quotationId}/print`);
-    };
+    }, [navigate]);
 
     const handleKeyDown = (e, nextFieldId) => {
         if (e.key === 'Enter') {
@@ -521,6 +567,575 @@ const SalesQuotationList = () => {
         }
     };
 
+    // Resize Handle Component
+    const ResizeHandle = React.memo(({ onResizeStart, left, columnName }) => {
+        return (
+            <div
+                className="resize-handle"
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: `${left}px`,
+                    width: '5px',
+                    height: '100%',
+                    cursor: 'col-resize',
+                    backgroundColor: 'transparent',
+                    zIndex: 10,
+                    userSelect: 'none'
+                }}
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    onResizeStart(e, columnName);
+                }}
+            />
+        );
+    });
+
+    // Table Header Component
+    const TableHeader = React.memo(() => {
+        const showVatColumns = data.company?.vatEnabled && !data.company?.isVatExempt;
+
+        const totalWidth = columnWidths.date + columnWidths.quotNo + columnWidths.partyName +
+            columnWidths.payMode + columnWidths.subTotal + columnWidths.discount +
+            columnWidths.roundOff + columnWidths.total + columnWidths.user +
+            columnWidths.actions + (showVatColumns ? (columnWidths.taxable + columnWidths.vat) : 0);
+
+        const handleResizeStart = (e, columnName) => {
+            setIsResizing(true);
+            setResizingColumn(columnName);
+            setStartX(e.clientX);
+            setStartWidth(columnWidths[columnName]);
+            e.preventDefault();
+        };
+
+        return (
+            <div
+                className="d-flex bg-light border-bottom sticky-top"
+                style={{
+                    zIndex: 2,
+                    height: '28px',
+                    minWidth: `${totalWidth}px`,
+                    userSelect: isResizing ? 'none' : 'auto'
+                }}
+                onMouseMove={(e) => {
+                    if (isResizing && resizingColumn) {
+                        const diff = e.clientX - startX;
+                        const newWidth = Math.max(60, startWidth + diff);
+                        setColumnWidths(prev => ({
+                            ...prev,
+                            [resizingColumn]: newWidth
+                        }));
+                    }
+                }}
+                onMouseUp={() => {
+                    if (isResizing) {
+                        setIsResizing(false);
+                        setResizingColumn(null);
+                    }
+                }}
+                onMouseLeave={() => {
+                    if (isResizing) {
+                        setIsResizing(false);
+                        setResizingColumn(null);
+                    }
+                }}
+            >
+                {/* Date */}
+                <div
+                    className="d-flex align-items-center justify-content-center px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.date}px`,
+                        flexShrink: 0,
+                        minWidth: '60px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Date</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.date - 2}
+                        columnName="date"
+                    />
+                </div>
+
+                {/* Quot. No. */}
+                <div
+                    className="d-flex align-items-center px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.quotNo}px`,
+                        flexShrink: 0,
+                        minWidth: '60px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Quot. No.</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.quotNo - 3}
+                        columnName="quotNo"
+                    />
+                </div>
+
+                {/* Party Name */}
+                <div
+                    className="d-flex align-items-center px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.partyName}px`,
+                        flexShrink: 0,
+                        minWidth: '100px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Party Name</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.partyName - 3}
+                        columnName="partyName"
+                    />
+                </div>
+
+                {/* Pay Mode */}
+                <div
+                    className="d-flex align-items-center px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.payMode}px`,
+                        flexShrink: 0,
+                        minWidth: '60px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Pay Mode</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.payMode - 2}
+                        columnName="payMode"
+                    />
+                </div>
+
+                {/* Sub Total */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.subTotal}px`,
+                        flexShrink: 0,
+                        minWidth: '80px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Sub Total</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.subTotal - 2}
+                        columnName="subTotal"
+                    />
+                </div>
+
+                {/* Discount */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.discount}px`,
+                        flexShrink: 0,
+                        minWidth: '80px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Discount</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.discount - 2}
+                        columnName="discount"
+                    />
+                </div>
+
+                {/* VAT Columns - Conditionally rendered */}
+                {showVatColumns && (
+                    <>
+                        <div
+                            className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
+                            style={{
+                                width: `${columnWidths.taxable}px`,
+                                flexShrink: 0,
+                                minWidth: '50px'
+                            }}
+                        >
+                            <strong style={{ fontSize: '0.75rem' }}>Taxable</strong>
+                            <ResizeHandle
+                                onResizeStart={handleResizeStart}
+                                left={columnWidths.taxable - 1}
+                                columnName="taxable"
+                            />
+                        </div>
+
+                        <div
+                            className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
+                            style={{
+                                width: `${columnWidths.vat}px`,
+                                flexShrink: 0,
+                                minWidth: '60px'
+                            }}
+                        >
+                            <strong style={{ fontSize: '0.75rem' }}>VAT</strong>
+                            <ResizeHandle
+                                onResizeStart={handleResizeStart}
+                                left={columnWidths.vat - 1}
+                                columnName="vat"
+                            />
+                        </div>
+                    </>
+                )}
+
+                {/* Round Off */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.roundOff}px`,
+                        flexShrink: 0,
+                        minWidth: '80px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Round Off</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.roundOff - 2}
+                        columnName="roundOff"
+                    />
+                </div>
+
+                {/* Total */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.total}px`,
+                        flexShrink: 0,
+                        minWidth: '80px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Total</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.total - 2}
+                        columnName="total"
+                    />
+                </div>
+
+                {/* User */}
+                <div
+                    className="d-flex align-items-center px-1 border-end position-relative"
+                    style={{
+                        width: `${columnWidths.user}px`,
+                        flexShrink: 0,
+                        minWidth: '80px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>User</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.user - 2}
+                        columnName="user"
+                    />
+                </div>
+
+                {/* Actions */}
+                <div
+                    className="d-flex align-items-center px-1 position-relative"
+                    style={{
+                        width: `${columnWidths.actions}px`,
+                        flexShrink: 0,
+                        minWidth: '100px'
+                    }}
+                >
+                    <strong style={{ fontSize: '0.75rem' }}>Actions</strong>
+                    <ResizeHandle
+                        onResizeStart={handleResizeStart}
+                        left={columnWidths.actions - 2}
+                        columnName="actions"
+                    />
+                </div>
+
+                {/* Resizing indicator overlay */}
+                {isResizing && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 1000,
+                            cursor: 'col-resize'
+                        }}
+                    />
+                )}
+            </div>
+        );
+    });
+
+    // Table Row Component
+    const TableRow = React.memo(({ index, style, data: rowData }) => {
+        const { quotations, selectedRowIndex, formatCurrency, navigate } = rowData;
+        const quotation = quotations[index];
+
+        const handleRowClick = () => {
+            rowData.handleRowClick(index);
+        };
+
+        const handleDoubleClick = () => {
+            navigate(`/retailer/sales-quotation/${quotation._id}/print`);
+        };
+
+        const handleViewClick = (e) => {
+            e.stopPropagation();
+            navigate(`/retailer/sales-quotation/${quotation._id}/print`);
+        };
+
+        const handleEditClick = (e) => {
+            e.stopPropagation();
+            navigate(`/retailer/sales-quotation/edit/${quotation._id}`);
+        };
+
+        if (!quotation) return null;
+
+        const isSelected = selectedRowIndex === index;
+        const showVatColumns = data.company?.vatEnabled && !data.company?.isVatExempt;
+
+        return (
+            <div
+                style={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '28px',
+                    minHeight: '28px',
+                    padding: '0',
+                    borderBottom: '1px solid #dee2e6',
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? '#e7f3ff' : (index % 2 === 0 ? '#f8f9fa' : 'white')
+                }}
+                onClick={handleRowClick}
+                onDoubleClick={handleDoubleClick}
+            >
+                {/* Date */}
+                <div
+                    className="d-flex align-items-center justify-content-center px-1 border-end"
+                    style={{
+                        width: `${columnWidths.date}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {new NepaliDate(quotation.date).format('YYYY-MM-DD')}
+                    </span>
+                </div>
+
+                {/* Quot. No. */}
+                <div
+                    className="d-flex align-items-center px-1 border-end"
+                    style={{
+                        width: `${columnWidths.quotNo}px`,
+                        flexShrink: 0,
+                        height: '100%',
+                        overflow: 'hidden'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {quotation.billNumber}
+                    </span>
+                </div>
+
+                {/* Party Name */}
+                <div
+                    className="d-flex align-items-center px-1 border-end"
+                    style={{
+                        width: `${columnWidths.partyName}px`,
+                        flexShrink: 0,
+                        height: '100%',
+                        overflow: 'hidden'
+                    }}
+                    title={quotation.account?.name || 'N/A'}
+                >
+                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {quotation.account?.name || 'N/A'}
+                    </span>
+                </div>
+
+                {/* Pay Mode */}
+                <div
+                    className="d-flex align-items-center px-1 border-end"
+                    style={{
+                        width: `${columnWidths.payMode}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {quotation.paymentMode}
+                    </span>
+                </div>
+
+                {/* Sub Total */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end"
+                    style={{
+                        width: `${columnWidths.subTotal}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {formatCurrency(quotation.subTotal)}
+                    </span>
+                </div>
+
+                {/* Discount */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end"
+                    style={{
+                        width: `${columnWidths.discount}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {formatCurrency(quotation.discountPercentage)}% - {formatCurrency(quotation.discountAmount)}
+                    </span>
+                </div>
+
+                {/* VAT Columns - Conditionally rendered */}
+                {showVatColumns && (
+                    <>
+                        <div
+                            className="d-flex align-items-center justify-content-end px-1 border-end"
+                            style={{
+                                width: `${columnWidths.taxable}px`,
+                                flexShrink: 0,
+                                height: '100%'
+                            }}
+                        >
+                            <span style={{ fontSize: '0.75rem' }}>
+                                {formatCurrency(quotation.taxableAmount)}
+                            </span>
+                        </div>
+
+                        <div
+                            className="d-flex align-items-center justify-content-end px-1 border-end"
+                            style={{
+                                width: `${columnWidths.vat}px`,
+                                flexShrink: 0,
+                                height: '100%'
+                            }}
+                        >
+                            <span style={{ fontSize: '0.75rem' }}>
+                                {formatCurrency(quotation.vatAmount)}
+                            </span>
+                        </div>
+                    </>
+                )}
+
+                {/* Round Off */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end"
+                    style={{
+                        width: `${columnWidths.roundOff}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {formatCurrency(quotation.roundOffAmount)}
+                    </span>
+                </div>
+
+                {/* Total */}
+                <div
+                    className="d-flex align-items-center justify-content-end px-1 border-end"
+                    style={{
+                        width: `${columnWidths.total}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <span style={{ fontSize: '0.75rem' }}>
+                        {formatCurrency(quotation.totalAmount)}
+                    </span>
+                </div>
+
+                {/* User */}
+                <div
+                    className="d-flex align-items-center px-1 border-end"
+                    style={{
+                        width: `${columnWidths.user}px`,
+                        flexShrink: 0,
+                        height: '100%',
+                        overflow: 'hidden'
+                    }}
+                    title={quotation.user?.name || 'N/A'}
+                >
+                    <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {quotation.user?.name || 'N/A'}
+                    </span>
+                </div>
+
+                {/* Actions */}
+                <div
+                    className="d-flex align-items-center justify-content-center px-1 gap-1"
+                    style={{
+                        width: `${columnWidths.actions}px`,
+                        flexShrink: 0,
+                        height: '100%'
+                    }}
+                >
+                    <button
+                        className="btn btn-sm btn-info py-0 px-1 d-flex align-items-center"
+                        onClick={handleViewClick}
+                        style={{
+                            height: '20px',
+                            fontSize: '0.7rem',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        <i className="fas fa-eye me-1" style={{ fontSize: '0.6rem' }}></i>View
+                    </button>
+                    <button
+                        className="btn btn-sm btn-warning py-0 px-1 d-flex align-items-center"
+                        onClick={handleEditClick}
+                        style={{
+                            height: '20px',
+                            fontSize: '0.7rem',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        <i className="fas fa-edit me-1" style={{ fontSize: '0.6rem' }}></i>Edit
+                    </button>
+                </div>
+            </div>
+        );
+    }, (prevProps, nextProps) => {
+        if (prevProps.index !== nextProps.index) return false;
+        if (prevProps.style !== nextProps.style) return false;
+
+        const prevQuotation = prevProps.data.quotations[prevProps.index];
+        const nextQuotation = nextProps.data.quotations[nextProps.index];
+
+        return (
+            shallowEqual(prevQuotation, nextQuotation) &&
+            prevProps.data.selectedRowIndex === nextProps.data.selectedRowIndex
+        );
+    });
+
+    // Add reset function
+    const resetColumnWidths = () => {
+        setColumnWidths({
+            date: 90,
+            quotNo: 120,
+            partyName: 180,
+            payMode: 80,
+            subTotal: 80,
+            discount: 120,
+            taxable: 70,
+            vat: 70,
+            roundOff: 90,
+            total: 100,
+            user: 100,
+            actions: 140
+        });
+    };
+
     if (loading) return <Loader />;
 
     if (error) {
@@ -530,223 +1145,810 @@ const SalesQuotationList = () => {
     return (
         <div className="container-fluid">
             <Header />
-            <div className="card shadow">
-                <div className="card-header bg-white py-3">
-                    <h1 className="h3 mb-0 text-center text-primary">Sales Quotation Register</h1>
+            <div className="card mt-2 shadow-lg p-0 animate__animated animate__fadeInUp expanded-card ledger-card compact">
+                <div className="card-header bg-white py-0">
+                    <h1 className="h4 mb-0 text-center text-primary">Sales Quotation Register</h1>
                 </div>
 
-                <div className="card-body">
-                    {/* Search and Filter Section */}
-                    <div className="row mb-4">
-                        <div className="col-md-8">
-                            <div className="row g-3">
-                                {/* Date Range Row */}
-                                <div className="col">
-                                    <label htmlFor="fromDate" className="form-label">From Date</label>
-                                    <input
-                                        type={company.dateFormat === 'nepali' ? 'text' : 'text'}
-                                        name="fromDate"
-                                        id="fromDate"
-                                        className="form-control datepicker no-date-icon"
-                                        value={data.fromDate}
-                                        onChange={handleDateChange}
-                                        required
-                                        autoComplete="off"
-                                        onKeyDown={(e) => handleKeyDown(e, 'toDate')}
-                                    />
-                                </div>
-                                <div className="col">
-                                    <label htmlFor="toDate" className="form-label">To Date</label>
+                <div className="card-body p-2 p-md-3">
+                    <div className="row g-2 mb-3">
+                        {/* Date Range Row */}
+                        <div className="col-12 col-md-1">
+                            <div className="position-relative">
+                                <input
+                                    type="text"
+                                    name="fromDate"
+                                    id="fromDate"
+                                    className={`form-control form-control-sm no-date-icon ${dateErrors.fromDate ? 'is-invalid' : ''}`}
+                                    value={data.fromDate}
+                                    onChange={(e) => {
+                                        // Allow only numbers and allowed separators (/, -)
+                                        const value = e.target.value;
+                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                        // Limit to typical date format length
+                                        if (sanitizedValue.length <= 10) {
+                                            setData(prev => ({ ...prev, fromDate: sanitizedValue }));
+                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        // Prevent typing letters
+                                        const allowedKeys = [
+                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                            'Home', 'End'
+                                        ];
+
+                                        // Allow numbers (0-9) and separators (/, -)
+                                        if (!allowedKeys.includes(e.key) &&
+                                            !/^\d$/.test(e.key) &&
+                                            e.key !== '/' &&
+                                            e.key !== '-' &&
+                                            !e.ctrlKey && !e.metaKey) {
+                                            e.preventDefault();
+                                        }
+
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const dateStr = e.target.value.trim();
+
+                                            if (!dateStr) {
+                                                // Auto-correct to current date if blank on Enter
+                                                const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
+                                                const correctedDate = company.dateFormat === 'nepali'
+                                                    ? currentDate.format('YYYY-MM-DD')
+                                                    : currentDate.toISOString().split('T')[0];
+
+                                                setData(prev => ({ ...prev, fromDate: correctedDate }));
+                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
+
+                                                // Show notification
+                                                setNotification({
+                                                    show: true,
+                                                    message: 'Date required. Auto-corrected to current date.',
+                                                    type: 'warning',
+                                                    duration: 3000
+                                                });
+
+                                                // Move to next field after auto-correction
+                                                handleKeyDown(e, 'toDate');
+                                            } else if (dateErrors.fromDate) {
+                                                e.target.focus();
+                                            } else {
+                                                handleKeyDown(e, 'toDate');
+                                            }
+                                        }
+                                    }}
+                                    onPaste={(e) => {
+                                        e.preventDefault();
+                                        const pastedData = e.clipboardData.getData('text');
+                                        // Clean pasted data - keep only numbers and separators
+                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
+                                        const newValue = data.fromDate + cleanedData;
+                                        if (newValue.length <= 10) {
+                                            setData(prev => ({ ...prev, fromDate: newValue }));
+                                        }
+                                    }}
+                                    onBlur={(e) => {
+                                        try {
+                                            const dateStr = e.target.value.trim();
+                                            if (!dateStr) {
+                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                                return;
+                                            }
+
+                                            if (company.dateFormat === 'nepali') {
+                                                // Check if it matches Nepali date format (YYYY/MM/DD or YYYY-MM-DD)
+                                                const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                if (!nepaliDateFormat.test(dateStr)) {
+                                                    // Auto-correct to current date
+                                                    const currentDate = new NepaliDate();
+                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
+                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
+
+                                                    // Show notification
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid date format. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                    return;
+                                                }
+
+                                                // Normalize separators to forward slash
+                                                const normalizedDateStr = dateStr.replace(/-/g, '/');
+                                                const [year, month, day] = normalizedDateStr.split('/').map(Number);
+
+                                                // Validate month and day ranges
+                                                if (month < 1 || month > 12) {
+                                                    throw new Error("Month must be between 1-12");
+                                                }
+                                                if (day < 1 || day > 32) {
+                                                    throw new Error("Day must be between 1-32");
+                                                }
+
+                                                // Try to create Nepali date
+                                                const nepaliDate = new NepaliDate(year, month - 1, day);
+
+                                                // Validate if date is valid
+                                                if (
+                                                    nepaliDate.getYear() !== year ||
+                                                    nepaliDate.getMonth() + 1 !== month ||
+                                                    nepaliDate.getDate() !== day
+                                                ) {
+                                                    // Auto-correct to current date if invalid
+                                                    const currentDate = new NepaliDate();
+                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
+                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                } else {
+                                                    // Valid date - format it consistently
+                                                    setData(prev => ({
+                                                        ...prev,
+                                                        fromDate: nepaliDate.format('YYYY-MM-DD')
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                                }
+                                            } else {
+                                                // English date validation
+                                                const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                if (!englishDateFormat.test(dateStr)) {
+                                                    // Auto-correct to current date
+                                                    const currentDate = new Date();
+                                                    const correctedDate = currentDate.toISOString().split('T')[0];
+                                                    setData(prev => ({ ...prev, fromDate: correctedDate }));
+                                                    setDateErrors(prev => ({ ...prev, fromDate: '' }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid date format. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                    return;
+                                                }
+
+                                                // Try to parse English date
+                                                const dateObj = new Date(dateStr);
+                                                if (isNaN(dateObj.getTime())) {
+                                                    throw new Error("Invalid English date");
+                                                }
+
+                                                // Valid date - format it consistently
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    fromDate: dateObj.toISOString().split('T')[0]
+                                                }));
+                                                setDateErrors(prev => ({ ...prev, fromDate: '' }));
+                                            }
+                                        } catch (error) {
+                                            // Auto-correct to current date on any error
+                                            const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
+                                            const correctedDate = company.dateFormat === 'nepali'
+                                                ? currentDate.format('YYYY-MM-DD')
+                                                : currentDate.toISOString().split('T')[0];
+
+                                            setData(prev => ({ ...prev, fromDate: correctedDate }));
+                                            setDateErrors(prev => ({ ...prev, fromDate: '' }));
+
+                                            setNotification({
+                                                show: true,
+                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
+                                                type: 'warning',
+                                                duration: 3000
+                                            });
+                                        }
+                                    }}
+                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    required
+                                    autoComplete="off"
+                                    style={{
+                                        height: '26px',
+                                        fontSize: '0.875rem',
+                                        paddingTop: '0.75rem',
+                                        width: '100%'
+                                    }}
+                                />
+                                <label
+                                    className="position-absolute"
+                                    style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    From Date: <span className="text-danger">*</span>
+                                </label>
+                                {dateErrors.fromDate && (
+                                    <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                        {dateErrors.fromDate}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="col-12 col-md-1">
+                            <div className="position-relative">
+                                <input
+                                    type="text"
+                                    name="toDate"
+                                    id="toDate"
+                                    className={`form-control form-control-sm no-date-icon ${dateErrors.toDate ? 'is-invalid' : ''}`}
+                                    value={data.toDate}
+                                    onChange={(e) => {
+                                        // Allow only numbers and allowed separators (/, -)
+                                        const value = e.target.value;
+                                        const sanitizedValue = value.replace(/[^0-9/-]/g, '');
+
+                                        // Limit to typical date format length
+                                        if (sanitizedValue.length <= 10) {
+                                            setData(prev => ({ ...prev, toDate: sanitizedValue }));
+                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        // Prevent typing letters
+                                        const allowedKeys = [
+                                            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                                            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                            'Home', 'End'
+                                        ];
+
+                                        // Allow numbers (0-9) and separators (/, -)
+                                        if (!allowedKeys.includes(e.key) &&
+                                            !/^\d$/.test(e.key) &&
+                                            e.key !== '/' &&
+                                            e.key !== '-' &&
+                                            !e.ctrlKey && !e.metaKey) {
+                                            e.preventDefault();
+                                        }
+
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const dateStr = e.target.value.trim();
+
+                                            if (!dateStr) {
+                                                // Auto-correct to current date if blank on Enter
+                                                const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
+                                                const correctedDate = company.dateFormat === 'nepali'
+                                                    ? currentDate.format('YYYY-MM-DD')
+                                                    : currentDate.toISOString().split('T')[0];
+
+                                                setData(prev => ({ ...prev, toDate: correctedDate }));
+                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
+
+                                                // Show notification
+                                                setNotification({
+                                                    show: true,
+                                                    message: 'Date required. Auto-corrected to current date.',
+                                                    type: 'warning',
+                                                    duration: 3000
+                                                });
+
+                                                // Move to next field after auto-correction
+                                                document.getElementById('generateReport').focus();
+                                            } else if (dateErrors.toDate) {
+                                                e.target.focus();
+                                            } else {
+                                                document.getElementById('generateReport').focus();
+                                            }
+                                        }
+                                    }}
+                                    onPaste={(e) => {
+                                        e.preventDefault();
+                                        const pastedData = e.clipboardData.getData('text');
+                                        // Clean pasted data - keep only numbers and separators
+                                        const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
+                                        const newValue = data.toDate + cleanedData;
+                                        if (newValue.length <= 10) {
+                                            setData(prev => ({ ...prev, toDate: newValue }));
+                                        }
+                                    }}
+                                    onBlur={(e) => {
+                                        try {
+                                            const dateStr = e.target.value.trim();
+                                            if (!dateStr) {
+                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
+                                                return;
+                                            }
+
+                                            if (company.dateFormat === 'nepali') {
+                                                // Check if it matches Nepali date format (YYYY/MM/DD or YYYY-MM-DD)
+                                                const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                if (!nepaliDateFormat.test(dateStr)) {
+                                                    // Auto-correct to current date
+                                                    const currentDate = new NepaliDate();
+                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
+                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
+
+                                                    // Show notification
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid date format. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                    return;
+                                                }
+
+                                                // Normalize separators to forward slash
+                                                const normalizedDateStr = dateStr.replace(/-/g, '/');
+                                                const [year, month, day] = normalizedDateStr.split('/').map(Number);
+
+                                                // Validate month and day ranges
+                                                if (month < 1 || month > 12) {
+                                                    throw new Error("Month must be between 1-12");
+                                                }
+                                                if (day < 1 || day > 32) {
+                                                    throw new Error("Day must be between 1-32");
+                                                }
+
+                                                // Try to create Nepali date
+                                                const nepaliDate = new NepaliDate(year, month - 1, day);
+
+                                                // Validate if date is valid
+                                                if (
+                                                    nepaliDate.getYear() !== year ||
+                                                    nepaliDate.getMonth() + 1 !== month ||
+                                                    nepaliDate.getDate() !== day
+                                                ) {
+                                                    // Auto-correct to current date if invalid
+                                                    const currentDate = new NepaliDate();
+                                                    const correctedDate = currentDate.format('YYYY-MM-DD');
+                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
+                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid Nepali date. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                } else {
+                                                    // Valid date - format it consistently
+                                                    setData(prev => ({
+                                                        ...prev,
+                                                        toDate: nepaliDate.format('YYYY-MM-DD')
+                                                    }));
+                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
+                                                }
+                                            } else {
+                                                // English date validation
+                                                const englishDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
+                                                if (!englishDateFormat.test(dateStr)) {
+                                                    // Auto-correct to current date
+                                                    const currentDate = new Date();
+                                                    const correctedDate = currentDate.toISOString().split('T')[0];
+                                                    setData(prev => ({ ...prev, toDate: correctedDate }));
+                                                    setDateErrors(prev => ({ ...prev, toDate: '' }));
+
+                                                    setNotification({
+                                                        show: true,
+                                                        message: 'Invalid date format. Auto-corrected to current date.',
+                                                        type: 'warning',
+                                                        duration: 3000
+                                                    });
+                                                    return;
+                                                }
+
+                                                // Try to parse English date
+                                                const dateObj = new Date(dateStr);
+                                                if (isNaN(dateObj.getTime())) {
+                                                    throw new Error("Invalid English date");
+                                                }
+
+                                                // Valid date - format it consistently
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    toDate: dateObj.toISOString().split('T')[0]
+                                                }));
+                                                setDateErrors(prev => ({ ...prev, toDate: '' }));
+                                            }
+                                        } catch (error) {
+                                            // Auto-correct to current date on any error
+                                            const currentDate = company.dateFormat === 'nepali' ? new NepaliDate() : new Date();
+                                            const correctedDate = company.dateFormat === 'nepali'
+                                                ? currentDate.format('YYYY-MM-DD')
+                                                : currentDate.toISOString().split('T')[0];
+
+                                            setData(prev => ({ ...prev, toDate: correctedDate }));
+                                            setDateErrors(prev => ({ ...prev, toDate: '' }));
+
+                                            setNotification({
+                                                show: true,
+                                                message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
+                                                type: 'warning',
+                                                duration: 3000
+                                            });
+                                        }
+                                    }}
+                                    placeholder={company.dateFormat === 'nepali' ? "YYYY-MM-DD" : "YYYY-MM-DD"}
+                                    required
+                                    autoComplete='off'
+                                    style={{
+                                        height: '26px',
+                                        fontSize: '0.875rem',
+                                        paddingTop: '0.75rem',
+                                        width: '100%'
+                                    }}
+                                />
+                                <label
+                                    className="position-absolute"
+                                    style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    To Date: <span className="text-danger">*</span>
+                                </label>
+                                {dateErrors.toDate && (
+                                    <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
+                                        {dateErrors.toDate}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Generate Report Button */}
+                        <div className="col-12 col-md-1">
+                            <button
+                                type="button"
+                                id="generateReport"
+                                className="btn btn-primary btn-sm"
+                                onClick={handleGenerateReport}
+                                style={{
+                                    height: '30px',
+                                    fontSize: '0.8rem',
+                                    padding: '0 12px',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <i className="fas fa-chart-line me-1"></i>Generate
+                            </button>
+                        </div>
+
+                        {/* Search Row */}
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
+                                <div className="input-group input-group-sm">
                                     <input
                                         type="text"
-                                        name="toDate"
-                                        id="toDate"
-                                        ref={toDateRef}
-                                        className="form-control no-date-icon"
-                                        value={data.toDate}
-                                        onChange={handleDateChange}
-                                        required
+                                        className="form-control form-control-sm"
+                                        id="searchInput"
+                                        placeholder="Search..."
+                                        value={searchQuery}
+                                        onChange={handleSearchChange}
+                                        disabled={data.salesQuotations.length === 0}
                                         autoComplete='off'
-                                        onKeyDown={(e) => handleKeyDown(e, 'generateReport')}
+                                        style={{
+                                            height: '26px',
+                                            fontSize: '0.875rem',
+                                            paddingTop: '0.75rem',
+                                            width: '100%'
+                                        }}
                                     />
                                 </div>
-                                <div className="col-md-2 d-flex align-items-end">
-                                    <button
-                                        type="button"
-                                        id="generateReport"
-                                        ref={generateReportRef}
-                                        className="btn btn-primary w-100"
-                                        onClick={handleGenerateReport}
-                                    >
-                                        <i className="fas fa-chart-line me-2"></i>Generate
-                                    </button>
-                                </div>
+                                <label
+                                    className="position-absolute"
+                                    style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    Search
+                                </label>
+                            </div>
+                        </div>
 
-                                {/* Search Row */}
-                                <div className="col-md-4">
-                                    <label htmlFor="searchInput" className="form-label">Search</label>
-                                    <div className="input-group">
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            id="searchInput"
-                                            ref={searchInputRef}
-                                            placeholder="Search quotations..."
-                                            value={searchQuery}
-                                            onChange={handleSearchChange}
-                                            disabled={data.salesQuotations.length === 0}
-                                            autoComplete='off'
-                                        />
-                                        <button
-                                            className="btn btn-outline-secondary"
-                                            type="button"
-                                            onClick={() => setSearchQuery('')}
-                                            disabled={data.salesQuotations.length === 0}
-                                        >
-                                            <i className="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Payment Mode Filter Row */}
-                                <div className="col">
-                                    <label htmlFor="paymentModeFilter" className="form-label">Payment Mode</label>
-                                    <select
-                                        className="form-select"
-                                        id="paymentModeFilter"
-                                        ref={paymentModeFilterRef}
-                                        value={paymentModeFilter}
-                                        onChange={handlePaymentModeFilterChange}
-                                        disabled={data.salesQuotations.length === 0}
-                                    >
-                                        <option value="">All</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="credit">Credit</option>
-                                    </select>
-                                </div>
+                        {/* Payment Mode Filter Row */}
+                        <div className="col-12 col-md-2">
+                            <div className="position-relative">
+                                <select
+                                    className="form-select form-select-sm"
+                                    id="paymentModeFilter"
+                                    value={paymentModeFilter}
+                                    onChange={handlePaymentModeFilterChange}
+                                    disabled={data.salesQuotations.length === 0}
+                                    style={{
+                                        height: '30px',
+                                        fontSize: '0.875rem',
+                                        paddingTop: '0.25rem',
+                                        width: '100%'
+                                    }}
+                                >
+                                    <option value="">All</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="credit">Credit</option>
+                                </select>
+                                <label
+                                    className="position-absolute"
+                                    style={{
+                                        top: '-0.5rem',
+                                        left: '0.75rem',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white',
+                                        padding: '0 0.25rem',
+                                        color: '#6c757d',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    Payment Mode
+                                </label>
                             </div>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="col-md-4 d-flex align-items-end justify-content-end gap-2">
+                        <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
                             <button
-                                className="btn btn-primary"
+                                className="btn btn-primary btn-sm d-flex align-items-center"
                                 onClick={() => navigate('/retailer/sales-quotation')}
+                                style={{
+                                    height: '30px',
+                                    padding: '0 12px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap'
+                                }}
                             >
-                                <i className="fas fa-receipt me-2"></i>New Quotation
+                                <i className="fas fa-receipt me-1"></i>New Voucher
                             </button>
                             <button
-                                className="btn btn-secondary"
+                                className="btn btn-secondary btn-sm d-flex align-items-center"
                                 onClick={() => handlePrint(false)}
                                 disabled={data.salesQuotations.length === 0}
+                                style={{
+                                    height: '30px',
+                                    padding: '0 12px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap'
+                                }}
                             >
-                                <i className="fas fa-print"></i>Print All
+                                <i className="fas fa-print me-1"></i>Print All
                             </button>
                             <button
-                                className="btn btn-secondary"
+                                className="btn btn-secondary btn-sm d-flex align-items-center"
                                 onClick={() => handlePrint(true)}
                                 disabled={data.salesQuotations.length === 0}
+                                style={{
+                                    height: '30px',
+                                    padding: '0 12px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap'
+                                }}
                             >
-                                <i className="fas fa-filter"></i>Print Filtered
+                                <i className="fas fa-filter me-1"></i>Print Filtered
+                            </button>
+                            <button
+                                className="btn btn-secondary btn-sm d-flex align-items-center"
+                                onClick={resetColumnWidths}
+                                title="Reset column widths to default"
+                                style={{
+                                    height: '30px',
+                                    padding: '0 12px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                <i className="fas fa-redo me-1" style={{ fontSize: '0.6rem' }}></i>Reset
                             </button>
                         </div>
                     </div>
 
                     {data.salesQuotations.length === 0 ? (
-                        <div className="alert alert-info text-center py-3">
+                        <div className="alert alert-info text-center py-3" style={{ fontSize: '0.875rem' }}>
                             <i className="fas fa-info-circle me-2"></i>
                             Please select date range and click "Generate Report" to view data
                         </div>
                     ) : (
                         <>
                             {/* Quotations Table */}
-                            <div className="table-responsive">
-                                <table className="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Quot. No.</th>
-                                            <th>Party Name</th>
-                                            <th>Pay Mode</th>
-                                            <th className="text-end">Sub Total</th>
-                                            <th className="text-end">Discount</th>
-                                            {data.company.vatEnabled && !data.company.isVatExempt && (
-                                                <>
-                                                    <th className="text-end">Taxable</th>
-                                                    <th className="text-end">VAT</th>
-                                                </>
-                                            )}
-                                            <th className="text-end">Round Off</th>
-                                            <th className="text-end">Total</th>
-                                            <th>User</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody ref={tableBodyRef}>
-                                        {filteredQuotations.map((quotation, index) => (
-                                            <tr
-                                                key={quotation._id}
-                                                className={`quotation-row ${selectedRowIndex === index ? 'highlighted-row' : ''}`}
-                                                onClick={() => handleRowClick(index)}
-                                                onDoubleClick={() => handleRowDoubleClick(quotation._id)}
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                <td className="compact-cell">{new NepaliDate(quotation.date).format('YYYY-MM-DD')}</td>
-                                                <td className="compact-cell">{quotation.billNumber}</td>
-                                                <td className="compact-cell">{quotation.account?.name || 'N/A'}</td>
-                                                <td className="compact-cell">{quotation.paymentMode}</td>
-                                                <td className="compact-cell text-end">{formatCurrency(quotation.subTotal)}</td>
-                                                <td className="compact-cell text-end">
-                                                    {formatCurrency(quotation.discountPercentage)}% - {formatCurrency(quotation.discountAmount)}
-                                                </td>
-                                                {data.company.vatEnabled && !data.company.isVatExempt && (
-                                                    <>
-                                                        <td className="compact-cell text-end">{formatCurrency(quotation.taxableAmount)}</td>
-                                                        <td className="compact-cell text-end">
-                                                            {formatCurrency(quotation.vatAmount)}
-                                                        </td>
-                                                    </>
-                                                )}
-                                                <td className="compact-cell text-end">{formatCurrency(quotation.roundOffAmount)}</td>
-                                                <td className="compact-cell text-end">{formatCurrency(quotation.totalAmount)}</td>
-                                                <td>{quotation.user?.name || 'N/A'}</td>
-                                                <td className='compact-cell'>
-                                                    <div className="d-flex gap-2">
-                                                        <button
-                                                            className="btn btn-sm btn-info"
-                                                            onClick={() => navigate(`/retailer/sales-quotation/${quotation._id}/print`)}
-                                                        >
-                                                            <i className="fas fa-eye"></i>View
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-sm btn-warning"
-                                                            onClick={() => navigate(`/retailer/sales-quotation/edit/${quotation._id}`)}
-                                                        >
-                                                            <i className="fas fa-edit"></i>Edit
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="fw-bold">
-                                            <td colSpan="4">Total:</td>
-                                            <td className="text-end">{formatCurrency(totals.subTotal)}</td>
-                                            <td className="text-end">{formatCurrency(totals.discount)}</td>
-                                            {data.company.vatEnabled && !data.company.isVatExempt && (
-                                                <>
-                                                    <td className="text-end">{formatCurrency(totals.taxable)}</td>
-                                                    <td className="text-end">{formatCurrency(totals.vat)}</td>
-                                                </>
-                                            )}
-                                            <td className="text-end">{formatCurrency(totals.roundOff)}</td>
-                                            <td className="text-end">{formatCurrency(totals.amount)}</td>
-                                            <td colSpan="2"></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                            <div
+                                className="table-responsive"
+                                style={{
+                                    minHeight: "400px",
+                                    maxHeight: "400px",
+                                    overflowY: "auto",
+                                    border: '1px solid #dee2e6',
+                                    backgroundColor: '#fff'
+                                }}
+                                ref={tableBodyRef}
+                            >
+                                {loading ? (
+                                    <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span className="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p className="mt-2 small text-muted" style={{ fontSize: '0.8rem' }}>
+                                            Loading quotations...
+                                        </p>
+                                    </div>
+                                ) : filteredQuotations.length === 0 ? (
+                                    <div className="d-flex flex-column justify-content-center align-items-center h-100">
+                                        <i className="bi bi-search text-muted" style={{ fontSize: '1.5rem' }}></i>
+                                        <h6 className="mt-2 text-muted" style={{ fontSize: '0.9rem' }}>
+                                            No quotations found
+                                        </h6>
+                                        <p className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                                            {searchQuery ? 'Try a different search term' : 'No data for the selected date range'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <AutoSizer>
+                                        {({ height, width }) => {
+                                            const showVatColumns = data.company?.vatEnabled && !data.company?.isVatExempt;
+                                            const totalWidth = columnWidths.date + columnWidths.quotNo + columnWidths.partyName +
+                                                columnWidths.payMode + columnWidths.subTotal + columnWidths.discount +
+                                                columnWidths.roundOff + columnWidths.total + columnWidths.user +
+                                                columnWidths.actions + (showVatColumns ? (columnWidths.taxable + columnWidths.vat) : 0);
+
+                                            return (
+                                                <div style={{
+                                                    position: 'relative',
+                                                    height: height - 0, // Adjust for footer
+                                                    width: Math.max(width, totalWidth),
+                                                    // overflowX: 'auto'
+                                                }}>
+                                                    <TableHeader />
+                                                    <List
+                                                        height={height - 0}
+                                                        itemCount={filteredQuotations.length}
+                                                        itemSize={28}
+                                                        width={Math.max(width, totalWidth)}
+                                                        itemData={{
+                                                            quotations: filteredQuotations,
+                                                            selectedRowIndex,
+                                                            formatCurrency,
+                                                            navigate,
+                                                            handleRowClick
+                                                        }}
+                                                    >
+                                                        {TableRow}
+                                                    </List>
+                                                </div>
+                                            );
+                                        }}
+                                    </AutoSizer>
+                                )}
                             </div>
+
+                            {/* Footer with totals */}
+                            <div
+                                className="d-flex bg-light border-top sticky-bottom"
+                                style={{
+                                    zIndex: 2,
+                                    height: '10px',
+                                    // minWidth: '100%',
+                                    borderTop: '2px solid #dee2e6'
+                                }}
+                            >
+                                <div
+                                    className="d-flex align-items-center px-1"
+                                    style={{
+                                        width: `${columnWidths.date + columnWidths.quotNo + columnWidths.partyName + columnWidths.payMode}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
+                                >
+                                    <strong style={{ fontSize: '0.75rem' }}>Total:</strong>
+                                </div>
+
+                                <div
+                                    className="d-flex align-items-center justify-content-end px-1 border-start"
+                                    style={{
+                                        width: `${columnWidths.subTotal}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
+                                >
+                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.subTotal)}</strong>
+                                </div>
+
+                                <div
+                                    className="d-flex align-items-center justify-content-end px-1 border-start"
+                                    style={{
+                                        width: `${columnWidths.discount}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
+                                >
+                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.discount)}</strong>
+                                </div>
+
+                                {data.company?.vatEnabled && !data.company?.isVatExempt && (
+                                    <>
+                                        <div
+                                            className="d-flex align-items-center justify-content-end px-1 border-start"
+                                            style={{
+                                                width: `${columnWidths.taxable}px`,
+                                                flexShrink: 0,
+                                                height: '100%'
+                                            }}
+                                        >
+                                            <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.taxable)}</strong>
+                                        </div>
+
+                                        <div
+                                            className="d-flex align-items-center justify-content-end px-1 border-start"
+                                            style={{
+                                                width: `${columnWidths.vat}px`,
+                                                flexShrink: 0,
+                                                height: '100%'
+                                            }}
+                                        >
+                                            <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.vat)}</strong>
+                                        </div>
+                                    </>
+                                )}
+
+                                <div
+                                    className="d-flex align-items-center justify-content-end px-1 border-start"
+                                    style={{
+                                        width: `${columnWidths.roundOff}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
+                                >
+                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.roundOff)}</strong>
+                                </div>
+
+                                <div
+                                    className="d-flex align-items-center justify-content-end px-1 border-start"
+                                    style={{
+                                        width: `${columnWidths.total}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
+                                >
+                                    <strong style={{ fontSize: '0.75rem' }}>{formatCurrency(totals.amount)}</strong>
+                                </div>
+
+                                <div
+                                    className="d-flex align-items-center px-1 border-start"
+                                    style={{
+                                        width: `${columnWidths.user + columnWidths.actions}px`,
+                                        flexShrink: 0,
+                                        height: '100%'
+                                    }}
+                                >
+                                    {/* Empty space */}
+                                </div>
+                            </div>
+
+                            {/* Summary Info */}
+                            {/* <div className="mt-0 d-flex justify-content-between align-items-center" style={{ fontSize: '0.75rem' }}>
+                                <div className="text-muted">
+                                    Showing {filteredQuotations.length} of {data.salesQuotations.length} quotations
+                                    {searchQuery && ` (filtered by: "${searchQuery}")`}
+                                </div>
+                            </div> */}
                         </>
                     )}
                 </div>

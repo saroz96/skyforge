@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import React, { useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './App.css'
+// import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingProvider, useLoading } from './context/LoadingContext';
 import { setupInterceptors } from './components/services/api';
@@ -124,6 +124,10 @@ import ItemsImportResults from './components/retailer/Items/ItemsImportResults';
 import AccountsImport from './components/retailer/accounts/AccountsImport';
 import AccountsImportResults from './components/retailer/accounts/AccountsImportResults';
 import StockAdjustmentPrint from './components/retailer/stockAdjustment/Print';
+import AttendanceDashboard from './components/attendance/AttendanceDashboard';
+import AdminDashboard from './components/systemOwner/AdminDashboard';
+import RoleRedirect from './components/RoleRedirect';
+import Clients from './components/systemOwner/pages/Clients';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -153,11 +157,29 @@ function AppContent() {
             />
 
             {/* Protected Routes */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <RoleRedirect />
+              </ProtectedRoute>
+            } />
             <Route
-              path="/dashboard"
+              path="/user-dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/admin-dashboard" element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route
+              path="/attendance"
+              element={
+                <ProtectedRoute>
+                  <AttendanceDashboard />
                 </ProtectedRoute>
               }
             />
@@ -1024,6 +1046,18 @@ function AppContent() {
               }
             />
             {/**======================================================*/}
+
+            {/**======================System Owner */}
+            <Route
+              path="/admin-clients"
+              element={
+                <ProtectedRoute>
+                  <Clients />
+                </ProtectedRoute>
+              }
+            />
+            {/**======================================================*/}
+
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

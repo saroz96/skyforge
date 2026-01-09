@@ -383,7 +383,7 @@ router.get('/purchase-register', isLoggedIn, ensureAuthenticated, ensureCompanyS
     }
 });
 
-router.post('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, checkDemoPeriod, checkFiscalYearDateRange, async (req, res) => {
+router.post('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     if (req.tradeType === 'retailer') {
         const session = await mongoose.startSession();
         session.startTransaction();

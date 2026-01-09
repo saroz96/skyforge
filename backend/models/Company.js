@@ -42,9 +42,9 @@ const companySchema = new mongoose.Schema({
         default: false // Default is VAT disabled
     },
     storeManagement: {
-    type: Boolean,
-    default: false // Default to disabled
-  },
+        type: Boolean,
+        default: false // Default to disabled
+    },
     notificationEmails: {
         type: [String],
         validate: {
@@ -54,6 +54,41 @@ const companySchema = new mongoose.Schema({
                 );
             },
             message: props => `${props.value} contains invalid email addresses`
+        }
+    },
+    
+    attendanceSettings: {
+        geoFencingEnabled: {
+            type: Boolean,
+            default: false
+        },
+        officeLocations: [{
+            name: String, // "Main Office", "Branch 1", etc.
+            coordinates: {
+                lat: Number,
+                lng: Number
+            },
+            radius: { // in meters
+                type: Number,
+                default: 100
+            },
+            address: String,
+            isActive: {
+                type: Boolean,
+                default: true
+            }
+        }],
+        workingHours: {
+            startTime: String, // "09:00"
+            endTime: String,   // "17:00"
+            gracePeriod: {     // in minutes
+                type: Number,
+                default: 15
+            }
+        },
+        autoClockOut: {
+            enabled: Boolean,
+            time: String // "18:00"
         }
     },
 }, { timestamps: true });

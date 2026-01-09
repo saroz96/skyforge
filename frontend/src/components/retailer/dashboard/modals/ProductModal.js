@@ -1,84 +1,421 @@
 // ProductModal.js
-import React, { useState, useEffect, useRef } from 'react';
+// import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+// import axios from 'axios';
+// import { Modal } from 'react-bootstrap';
+// import { usePageNotRefreshContext } from '../../PageNotRefreshContext';
+// import VirtualizedProductList from '../../../VirtualizedProductList';
+// import ProductDetailsModal from './ProductDetailsModal';
+// import BatchUpdateModal from './BatchUpdateModal';
+
+// const ProductModal = ({ onClose }) => {
+//     const { productDraftSave, setProductDraftSave } = usePageNotRefreshContext();
+
+//     // Add states for virtualized list
+//     const [isSearching, setIsSearching] = useState(false);
+//     const [searchResults, setSearchResults] = useState([]);
+//     const [searchPage, setSearchPage] = useState(1);
+//     const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
+//     const [totalSearchProducts, setTotalSearchProducts] = useState(0);
+//     const [productSearchQuery, setProductSearchQuery] = useState('');
+
+//     // Other states
+//     const [selectedProduct, setSelectedProduct] = useState(null);
+//     const [showDetailsModal, setShowDetailsModal] = useState(false);
+//     const [showBatchUpdateModal, setShowBatchUpdateModal] = useState(false);
+//     const [batchToUpdate, setBatchToUpdate] = useState(null);
+
+//     const searchInputRef = useRef(null);
+
+//     const api = axios.create({
+//         baseURL: process.env.REACT_APP_API_BASE_URL,
+//         withCredentials: true,
+//     });
+
+//     // Fetch products from backend with search functionality
+//     const fetchProductsFromBackend = useCallback(async (searchTerm = '', page = 1) => {
+//         try {
+//             setIsSearching(true);
+//             const response = await api.get('/api/retailer/items/search', {
+//                 params: {
+//                     search: searchTerm,
+//                     page: page,
+//                     limit: searchTerm.trim() ? 15 : 25,
+//                     sortBy: searchTerm.trim() ? 'relevance' : 'name'
+//                 }
+//             });
+
+//             if (response.data.success) {
+//                 const productsWithStock = response.data.items.map(item => ({
+//                     ...item,
+//                     currentStock: item.currentStock || 0,
+//                     latestPrice: item.stockEntries && item.stockEntries.length > 0
+//                         ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0
+//                         : 0
+//                 }));
+
+//                 if (page === 1) {
+//                     setSearchResults(productsWithStock);
+//                 } else {
+//                     setSearchResults(prev => [...prev, ...productsWithStock]);
+//                 }
+//                 setHasMoreSearchResults(response.data.pagination.hasNextPage);
+//                 setTotalSearchProducts(response.data.pagination.totalItems);
+//                 setSearchPage(page);
+//             }
+//         } catch (error) {
+//             console.error('Error fetching products:', error);
+//         } finally {
+//             setIsSearching(false);
+//         }
+//     }, []);
+
+//     // Load more products for infinite scrolling
+//     const loadMoreSearchProducts = useCallback(() => {
+//         if (!isSearching) {
+//             fetchProductsFromBackend(productSearchQuery, searchPage + 1);
+//         }
+//     }, [isSearching, productSearchQuery, searchPage, fetchProductsFromBackend]);
+
+//     // Fetch products when modal opens
+//     useEffect(() => {
+//         setSearchPage(1);
+//         fetchProductsFromBackend(productSearchQuery, 1);
+//     }, [productSearchQuery]);
+
+//     // Load initial products when modal opens
+//     useEffect(() => {
+//         // Try to load from draft first
+//         if (productDraftSave?.products) {
+//             setSearchResults(productDraftSave.products);
+//             setTotalSearchProducts(productDraftSave.products?.length || 0);
+//             setProductSearchQuery(productDraftSave.searchQuery || '');
+//         } else {
+//             // Fetch fresh data
+//             fetchProductsFromBackend('', 1);
+//         }
+//     }, []);
+
+//     // Save to draft when data changes
+//     useEffect(() => {
+//         setProductDraftSave({
+//             products: searchResults,
+//             searchQuery: productSearchQuery,
+//             page: searchPage
+//         });
+//     }, [searchResults, productSearchQuery, searchPage, setProductDraftSave]);
+
+//     const handleSearch = (e) => {
+//         setProductSearchQuery(e.target.value);
+//     };
+
+//     const handleProductSelect = (product) => {
+//         setSelectedProduct(product);
+//         setShowDetailsModal(true);
+//     };
+
+//     // const handleBatchUpdate = (batchIndex) => {
+//     //     setBatchToUpdate({
+//     //         index: batchIndex,
+//     //         ...selectedProduct.stockEntries[batchIndex]
+//     //     });
+//     //     setShowBatchUpdateModal(true);
+//     // };
+
+//     // In ProductModal.js, update the handleBatchUpdate function:
+//     const handleBatchUpdate = (batchIndex) => {
+//         console.log('handleBatchUpdate called with index:', batchIndex);
+
+//         // Make sure we have the selected product
+//         if (!selectedProduct) {
+//             console.error('No selected product found');
+//             return;
+//         }
+
+//         // Find the batch data for this index
+//         const batchData = selectedProduct.stockEntries && selectedProduct.stockEntries[batchIndex];
+
+//         if (!batchData) {
+//             console.error('Batch data not found for index:', batchIndex);
+//             console.error('Stock entries:', selectedProduct.stockEntries);
+//             return;
+//         }
+
+//         console.log('Setting batch to update:', {
+//             index: batchIndex,
+//             batchNumber: batchData.batchNumber,
+//             expiryDate: batchData.expiryDate,
+//             price: batchData.price
+//         });
+
+//         setBatchToUpdate({
+//             index: batchIndex,
+//             batchNumber: batchData.batchNumber,
+//             expiryDate: batchData.expiryDate,
+//             price: batchData.price,
+//             ...batchData
+//         });
+//         setShowBatchUpdateModal(true);
+//     };
+
+//     const handleKeyNavigation = (e) => {
+//         if (e.key === 'Escape') {
+//             e.preventDefault();
+//             onClose();
+//         }
+//     };
+
+//     const handleModalKeyDown = (e) => {
+//         if (e.key === 'Escape') {
+//             e.preventDefault();
+//             onClose();
+//         } else if (e.key === 'ArrowDown') {
+//             e.preventDefault();
+//             // Focus on first item in the list
+//             const firstItem = document.querySelector('.dropdown-item');
+//             if (firstItem) {
+//                 firstItem.focus();
+//             }
+//         }
+//     };
+
+//     // Determine which data to display
+//     const displayProducts = useMemo(() => {
+//         if (productSearchQuery.trim()) {
+//             return searchResults.slice(0, 15); // Limit to 15 when searching
+//         }
+//         return searchResults;
+//     }, [searchResults, productSearchQuery]);
+
+//     return (
+//         <>
+//             <div className="modal fade show" id="productModal" tabIndex="-1" style={{ display: 'block' }}>
+//                 <div className="modal-dialog modal-xl modal-dialog-centered">
+//                     <div className="modal-content" style={{ height: '440px' }}>
+//                         <div className="modal-header py-1">
+//                             <p className="modal-title mb-0" id="productModalLabel" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+//                                 Product Details
+//                             </p>
+//                             <button
+//                                 type="button"
+//                                 className="btn-close"
+//                                 onClick={onClose}
+//                                 style={{ fontSize: '0.7rem' }}
+//                             ></button>
+//                         </div>
+//                         <div className="p-2 bg-white sticky-top">
+//                             <input
+//                                 ref={searchInputRef}
+//                                 type="text"
+//                                 id="searchProduct"
+//                                 className="form-control form-control-sm"
+//                                 placeholder="Search items by item code, name & category..."
+//                                 autoFocus
+//                                 autoComplete='off'
+//                                 value={productSearchQuery}
+//                                 onChange={handleSearch}
+//                                 onKeyDown={handleModalKeyDown}
+//                                 style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+//                             />
+//                         </div>
+//                         <div className="modal-body p-0">
+//                             <div style={{ height: 'calc(400px - 100px)' }}>
+//                                 <div
+//                                     className="w-100 h-100"
+//                                     style={{
+//                                         border: '1px solid #dee2e6',
+//                                         borderRadius: '0.25rem',
+//                                         overflow: 'hidden'
+//                                     }}
+//                                 >
+//                                     <div className="dropdown-header" style={{
+//                                         display: 'grid',
+//                                         gridTemplateColumns: 'repeat(7, 1fr)',
+//                                         alignItems: 'center',
+//                                         padding: '0 8px',
+//                                         height: '20px',
+//                                         background: '#f0f0f0',
+//                                         fontWeight: 'bold',
+//                                         borderBottom: '1px solid #dee2e6',
+//                                         position: 'sticky',
+//                                         top: 0,
+//                                         zIndex: 1,
+//                                         fontSize: '0.7rem'
+//                                     }}>
+//                                         <div><strong>#</strong></div>
+//                                         <div><strong>HSN</strong></div>
+//                                         <div><strong>Description</strong></div>
+//                                         <div><strong>Category</strong></div>
+//                                         <div><strong>Stock</strong></div>
+//                                         <div><strong>Unit</strong></div>
+//                                         <div><strong>Rate</strong></div>
+//                                     </div>
+
+//                                     {displayProducts.length > 0 ? (
+//                                         <VirtualizedProductList
+//                                             products={displayProducts}
+//                                             onProductClick={handleProductSelect}
+//                                             searchRef={searchInputRef}
+//                                             hasMore={hasMoreSearchResults && !productSearchQuery.trim()}
+//                                             isSearching={isSearching}
+//                                             onLoadMore={loadMoreSearchProducts}
+//                                             totalProducts={totalSearchProducts}
+//                                             page={searchPage}
+//                                             searchQuery={productSearchQuery}
+//                                         />
+//                                     ) : (
+//                                         <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+//                                             {isSearching ? 'Loading products...' : 'No products found'}
+//                                         </div>
+//                                     )}
+//                                 </div>
+//                             </div>
+//                         </div>
+//                         <div className="modal-footer py-1" style={{ fontSize: '0.75rem' }}>
+//                             <div className="d-flex justify-content-between w-100">
+//                                 <div>
+//                                     Showing {displayProducts.length} of {totalSearchProducts} products
+//                                     {productSearchQuery.trim() && displayProducts.length >= 15 && ' (Showing first 15 matches)'}
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
+//             </div>
+
+//             {showDetailsModal && selectedProduct && (
+//                 <ProductDetailsModal
+//                     product={selectedProduct}
+//                     onClose={() => setShowDetailsModal(false)}
+//                     onBatchUpdate={handleBatchUpdate}
+//                 />
+//             )}
+
+//             {showBatchUpdateModal && batchToUpdate && (
+//                 <BatchUpdateModal
+//                     product={selectedProduct}
+//                     batch={batchToUpdate}
+//                     onClose={() => setShowBatchUpdateModal(false)}
+//                     onUpdate={() => fetchProductsFromBackend(productSearchQuery, 1)}
+//                 />
+//             )}
+
+//             {/* Backdrop */}
+//             <div className="modal-backdrop fade show" onClick={onClose}></div>
+//         </>
+//     );
+// };
+
+// export default ProductModal;
+
+//----------------------------------------------------------end
+
+// ProductModal.js
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import ProductList from './ProductList';
+import { usePageNotRefreshContext } from '../../PageNotRefreshContext';
+import VirtualizedProductList from '../../../VirtualizedProductList';
 import ProductDetailsModal from './ProductDetailsModal';
 import BatchUpdateModal from './BatchUpdateModal';
-import { Modal } from 'react-bootstrap';
-import { usePageNotRefreshContext } from '../../PageNotRefreshContext';
 
 const ProductModal = ({ onClose }) => {
     const { productDraftSave, setProductDraftSave } = usePageNotRefreshContext();
-    const [products, setProducts] = useState([]);
-    const [filteredProducts, setFilteredProducts] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
+
+    // Add states for virtualized list
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchPage, setSearchPage] = useState(1);
+    const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
+    const [totalSearchProducts, setTotalSearchProducts] = useState(0);
+    const [productSearchQuery, setProductSearchQuery] = useState('');
+
+    // Other states
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const [currentFocus, setCurrentFocus] = useState(0);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [showBatchUpdateModal, setShowBatchUpdateModal] = useState(false);
     const [batchToUpdate, setBatchToUpdate] = useState(null);
-    const [loadingState, setLoadingState] = useState({
-        isLoading: !productDraftSave,
-        error: null,
-        isFresh: false
-    });
+
     const searchInputRef = useRef(null);
-    const scrollDebounceRef = useRef(null);
 
-    useEffect(() => {
-        if (!loadingState.isLoading && productDraftSave) {
-            setProducts(productDraftSave.products);
-            setFilteredProducts(productDraftSave.products);
-        }
-    }, [loadingState.isLoading, productDraftSave]);
+    const api = axios.create({
+        baseURL: process.env.REACT_APP_API_BASE_URL,
+        withCredentials: true,
+    });
 
-    useEffect(() => {
-        fetchProducts();
-        const interval = setInterval(fetchProducts, 300000);
-        return () => clearInterval(interval);
-    }, []); // Removed dependencies to prevent unnecessary fetches
-
-    const fetchProducts = async () => {
-        if (!productDraftSave) {
-            setLoadingState(prev => ({ ...prev, isLoading: true }));
-        }
-
+    // Fetch products from backend with search functionality
+    const fetchProductsFromBackend = useCallback(async (searchTerm = '', page = 1) => {
         try {
-            const response = await axios.get('/api/retailer/products');
-            if (response.data.success) {
-                const freshProducts = response.data.data;
-                setProducts(freshProducts);
-                // Only update filteredProducts if there's no active search
-                if (!searchQuery) {
-                    setFilteredProducts(freshProducts);
+            setIsSearching(true);
+            const response = await api.get('/api/retailer/items/search', {
+                params: {
+                    search: searchTerm,
+                    page: page,
+                    limit: searchTerm.trim() ? 15 : 25,
+                    sortBy: searchTerm.trim() ? 'relevance' : 'name'
                 }
-                setProductDraftSave({ products: freshProducts });
-                setLoadingState({ isLoading: false, error: null, isFresh: true });
-            } else {
-                throw new Error(response.data.error || 'Failed to fetch products');
+            });
+
+            if (response.data.success) {
+                const productsWithStock = response.data.items.map(item => ({
+                    ...item,
+                    currentStock: item.currentStock || 0,
+                    latestPrice: item.stockEntries && item.stockEntries.length > 0
+                        ? item.stockEntries.sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.price || 0
+                        : 0
+                }));
+
+                if (page === 1) {
+                    setSearchResults(productsWithStock);
+                } else {
+                    setSearchResults(prev => [...prev, ...productsWithStock]);
+                }
+                setHasMoreSearchResults(response.data.pagination.hasNextPage);
+                setTotalSearchProducts(response.data.pagination.totalItems);
+                setSearchPage(page);
             }
         } catch (error) {
             console.error('Error fetching products:', error);
-            if (!productDraftSave) {
-                setLoadingState({
-                    isLoading: false,
-                    error: error.response?.data?.error || 'Error fetching products. Please try again.',
-                    isFresh: false
-                });
-            }
+        } finally {
+            setIsSearching(false);
         }
-    };
+    }, []);
+
+    // Load more products for infinite scrolling
+    const loadMoreSearchProducts = useCallback(() => {
+        if (!isSearching) {
+            fetchProductsFromBackend(productSearchQuery, searchPage + 1);
+        }
+    }, [isSearching, productSearchQuery, searchPage, fetchProductsFromBackend]);
+
+    // Fetch products when modal opens
+    useEffect(() => {
+        setSearchPage(1);
+        fetchProductsFromBackend(productSearchQuery, 1);
+    }, [productSearchQuery]);
+
+    // Load initial products when modal opens
+    useEffect(() => {
+        // Try to load from draft first
+        if (productDraftSave?.products) {
+            setSearchResults(productDraftSave.products);
+            setTotalSearchProducts(productDraftSave.products?.length || 0);
+            setProductSearchQuery(productDraftSave.searchQuery || '');
+        } else {
+            // Fetch fresh data
+            fetchProductsFromBackend('', 1);
+        }
+    }, []);
+
+    // Save to draft when data changes
+    useEffect(() => {
+        setProductDraftSave({
+            products: searchResults,
+            searchQuery: productSearchQuery,
+            page: searchPage
+        });
+    }, [searchResults, productSearchQuery, searchPage, setProductDraftSave]);
 
     const handleSearch = (e) => {
-        const query = e.target.value.toLowerCase();
-        setSearchQuery(query);
-        const filtered = products.filter(product =>
-            product.name.toLowerCase().includes(query) ||
-            (product.category && product.category.toLowerCase().includes(query)) ||
-            product.uniqueNumber.toString().toLowerCase().includes(query)
-        );
-        setFilteredProducts(filtered);
-        setCurrentFocus(0);
+        setProductSearchQuery(e.target.value);
     };
 
     const handleProductSelect = (product) => {
@@ -87,165 +424,220 @@ const ProductModal = ({ onClose }) => {
     };
 
     const handleBatchUpdate = (batchIndex) => {
+        console.log('handleBatchUpdate called with index:', batchIndex);
+
+        // Make sure we have the selected product
+        if (!selectedProduct) {
+            console.error('No selected product found');
+            return;
+        }
+
+        // Find the batch data for this index
+        const batchData = selectedProduct.stockEntries && selectedProduct.stockEntries[batchIndex];
+
+        if (!batchData) {
+            console.error('Batch data not found for index:', batchIndex);
+            console.error('Stock entries:', selectedProduct.stockEntries);
+            return;
+        }
+
+        console.log('Setting batch to update:', {
+            index: batchIndex,
+            batchNumber: batchData.batchNumber,
+            expiryDate: batchData.expiryDate,
+            price: batchData.price
+        });
+
         setBatchToUpdate({
             index: batchIndex,
-            ...selectedProduct.stockEntries[batchIndex]
+            batchNumber: batchData.batchNumber,
+            expiryDate: batchData.expiryDate,
+            price: batchData.price,
+            ...batchData
         });
         setShowBatchUpdateModal(true);
     };
 
-    const handleKeyNavigation = (e) => {
-        if (e.key === 'ArrowDown') {
+    const handleModalKeyDown = (e) => {
+        if (e.key === 'Escape') {
             e.preventDefault();
-            const newFocus = (currentFocus + 1) % filteredProducts.length;
-            setCurrentFocus(newFocus);
-        } else if (e.key === 'ArrowUp') {
+            onClose();
+        } else if (e.key === 'ArrowDown') {
             e.preventDefault();
-            const newFocus = (currentFocus - 1 + filteredProducts.length) % filteredProducts.length;
-            setCurrentFocus(newFocus);
-        } else if (e.key === 'Enter' && filteredProducts[currentFocus]) {
-            e.preventDefault();
-            handleProductSelect(filteredProducts[currentFocus]);
+            // Focus on first item in the list
+            const firstItem = document.querySelector('.dropdown-item');
+            if (firstItem) {
+                firstItem.focus();
+            }
         }
     };
 
     // Determine which data to display
-    const displayProducts = loadingState.isFresh ? products :
-        (productDraftSave?.products || products);
-    const displayFilteredProducts = loadingState.isFresh ? 
-        (searchQuery ? filteredProducts : products) :
-        (productDraftSave?.products ?
-            (searchQuery ? 
-                productDraftSave.products.filter(p =>
-                    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                    p.uniqueNumber.toString().toLowerCase().includes(searchQuery.toLowerCase())
-                ) : 
-                productDraftSave.products
-            ) :
-            filteredProducts);
-
-    if (loadingState.isLoading && !productDraftSave) {
-        return (
-            <Modal show={true} onHide={onClose} size="xl" centered backdrop="static">
-                <Modal.Header closeButton className="bg-primary text-white">
-                    <Modal.Title>Product Details</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-                    <div className="text-center">
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-2">Loading...</p>
-                    </div>
-                </Modal.Body>
-            </Modal>
-        );
-    }
-
-    if (loadingState.error && !productDraftSave) {
-        return (
-            <Modal show={true} onHide={onClose} size="xl" centered backdrop="static">
-                <Modal.Header closeButton className="bg-primary text-white">
-                    <Modal.Title>Product Details</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-                    <div className="alert alert-danger">
-                        {loadingState.error}
-                        <button className="btn btn-sm btn-danger ms-2" onClick={fetchProducts}>
-                            Retry
-                        </button>
-                    </div>
-                </Modal.Body>
-            </Modal>
-        );
-    }
+    const displayProducts = useMemo(() => {
+        if (productSearchQuery.trim()) {
+            return searchResults.slice(0, 15); // Limit to 15 when searching
+        }
+        return searchResults;
+    }, [searchResults, productSearchQuery]);
 
     return (
         <>
-            <Modal
-                show={true}
-                onHide={onClose}    
-                size="lg"
-                centered
-                backdrop="static"
-                dialogClassName="modal-custom-width"
-            >
-                <Modal.Header closeButton className="bg-primary text-white">
-                    <Modal.Title>Product Details</Modal.Title>
-                </Modal.Header>
-
-                <Modal.Body style={{
-                    overflowY: 'auto',
-                    height: '600px',
-                    display: 'flex',
-                    flexDirection: 'column'
-                }}>
-                    <div className="form-group mb-4">
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            className="form-control"
-                            placeholder="Search items by item code, name & category..."
-                            value={searchQuery}
-                            onChange={handleSearch}
-                            onKeyDown={handleKeyNavigation}
-                            autoFocus
-                        />
-                    </div>
-
-                    <div
-                        style={{
-                            overflow: 'hidden',
-                            flex: '1',
-                            minHeight: '200px',
-                            position: 'relative'
-                        }}
-                        tabIndex="0"
-                        onKeyDown={handleKeyNavigation}
-                    >
-                        {displayFilteredProducts.length > 0 ? (
-                            <ProductList
-                                products={displayFilteredProducts}
-                                currentFocus={currentFocus}
-                                onProductSelect={handleProductSelect}
-                                scrollDebounceRef={scrollDebounceRef}
+            {/* Product Selection Modal */}
+            <div className="modal fade show" id="productModal" tabIndex="-1" style={{ display: 'block' }}>
+                <div className="modal-dialog modal-xl modal-dialog-centered">
+                    <div className="modal-content" style={{ height: '440px' }}>
+                        <div className="modal-header py-1">
+                            <p className="modal-title mb-0" id="productModalLabel" style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                Product Details
+                            </p>
+                            <button
+                                type="button"
+                                className="btn-close"
+                                onClick={onClose}
+                                style={{ fontSize: '0.7rem' }}
+                            ></button>
+                        </div>
+                        <div className="p-2 bg-white sticky-top">
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                id="searchProduct"
+                                className="form-control form-control-sm"
+                                placeholder="Search items by item code, name & category..."
+                                autoFocus
+                                autoComplete='off'
+                                value={productSearchQuery}
+                                onChange={handleSearch}
+                                onKeyDown={handleModalKeyDown}
+                                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
                             />
-                        ) : (
-                            <div className="d-flex justify-content-center align-items-center h-100">
-                                <p className="text-muted">
-                                    {searchQuery ? 'No products match your search' : 'No products available'}
-                                </p>
+                        </div>
+                        <div className="modal-body p-0">
+                            <div style={{ height: 'calc(400px - 100px)' }}>
+                                <div
+                                    className="w-100 h-100"
+                                    style={{
+                                        border: '1px solid #dee2e6',
+                                        borderRadius: '0.25rem',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                                    <div className="dropdown-header" style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(7, 1fr)',
+                                        alignItems: 'center',
+                                        padding: '0 8px',
+                                        height: '20px',
+                                        background: '#f0f0f0',
+                                        fontWeight: 'bold',
+                                        borderBottom: '1px solid #dee2e6',
+                                        position: 'sticky',
+                                        top: 0,
+                                        zIndex: 1,
+                                        fontSize: '0.7rem'
+                                    }}>
+                                        <div><strong>#</strong></div>
+                                        <div><strong>HSN</strong></div>
+                                        <div><strong>Description</strong></div>
+                                        <div><strong>Category</strong></div>
+                                        <div><strong>Stock</strong></div>
+                                        <div><strong>Unit</strong></div>
+                                        <div><strong>Rate</strong></div>
+                                    </div>
+
+                                    {displayProducts.length > 0 ? (
+                                        <VirtualizedProductList
+                                            products={displayProducts}
+                                            onProductClick={handleProductSelect}
+                                            searchRef={searchInputRef}
+                                            hasMore={hasMoreSearchResults && !productSearchQuery.trim()}
+                                            isSearching={isSearching}
+                                            onLoadMore={loadMoreSearchProducts}
+                                            totalProducts={totalSearchProducts}
+                                            page={searchPage}
+                                            searchQuery={productSearchQuery}
+                                        />
+                                    ) : (
+                                        <div className="text-center py-3 text-muted" style={{ fontSize: '0.75rem' }}>
+                                            {isSearching ? 'Loading products...' : 'No products found'}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        )}
+                        </div>
+                        <div className="modal-footer py-1" style={{ fontSize: '0.75rem' }}>
+                            <div className="d-flex justify-content-between w-100">
+                                <div>
+                                    Showing {displayProducts.length} of {totalSearchProducts} products
+                                    {productSearchQuery.trim() && displayProducts.length >= 15 && ' (Showing first 15 matches)'}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </Modal.Body>
-            </Modal>
+                </div>
+            </div>
 
+            {/* Product Details Modal */}
             {showDetailsModal && selectedProduct && (
-                <ProductDetailsModal
-                    product={selectedProduct}
-                    onClose={() => setShowDetailsModal(false)}
-                    onBatchUpdate={handleBatchUpdate}
-                />
+                <div className="modal fade show" style={{ display: 'block' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header py-2">
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
+                                    {selectedProduct.name} Details
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowDetailsModal(false)}
+                                    style={{ fontSize: '0.7rem' }}
+                                ></button>
+                            </div>
+                            <div className="modal-body" style={{ fontSize: '0.8rem' }}>
+                                <ProductDetailsModal
+                                    product={selectedProduct}
+                                    onClose={() => setShowDetailsModal(false)}
+                                    onBatchUpdate={handleBatchUpdate}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-backdrop fade show" onClick={() => setShowDetailsModal(false)}></div>
+                </div>
             )}
 
+            {/* Batch Update Modal */}
             {showBatchUpdateModal && batchToUpdate && (
-                <BatchUpdateModal
-                    product={selectedProduct}
-                    batch={batchToUpdate}
-                    onClose={() => setShowBatchUpdateModal(false)}
-                    onUpdate={fetchProducts}
-                />
+                <div className="modal fade show" style={{ display: 'block' }}>
+                    <div className="modal-dialog modal-md modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header py-2">
+                                <h5 className="modal-title" style={{ fontSize: '0.9rem' }}>
+                                    Update Batch Details
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowBatchUpdateModal(false)}
+                                    style={{ fontSize: '0.7rem' }}
+                                ></button>
+                            </div>
+                            <div className="modal-body" style={{ fontSize: '0.8rem' }}>
+                                <BatchUpdateModal
+                                    product={selectedProduct}
+                                    batch={batchToUpdate}
+                                    onClose={() => setShowBatchUpdateModal(false)}
+                                    onUpdate={() => fetchProductsFromBackend(productSearchQuery, 1)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-backdrop fade show" onClick={() => setShowBatchUpdateModal(false)}></div>
+                </div>
             )}
 
-            <style jsx global>{`
-                .modal-custom-width {
-                    max-width: calc(100% - 400px) !important;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-            `}</style>
+            {/* Main Modal Backdrop */}
+            <div className="modal-backdrop fade show" onClick={onClose}></div>
         </>
     );
 };

@@ -50,7 +50,17 @@ const creditNoteRoutes = require('./routes/retailer/creditNote');
 const confirmationRoutes = require('./routes/retailer/vatConfirmation');
 const trialBalanceRoutes = require('./routes/retailer/trialBalance');
 
+const thermalPrinterRoutes = require('./routes/retailer/thermalPrinter');
+
 const backupRoutes = require('./routes/backupRoutes');
+
+const attendanceRoutes = require('./routes/attendance');
+const dutyScheduleRoutes = require('./routes/dutySchedule');
+
+//------------------System Owner------------------------------
+const clientsRoutes=require('./routes/systemOwner/clients');
+
+//------------------------------------------------------------
 
 // Initialize Passport
 initializePassport(passport);
@@ -130,7 +140,11 @@ app.use('/api/auth', userRoutes);
 app.use('/api', companyRoutes);
 app.use('/api', fiscalYearRoutes);
 app.use('/api', networkStatusRoutes);
+app.use('/api/duty-schedule', dutyScheduleRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
+
+app.use('/api/retailer', thermalPrinterRoutes);
 // Retailer routes
 app.use('/api/retailer', itemRoutes);
 app.use('/api/retailer', categoryRoutes);
@@ -162,6 +176,10 @@ app.use('/api/retailer', trialBalanceRoutes);
 app.use('/api/retailer/vat-confirmation', confirmationRoutes);
 
 app.use('/api/backup', backupRoutes);
+
+//------------------System Owner------------------------------
+app.use('/api/', clientsRoutes);
+//------------------------------------------------------------
 
 
 // Only handle non-API routes with React

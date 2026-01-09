@@ -15,6 +15,7 @@ import {
 import { FaBarcode, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
 import NotificationToast from '../../NotificationToast';
+import ItemBarcode from './ItemBarcode';
 
 const ViewItems = () => {
     const { id } = useParams();
@@ -43,65 +44,6 @@ const ViewItems = () => {
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
-
-    // useEffect(() => {
-    //     const fetchItemData = async () => {
-    //         try {
-    //             // First try to get the item data which might include fiscal year info
-    //             const itemResponse = await api.get(`/api/retailer/items/${id}`);
-    //             if (!itemResponse.data || !itemResponse.data.data) {
-    //                 throw new Error('Item data not found in response');
-    //             }
-
-    //             const { data: itemData } = itemResponse.data;
-
-    //             // Try to get fiscal year from the item data first
-    //             let fiscalYear = itemData.item.fiscalYear;
-
-    //             // Find the opening stock data for the current fiscal year
-    //             const currentOpeningStock = itemData.item.openingStockByFiscalYear?.find(
-    //                 stock => stock.fiscalYear &&
-    //                     (stock.fiscalYear._id?.toString() === fiscalYear?._id?.toString() ||
-    //                         stock.fiscalYear.toString() === fiscalYear?._id?.toString())
-    //             );
-
-    //             const processedItem = {
-    //                 ...itemData.item,
-    //                 name: itemData.item.name || 'N/A',
-    //                 hscode: itemData.item.hscode || 'N/A',
-    //                 vatStatus: itemData.item.vatStatus || 'N/A',
-    //                 status: itemData.item.status || 'active',
-    //                 currentOpeningStock: currentOpeningStock || {
-    //                     openingStock: 0,
-    //                     openingStockValue: '0.00',
-    //                     salesPrice: 0,
-    //                     purchasePrice: '0.00'
-    //                 },
-    //                 stockEntries: itemData.stockEntries || [],
-    //                 printPreferences: itemData.printPreferences || {
-    //                     labelWidth: 70,
-    //                     labelHeight: 40,
-    //                     labelsPerRow: 3,
-    //                     barcodeType: 'code128',
-    //                     defaultQuantity: 1
-    //                 }
-    //             };
-
-    //             setItem(processedItem);
-    //             setPrintSettings(prev => ({
-    //                 ...prev,
-    //                 ...processedItem.printPreferences
-    //             }));
-    //         } catch (err) {
-    //             setError(err.message || 'Failed to fetch item details');
-    //             console.error('Fetch error:', err);
-    //         } finally {
-    //             setLoading(false);
-    //         }
-    //     };
-
-    //     fetchItemData();
-    // }, [id]);
 
     useEffect(() => {
         const fetchItemData = async () => {
@@ -396,7 +338,7 @@ const ViewItems = () => {
             </Card>
 
             {/* Barcode Printing Section */}
-            <Card className="mt-4">
+            {/* <Card className="mt-4">
                 <Card.Header>
                     <h5 className="mb-0">Barcode Printing</h5>
                 </Card.Header>
@@ -427,10 +369,10 @@ const ViewItems = () => {
                         <Alert variant="info">No stock entries available</Alert>
                     )}
                 </Card.Body>
-            </Card>
-
+            </Card> */}
+            <ItemBarcode />
             {/* Print Modal */}
-            <Modal show={showPrintModal} onHide={() => setShowPrintModal(false)}>
+            {/* <Modal show={showPrintModal} onHide={() => setShowPrintModal(false)}>
                 <Modal.Header closeButton>
                     <Modal.Title>Print Settings</Modal.Title>
                 </Modal.Header>
@@ -507,7 +449,7 @@ const ViewItems = () => {
                         Print
                     </Button>
                 </Modal.Footer>
-            </Modal>
+            </Modal> */}
         </Container>
     );
 };

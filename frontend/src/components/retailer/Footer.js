@@ -31,7 +31,7 @@ const Footer = ({ currentCompanyName, user, currentFiscalYear, company }) => {
     <footer className="footer" style={{
       textAlign: 'center',
       marginTop: '0px',
-      padding: '10px 0',
+      padding: '3px 0',
       backgroundColor: '#f0f2f5',
       fontSize: '0.75rem'
     }}>

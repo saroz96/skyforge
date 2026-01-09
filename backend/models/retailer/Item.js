@@ -612,4 +612,30 @@ itemSchema.statics.assignGeneralItemsCompany = async function () {
     return { nModified: updatePromises.length };
 };
 
+
+
+// Add these indexes at the end of your itemSchema, before module.exports
+
+// Text index for fast text search
+itemSchema.index({
+    name: 'text',
+    'category.name': 'text'
+}, {
+    name: 'text_search_index',
+    weights: {
+        name: 10,
+        'category.name': 5
+    }
+});
+
+// Compound indexes for fast filtering
+itemSchema.index({ company: 1, name: 1 });
+itemSchema.index({ company: 1, uniqueNumber: 1 });
+itemSchema.index({ company: 1, hscode: 1 });
+itemSchema.index({ company: 1, vatStatus: 1 });
+itemSchema.index({ company: 1, 'category.name': 1 });
+
+// For stockEntries querying
+itemSchema.index({ 'stockEntries.expiryDate': 1 });
+
 module.exports = mongoose.model('Item', itemSchema);

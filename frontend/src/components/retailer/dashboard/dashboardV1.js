@@ -3,8 +3,6 @@ import StatsCards from './StatsCards';
 import SalesChart from './SalesChart';
 import QuickActions from './QuickActions';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../../../stylesheet/retailer/helper/compositionhelper.css';
-import '../../../stylesheet/retailer/helper/helperCss.css';
 import '../../../stylesheet/loader.css';
 import Header from '../Header';
 import axios from 'axios';
@@ -122,7 +120,7 @@ const DashboardV1 = () => {
                     onHide={() => setShowContactsModal(false)}
                 />
             </div>
-            <div className="app-content pt-3">
+            <div className="app-content pt-2">
                 <div className="container-fluid">
                     <div className="row">
                         {isAdminOrSupervisor && (

@@ -126,6 +126,8 @@ const userSchema = new mongoose.Schema({
             ['existingFiscalYear', false],
             ['importExportSubHeader', false],
             ['itemsImport', false],
+            //Attendance
+            ['attendance',false]
         ])
     },
     grantedBy: {
@@ -139,7 +141,20 @@ const userSchema = new mongoose.Schema({
             enum: ['light', 'dark'],
             default: 'light'
         }
-    }
+    },
+
+    attendanceSettings: {
+        autoAttendance: {
+            type: Boolean,
+            default: true
+        },
+        lastKnownLocation: {
+            lat: Number,
+            lng: Number,
+            timestamp: Date
+        },
+        lastAttendanceDate: Date
+    },
 }, { timestamps: true });
 
 // Hash the password before saving the user

@@ -774,6 +774,7 @@ function calculateHistoricalStock(purchases, purchaseReturns, sales, salesReturn
 function createPurchaseEntry(purchaseBill, itemEntry) {
     return {
         date: purchaseBill.date,
+        purchaseBillId: purchaseBill._id, // ADD THIS
         partyName: purchaseBill.account?.name || 'N/A',
         billNumber: purchaseBill.billNumber,
         type: 'Purc',
@@ -791,6 +792,7 @@ function createPurchaseEntry(purchaseBill, itemEntry) {
 function createPurchaseReturnEntry(purchaseReturn, itemEntry) {
     return {
         date: purchaseReturn.date,
+        purchaseReturnBillId: purchaseReturn._id,
         partyName: purchaseReturn.account?.name || 'N/A',
         billNumber: purchaseReturn.billNumber,
         type: 'PrRt',
@@ -808,6 +810,8 @@ function createPurchaseReturnEntry(purchaseReturn, itemEntry) {
 function createSalesEntry(salesBill, itemEntry) {
     return {
         date: salesBill.date,
+        billId: salesBill._id,
+        paymentMode: salesBill.paymentMode,
         partyName: salesBill.account ? salesBill.account.name : salesBill.cashAccount || 'N/A',
         billNumber: salesBill.billNumber,
         type: 'Sale',

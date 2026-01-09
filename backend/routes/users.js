@@ -941,6 +941,60 @@ router.post('/admin/users/:id/role', ensureAuthenticated, async (req, res) => {
 //     })(req, res, next);
 // });
 
+// router.post('/login', forwardAuthenticated, (req, res, next) => {
+//     passport.authenticate('local', (err, user, info) => {
+//         if (err) {
+//             console.error('Login error:', err);
+//             return res.status(500).json({
+//                 success: false,
+//                 message: 'An error occurred during authentication'
+//             });
+//         }
+
+//         if (!user) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: 'Invalid email or password' // Consistent message
+//             });
+//         }
+
+//         // Check email verification
+//         if (!user.isEmailVerified) {
+//             return res.status(401).json({
+//                 success: false,
+//                 requiresEmailVerification: true,
+//                 message: 'Please verify your email before logging in',
+//                 email: user.email
+//             });
+//         }
+
+//         req.logIn(user, (err) => {
+//             if (err) {
+//                 console.error('Session error:', err);
+//                 return res.status(500).json({
+//                     success: false,
+//                     message: 'Session error'
+//                 });
+//             }
+
+//             // Update last login
+//             User.findByIdAndUpdate(user._id, { lastLogin: Date.now() })
+//                 .catch(err => console.error('Error updating last login:', err));
+
+//             return res.json({
+//                 success: true,
+//                 user: {
+//                     id: user._id,
+//                     name: user.name,
+//                     email: user.email,
+//                     role: user.role
+//                 }
+//             });
+//         });
+//     })(req, res, next);
+// });
+
+// routes/auth.js - Update login route
 router.post('/login', forwardAuthenticated, (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
         if (err) {
@@ -954,7 +1008,7 @@ router.post('/login', forwardAuthenticated, (req, res, next) => {
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid email or password' // Consistent message
+                message: 'Invalid email or password'
             });
         }
 
@@ -981,6 +1035,14 @@ router.post('/login', forwardAuthenticated, (req, res, next) => {
             User.findByIdAndUpdate(user._id, { lastLogin: Date.now() })
                 .catch(err => console.error('Error updating last login:', err));
 
+            // ✅ ADD THIS: Define role-based redirects
+            const roleRedirects = {
+                'ADMINISTRATOR': '/admin-dashboard',
+            };
+
+            // Get the redirect path based on role, default to '/dashboard'
+            const redirectPath = roleRedirects[user.role] || '/dashboard';
+
             return res.json({
                 success: true,
                 user: {
@@ -988,7 +1050,10 @@ router.post('/login', forwardAuthenticated, (req, res, next) => {
                     name: user.name,
                     email: user.email,
                     role: user.role
-                }
+                },
+                // ✅ ADD THIS: Include redirect path in response
+                redirect: redirectPath,
+                message: 'Login successful'
             });
         });
     })(req, res, next);

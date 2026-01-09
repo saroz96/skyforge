@@ -130,6 +130,47 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // const login = async (credentials) => {
+  //   try {
+  //     setLoading(true);
+  //     setError(null);
+
+  //     const { data } = await api.post('/api/auth/login', credentials, {
+  //       withCredentials: true
+  //     });
+
+  //     if (!data.success) {
+  //       // Handle email verification case
+  //       if (data.requiresEmailVerification) {
+  //         throw new Error('Please verify your email before logging in');
+  //       }
+  //       // Handle other cases
+  //       throw new Error(data.message || 'Login failed');
+  //     }
+
+  //     dispatch(setCredentials({
+  //       user: data.user,
+  //       currentCompany: data.currentCompany || null
+  //     }));
+  //     return data;
+  //   } catch (err) {
+  //     let errorMessage = err.response?.data?.message || err.message || 'Login failed';
+
+  //     // Standardize the invalid credentials message
+  //     if (err.response?.status === 401 &&
+  //       (err.response.data.message === 'Invalid email or password' ||
+  //         err.response.data.message === 'Invalid credentials')) {
+  //       errorMessage = 'Invalid email or password';
+  //     }
+
+  //     setError(errorMessage);
+  //     throw errorMessage;
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // contexts/AuthContext.js - Update login function
   const login = async (credentials) => {
     try {
       setLoading(true);
@@ -140,11 +181,9 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (!data.success) {
-        // Handle email verification case
         if (data.requiresEmailVerification) {
           throw new Error('Please verify your email before logging in');
         }
-        // Handle other cases
         throw new Error(data.message || 'Login failed');
       }
 
@@ -152,11 +191,15 @@ export const AuthProvider = ({ children }) => {
         user: data.user,
         currentCompany: data.currentCompany || null
       }));
-      return data;
+
+      // ✅ Return the redirect path from backend
+      return {
+        ...data,
+        redirectTo: data.redirect || '/dashboard'
+      };
     } catch (err) {
       let errorMessage = err.response?.data?.message || err.message || 'Login failed';
 
-      // Standardize the invalid credentials message
       if (err.response?.status === 401 &&
         (err.response.data.message === 'Invalid email or password' ||
           err.response.data.message === 'Invalid credentials')) {
@@ -181,7 +224,7 @@ export const AuthProvider = ({ children }) => {
       clearAuthData();
 
       window.location.href = '/auth/login';
-      
+
     } catch (err) {
       console.error('Logout error:', err);
       clearAuthData();

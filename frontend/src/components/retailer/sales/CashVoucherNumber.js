@@ -89,7 +89,7 @@ const CashSalesVoucherNumber = () => {
     return (
         <div className='Container-fluid'>
             <Header />
-            <div className="container centered-container">
+            <div className="container mt-5 wow-form centered-container">
                 <div className="card shadow-lg p-4 animate__animated animate__fadeInUp expanded-card">
                     <h1 className="text-center mb-4">Enter Voucher Number</h1>
                     <form onSubmit={handleSubmit} className="needs-validation" noValidate>

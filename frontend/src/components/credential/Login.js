@@ -101,7 +101,7 @@ const LoginForm = () => {
 
     return (
         <div className="login-container">
-            <NotificationToast 
+            <NotificationToast
                 message={modalMessage}
                 type={modalType}
                 show={showModal}
@@ -113,25 +113,24 @@ const LoginForm = () => {
                     <div className="row justify-content-center">
                         <div className="col-xl-6 col-lg-8 col-md-10">
                             <div className="login-card">
-                                <div className="login-header text-center mb-5">
+                                <div className="login-header text-center">
                                     <img
                                         src="/logo/logo.jpg"
                                         alt="Company Logo"
                                         className="login-logo"
                                     />
-                                    <h1 className="login-title">Welcome</h1>
-                                    <p className="login-subtitle">Sign in to access your account</p>
+                                    <h1 className="login-title">Welcome to Skyforge</h1>
                                 </div>
 
                                 <div className="login-body">
                                     <form onSubmit={handleSubmit} id="login-form">
-                                        <div className="form-group mb-4">
-                                            <label htmlFor="email" className="form-label">Email Address</label>
+                                        <div className="form-group sm-2">
+                                            <label htmlFor="email" className="form-label">Email</label>
                                             <input
                                                 type="email"
                                                 id="email"
                                                 name="email"
-                                                className="form-control form-control-lg"
+                                                className="form-control form-control-sm"
                                                 placeholder="Enter your email address"
                                                 autoComplete="email"
                                                 autoFocus
@@ -141,31 +140,34 @@ const LoginForm = () => {
                                             />
                                         </div>
 
-                                        <div className="form-group mb-4">
+                                        <div className="form-group sm-2">
                                             <label htmlFor="password" className="form-label">Password</label>
-                                            <div className="input-group">
+                                            <div className="position-relative">
                                                 <input
                                                     type={showPassword ? "text" : "password"}
                                                     id="password"
                                                     name="password"
-                                                    className="form-control form-control-lg"
+                                                    className="form-control form-control-sm"
                                                     placeholder="Enter your password"
                                                     autoComplete="current-password"
                                                     value={password}
                                                     onChange={(e) => setPassword(e.target.value)}
-                                                    onKeyDown={(e) => moveToNextInput(e, 2)}
+                                                    onKeyDown={(e) => moveToNextInput(e, 1)}
                                                 />
-                                                <button
-                                                    className="btn btn-outline-secondary"
-                                                    type="button"
+                                                <span
+                                                    className="position-absolute top-50 end-0 translate-middle-y me-3"
+                                                    style={{
+                                                        cursor: "pointer",
+                                                        zIndex: 5
+                                                    }}
                                                     onClick={() => setShowPassword(!showPassword)}
                                                 >
-                                                    <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                                                </button>
+                                                    <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'} text-secondary`}></i>
+                                                </span>
                                             </div>
                                         </div>
 
-                                        <div className="d-flex justify-content-between align-items-center mb-4">
+                                        <div className="d-flex justify-content-between align-items-center mb-2">
                                             <Link to="/auth/verify-email">Verify Email</Link>
                                             <Link to="/auth/forgot-password" className="forgot-password">
                                                 Forgot password?
@@ -174,14 +176,14 @@ const LoginForm = () => {
 
                                         <button
                                             type="submit"
-                                            className="btn btn-primary btn-lg w-100 mb-3"
+                                            className="btn btn-primary btn-lg w-100 mb-2"
                                             id="login-btn"
                                             onClick={() => setIsButtonClicked(true)}
                                             disabled={loading}
                                         >
                                             {loading ? (
                                                 <>
-                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                                     Signing in...
                                                 </>
                                             ) : (
@@ -189,7 +191,7 @@ const LoginForm = () => {
                                             )}
                                         </button>
 
-                                        <div className="text-center mt-4">
+                                        <div className="text-center mt-2">
                                             <p className="register-text">
                                                 Don't have an account?{' '}
                                                 <Link to="/auth/register" className="register-link">

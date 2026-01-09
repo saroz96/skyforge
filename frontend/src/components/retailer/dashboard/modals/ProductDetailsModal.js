@@ -25,8 +25,17 @@ const ProductDetailsModal = ({ product, onClose, onBatchUpdate }) => {
     const formatDate = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        }).replace(/ /g, '-');
     };
+
+    const numberFormatter = new Intl.NumberFormat('en-NP', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
 
     return (
         <Modal
@@ -35,71 +44,84 @@ const ProductDetailsModal = ({ product, onClose, onBatchUpdate }) => {
             size="xl"
             centered
             backdrop="static"
-            dialogClassName="product-details-modal-centered"
+            dialogClassName="product-details-modal-compact"
         >
-            <Modal.Header closeButton className="bg-primary text-white">
-                <Modal.Title>
-                    {product.name} - {product.uniqueNumber}
-                    <span className="ms-3 badge bg-secondary">{product.category}</span>
-                </Modal.Title>
+            <Modal.Header closeButton className="py-1" style={{
+                backgroundColor: '#f8f9fa',
+                borderBottom: '1px solid #dee2e6',
+                fontSize: '0.9rem'
+            }}>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                    <div>
+                        <span className="fw-bold" style={{ fontSize: '0.85rem' }}>
+                            {product.name}
+                        </span>
+                        <span className="ms-2 text-muted" style={{ fontSize: '0.8rem' }}>
+                            ({product.uniqueNumber})
+                        </span>
+                        <span className="ms-2 badge bg-secondary py-1" style={{ fontSize: '0.7rem' }}>
+                            {product.category?.name || 'No Category'}
+                        </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem' }}>
+                        Stock: <span className="fw-bold">{product.currentStock || 0}</span> |
+                        Rate: <span className="fw-bold">Rs.{numberFormatter.format(product.latestPrice || 0)}</span>
+                    </div>
+                </div>
             </Modal.Header>
 
-            <Modal.Body style={{
-                maxHeight: 'calc(70vh - 120px)',
-                overflowY: 'auto',
-                padding: '15px'
-            }}>
-                {product.composition.length > 0 && (
-                    <div className="mt-3">
-                        <h6 className="mb-2"><strong>Composition:</strong></h6>
-                        <div className="d-flex flex-wrap gap-2">
-                            {product.composition.map((comp, idx) => (
-                                <span key={idx} className="badge bg-light text-dark border">
-                                    {comp.uniqueNumber ? `${comp.uniqueNumber} - ` : ''}{comp.name}
-                                </span>
-                            ))}
-                        </div>
+            <Modal.Body className="p-0" style={{ maxHeight: '300px', minHeight: '300px', overflowY: 'auto' }}>
+                {product.composition && product.composition.length > 0 && (
+                    <div className="px-2 py-1 bg-light border-bottom" style={{ fontSize: '0.75rem' }}>
+                        <strong>Composition:</strong>
+                        {product.composition.map((comp, idx) => (
+                            <span key={idx} className="badge bg-white text-dark border py-1" style={{ fontSize: '0.7rem' }}>
+                                {comp.uniqueNumber ? `${comp.uniqueNumber} - ` : ''}{comp.name}
+                            </span>
+                        ))}
                     </div>
                 )}
-                <div className="table-responsive">
-                    <table className="table table-hover align-middle">
-                        <thead className="table-light sticky-top">
+
+                <div className="table-responsive" style={{ fontSize: '0.8rem' }}>
+                    <table className="table table-sm table-hover align-middle mb-0">
+                        <thead className="table-light sticky-top" style={{ fontSize: '0.75rem' }}>
                             <tr>
-                                <th>Batch</th>
-                                <th>Expiry</th>
-                                <th>Status</th>
-                                <th>Stock</th>
-                                <th>Unit</th>
-                                <th>C.P (Rs.)</th>
-                                <th>S.P (Rs.)</th>
-                                <th>MRP (Rs.)</th>
-                                <th>Action</th>
+                                <th className="px-2 py-1" style={{ width: '15%' }}>Batch</th>
+                                <th className="px-2 py-1" style={{ width: '15%' }}>Expiry</th>
+                                <th className="px-2 py-1" style={{ width: '12%' }}>Status</th>
+                                <th className="px-2 py-1 text-end" style={{ width: '10%' }}>Stock</th>
+                                <th className="px-2 py-1" style={{ width: '10%' }}>Unit</th>
+                                <th className="px-2 py-1 text-end" style={{ width: '12%' }}>C.P</th>
+                                <th className="px-2 py-1 text-end" style={{ width: '12%' }}>S.P</th>
+                                <th className="px-2 py-1 text-end" style={{ width: '12%' }}>MRP</th>
+                                <th className="px-2 py-1 text-center" style={{ width: '12%' }}>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {product.stockEntries
+                            {product.stockEntries && product.stockEntries
                                 .filter(entry => entry.quantity > 0)
                                 .map((entry, index) => {
                                     const status = getExpiryStatus(entry.expiryDate);
 
                                     return (
-                                        <tr key={index} className={status.status}>
-                                            <td>{entry.batchNumber || '-'}</td>
-                                            <td>{formatDate(entry.expiryDate)}</td>
-                                            <td>
-                                                <span className={`expiry-badge-modal ${status.status}`}>
+                                        <tr key={index} className={status.status} style={{ fontSize: '0.75rem' }}>
+                                            <td className="px-2 py-1">{entry.batchNumber || '-'}</td>
+                                            <td className="px-2 py-1">{formatDate(entry.expiryDate)}</td>
+                                            <td className="px-2 py-1">
+                                                <span className={`expiry-badge-modal ${status.status} px-1 py-0`} style={{ fontSize: '0.7rem' }}>
                                                     {status.text}
                                                 </span>
                                             </td>
-                                            <td>{entry.quantity}</td>
-                                            <td>{product.unit}</td>
-                                            <td>{Math.round(entry.puPrice * 100) / 100}</td>
-                                            <td>{Math.round(entry.price * 100) / 100}</td>
-                                            <td>{Math.round(entry.mrp * 100) / 100}</td>
-                                            <td>
+                                            <td className="px-2 py-1 text-end">{entry.quantity}</td>
+                                            <td className="px-2 py-1">{product.unit?.name || product.unit || ''}</td>
+                                            <td className="px-2 py-1 text-end">{numberFormatter.format(entry.puPrice || 0)}</td>
+                                            <td className="px-2 py-1 text-end">{numberFormatter.format(entry.price || 0)}</td>
+                                            <td className="px-2 py-1 text-end">{numberFormatter.format(entry.mrp || 0)}</td>
+                                            <td className="px-2 py-1 text-center">
                                                 <button
-                                                    className="btn btn-sm btn-outline-primary"
+                                                    className="btn btn-sm btn-outline-primary py-0 px-2"
                                                     onClick={() => onBatchUpdate(index)}
+                                                    style={{ fontSize: '0.7rem' }}
                                                 >
                                                     Update
                                                 </button>
@@ -110,34 +132,79 @@ const ProductDetailsModal = ({ product, onClose, onBatchUpdate }) => {
                         </tbody>
                     </table>
                 </div>
-
-                <div className="expiry-legend mt-3">
-                    <small className="text-muted">
-                        <strong>Expiry Legend:</strong>
-                        <span className="expiry-badge-modal expired ms-2">EXPIRED</span>
-                        <span className="expiry-badge-modal danger ms-2">≤30d</span>
-                        <span className="expiry-badge-modal warning ms-2">≤90d</span>
-                        <span className="expiry-badge-modal safe ms-2">OK</span>
-                    </small>
-                </div>
             </Modal.Body>
 
-            <Modal.Footer className="py-2">
-                <button
-                    type="button"
-                    className="btn btn-sm btn-danger"
-                    onClick={onClose}
-                >
-                    Close
-                </button>
+            <Modal.Footer className="py-1 px-2" style={{
+                backgroundColor: '#f8f9fa',
+                borderTop: '1px solid #dee2e6',
+                fontSize: '0.75rem'
+            }}>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                    <div className="expiry-legend">
+                        <strong>Expiry Legend:</strong>
+                        <span className="expiry-badge-modal expired ms-1">EXPIRED</span>
+                        <span className="expiry-badge-modal danger ms-1">≤30d</span>
+                        <span className="expiry-badge-modal warning ms-1">≤90d</span>
+                        <span className="expiry-badge-modal safe ms-1">OK</span>
+                    </div>
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary py-1 px-3"
+                        onClick={onClose}
+                        style={{ fontSize: '0.75rem' }}
+                    >
+                        Close
+                    </button>
+                </div>
             </Modal.Footer>
 
             <style jsx global>{`
-                .product-details-modal-centered {
-                    max-width: 60vw;
-                    width: 60vw;
-                    height: 70vh;
+                .product-details-modal-compact {
+                    max-width: 70vw;
+                    width: 70vw;
+                    max-height: 400px;
                     margin: 0 auto;
+                }
+                .product-details-modal-compact .modal-content {
+                    max-height: 400px;
+                }
+                .product-details-modal-compact .modal-body {
+                    max-height: 300px;
+                    overflow-y: auto;
+                }
+                .expiry-badge-modal {
+                    padding: 1px 5px;
+                    border-radius: 3px;
+                    font-size: 0.7rem;
+                    font-weight: 500;
+                }
+                .expired {
+                    background-color: #ffcccc;
+                    color: #cc0000;
+                }
+                .danger {
+                    background-color: #ffcc00;
+                    color: #663300;
+                }
+                .warning {
+                    background-color: #fff0cc;
+                    color: #996600;
+                }
+                .safe {
+                    background-color: #ccffcc;
+                    color: #006600;
+                }
+                table tr.expired {
+                    background-color: #fff5f5 !important;
+                }
+                table tr.danger {
+                    background-color: #fff9e6 !important;
+                }
+                table tr.warning {
+                    background-color: #fffdf0 !important;
+                }
+                table tr.safe {
+                    background-color: #f0fff0 !important;
                 }
             `}</style>
         </Modal>
@@ -145,3 +212,4 @@ const ProductDetailsModal = ({ product, onClose, onBatchUpdate }) => {
 };
 
 export default ProductDetailsModal;
+

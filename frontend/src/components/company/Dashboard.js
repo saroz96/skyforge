@@ -123,12 +123,12 @@ const Dashboard = () => {
               </Alert>
             )}
 
-            {success && (
+            {/* {success && (
               <Alert variant="success" dismissible onClose={() => setSuccess('')}>
                 <i className="fas fa-check-circle me-2"></i>
                 {success}
               </Alert>
-            )}
+            )} */}
 
             <CompanyList
               companies={filteredCompanies}

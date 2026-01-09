@@ -43,15 +43,15 @@ const CreditSalesVoucherNumber = () => {
 
     useEffect(() => {
         // Add F9 key handler here
-        const handF9leKeyDown = (e) => {
+        const handleF9KeyDown = (e) => {
             if (e.key === 'F9') {
                 e.preventDefault();
                 setShowProductModal(prev => !prev); // Toggle modal visibility
             }
         };
-        window.addEventListener('keydown', handF9leKeyDown);
+        window.addEventListener('keydown', handleF9KeyDown);
         return () => {
-            window.removeEventListener('keydown', handF9leKeyDown);
+            window.removeEventListener('keydown', handleF9KeyDown);
         };
     }, []);
 
@@ -80,7 +80,7 @@ const CreditSalesVoucherNumber = () => {
             }
         } catch (err) {
             setError(err.response?.data?.error || 'An error occurred while fetching sales bill');
-            console.error('Error fetching sales bill', err);
+            console.error('Error fetching sales bill:', err);
         } finally {
             setIsLoading(false);
         }
@@ -89,7 +89,7 @@ const CreditSalesVoucherNumber = () => {
     return (
         <div className='Container-fluid'>
             <Header />
-            <div className="container centered-container">
+            <div className="container mt-5 wow-form centered-container">
                 <div className="card shadow-lg p-4 animate__animated animate__fadeInUp expanded-card">
                     <h1 className="text-center mb-4">Enter Voucher Number</h1>
                     <form onSubmit={handleSubmit} className="needs-validation" noValidate>

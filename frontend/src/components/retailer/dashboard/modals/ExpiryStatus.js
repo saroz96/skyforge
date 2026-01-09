@@ -1,5 +1,3 @@
-// src/utils/expiryUtils.js
-
 export const calculateExpiryStatus = (product) => {
     const now = new Date();
     let status = 'safe';

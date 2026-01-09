@@ -329,6 +329,134 @@ const ensureFiscalYear = require('../../middleware/checkActiveFiscalYear');
 //     }
 // });
 
+// router.get('/opening-trial-balance/alphabetical', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, async (req, res) => {
+//     try {
+//         const companyId = req.session.currentCompany;
+
+//         // Fetch company and fiscal year details
+//         const company = await Company.findById(companyId).select('name address renewalDate fiscalYear dateFormat').populate('fiscalYear');
+
+//         // Check if fiscal year is already in the session or available in the company
+//         let fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//         let currentFiscalYear = null;
+
+//         if (fiscalYearId) {
+//             currentFiscalYear = await FiscalYear.findById(fiscalYearId);
+//         }
+
+//         // If no fiscal year is found in session or currentCompany, use company's fiscal year
+//         if (!currentFiscalYear && company.fiscalYear) {
+//             currentFiscalYear = company.fiscalYear;
+//             req.session.currentFiscalYear = {
+//                 id: currentFiscalYear._id.toString(),
+//                 startDate: currentFiscalYear.startDate,
+//                 endDate: currentFiscalYear.endDate,
+//                 name: currentFiscalYear.name,
+//                 dateFormat: currentFiscalYear.dateFormat,
+//                 isActive: currentFiscalYear.isActive
+//             };
+//             fiscalYearId = req.session.currentFiscalYear.id;
+//         }
+
+//         if (!fiscalYearId) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'No fiscal year found in session or company.'
+//             });
+//         }
+
+//         // Ensure currentFiscalYear is populated
+//         if (!currentFiscalYear) {
+//             currentFiscalYear = await FiscalYear.findById(fiscalYearId);
+//         }
+
+//         // Fetch all accounts with opening balances ONLY from openingBalanceByFiscalYear for the current fiscal year
+//         const accounts = await Account.find({
+//             company: companyId,
+//             isActive: true,
+//             'openingBalanceByFiscalYear.fiscalYear': fiscalYearId
+//         })
+//         .populate('companyGroups')
+//         .sort({ name: 1 }); // Sort alphabetically by account name
+
+//         // Process accounts to calculate debit and credit balances ONLY from openingBalanceByFiscalYear
+//         let totalDebit = 0;
+//         let totalCredit = 0;
+//         let serialNumber = 1;
+
+//         const trialBalanceData = accounts.map(account => {
+//             let debitAmount = 0;
+//             let creditAmount = 0;
+
+//             // ONLY check openingBalanceByFiscalYear array for the current fiscal year
+//             const fiscalYearOpeningBalance = account.openingBalanceByFiscalYear.find(
+//                 balance => balance.fiscalYear && balance.fiscalYear.toString() === fiscalYearId.toString()
+//             );
+
+//             if (fiscalYearOpeningBalance) {
+//                 if (fiscalYearOpeningBalance.type === 'Dr') {
+//                     debitAmount += fiscalYearOpeningBalance.amount || 0;
+//                 } else {
+//                     creditAmount += fiscalYearOpeningBalance.amount || 0;
+//                 }
+//             }
+
+//             // Only include accounts with non-zero balances from openingBalanceByFiscalYear
+//             if (debitAmount === 0 && creditAmount === 0) {
+//                 return null;
+//             }
+
+//             // Add to totals
+//             totalDebit += debitAmount;
+//             totalCredit += creditAmount;
+
+//             return {
+//                 sNo: serialNumber++,
+//                 account: account.name,
+//                 debitBal: debitAmount > 0 ? debitAmount.toFixed(2) : '',
+//                 creditBal: creditAmount > 0 ? creditAmount.toFixed(2) : ''
+//             };
+//         }).filter(item => item !== null); // Remove null entries
+
+//         // Format date based on company settings or use default
+//         const asOnDate = currentFiscalYear?.startDate ?
+//             new Date(currentFiscalYear.startDate).toLocaleDateString('en-US') :
+//             new Date().toLocaleDateString('en-US');
+
+//         // Prepare response data
+//         const responseData = {
+//             success: true,
+//             data: {
+//                 company: {
+//                     name: company?.name || 'Company Name',
+//                     address: company?.address || 'Address not specified'
+//                 },
+//                 fiscalYear: currentFiscalYear?.name || 'Fiscal Year not specified',
+//                 asOnDate: asOnDate,
+//                 trialBalance: trialBalanceData,
+//                 totals: {
+//                     totalDebit: totalDebit.toFixed(2),
+//                     totalCredit: totalCredit.toFixed(2)
+//                 },
+//                 grandTotal: {
+//                     debit: totalDebit.toFixed(2),
+//                     credit: totalCredit.toFixed(2)
+//                 }
+//             }
+//         };
+
+//         return res.json(responseData);
+
+//     } catch (error) {
+//         console.error('Error in /opening-trial-balance route:', error);
+//         return res.status(500).json({
+//             success: false,
+//             error: 'Internal server error',
+//             details: error.message
+//         });
+//     }
+// });
+
 router.get('/opening-trial-balance/alphabetical', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureFiscalYear, async (req, res) => {
     try {
         const companyId = req.session.currentCompany;
@@ -370,6 +498,20 @@ router.get('/opening-trial-balance/alphabetical', isLoggedIn, ensureAuthenticate
             currentFiscalYear = await FiscalYear.findById(fiscalYearId);
         }
 
+        // METHOD 1: Exclude by account name patterns
+        const excludePatterns = [
+            /profit.*loss/i,
+            /p&l/i,
+            /profit & loss/i,
+            /income.*summary/i,
+            /retained.*earnings/i,
+            /net.*income/i,
+            /current.*year.*earnings/i
+        ];
+
+        // METHOD 2: Or exclude by specific account codes if you have them
+        const excludeCodes = ['PL', 'INC', 'RE', 'NIC']; // Add your actual account codes
+
         // Fetch all accounts with opening balances ONLY from openingBalanceByFiscalYear for the current fiscal year
         const accounts = await Account.find({
             company: companyId,
@@ -385,6 +527,24 @@ router.get('/opening-trial-balance/alphabetical', isLoggedIn, ensureAuthenticate
         let serialNumber = 1;
 
         const trialBalanceData = accounts.map(account => {
+            // METHOD 1: Check if account name matches exclude patterns
+            const shouldExclude = excludePatterns.some(pattern => pattern.test(account.name));
+            
+            // METHOD 2: Or check account code if you have it
+            // const shouldExclude = excludeCodes.includes(account.code);
+            
+            // METHOD 3: Or check account type/group if you have them
+            // const shouldExclude = account.accountType === 'nominal' || 
+            //                      account.accountGroup === 'profit_loss' ||
+            //                      (account.companyGroups && account.companyGroups.some(group => 
+            //                         group.name.toLowerCase().includes('profit') || 
+            //                         group.name.toLowerCase().includes('loss')
+            //                      ));
+            
+            if (shouldExclude) {
+                return null; // Skip this account
+            }
+
             let debitAmount = 0;
             let creditAmount = 0;
 
@@ -413,6 +573,7 @@ router.get('/opening-trial-balance/alphabetical', isLoggedIn, ensureAuthenticate
             return {
                 sNo: serialNumber++,
                 account: account.name,
+                accountCode: account.code || '', // Include if you have account codes
                 debitBal: debitAmount > 0 ? debitAmount.toFixed(2) : '',
                 creditBal: creditAmount > 0 ? creditAmount.toFixed(2) : ''
             };

@@ -47,107 +47,350 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-
-// router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+// Backend route for searching items
+// router.get('/items/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
 //     try {
 //         const companyId = req.session.currentCompany;
+//         const {
+//             search = '',
+//             page = 1,
+//             limit = 50,
+//             vatStatus = 'all'
+//         } = req.query;
 
-//         // Parallelize all independent queries
-//         const [
-//             company,
-//             items,
-//             categories,
-//             itemsCompanies,
-//             units,
-//             mainUnits,
-//             composition
-//         ] = await Promise.all([
-//             Company.findById(companyId).select('renewalDate fiscalYear dateFormat vatEnabled').lean(),
-//             Item.find({ company: companyId })
-//                 .populate('category', 'name')
-//                 .populate('itemsCompany', 'name')
-//                 .populate('unit', 'name')
-//                 .populate('mainUnit', 'name')
-//                 .populate('composition', 'name uniqueNumber')
-//                 .populate({
-//                     path: 'stockEntries',
-//                     select: 'quantity' // Include relevant stock fields
-//                 })
-//                 .lean(),
-//             Category.find({ company: companyId }).lean(),
-//             itemsCompany.find({ company: companyId }).lean(),
-//             Unit.find({ company: companyId }).lean(),
-//             MainUnit.find({ company: companyId }).lean(),
-//             Composition.find({ company: companyId }).lean()
-//         ]);
+//         const skip = (page - 1) * limit;
 
-//         // Get transaction existence in a single query
-//         const itemIds = items.map(item => item._id);
-//         const transactions = await Transaction.find({
-//             item: { $in: itemIds },
-//             company: companyId
-//         }).select('item').lean();
+//         // Build query
+//         const query = { company: companyId };
 
-//         const transactionItemIds = new Set(transactions.map(t => t.item.toString()));
-
-//         // Add hasTransactions flag
-//         const itemsWithFlags = items.map(item => ({
-//             ...item,
-//             hasTransactions: transactionItemIds.has(item._id.toString()) ? 'true' : 'false',
-//              currentStock: item.stockEntries && item.stockEntries.length > 0
-//                 ? item.stockEntries[0].quantity
-//                 : 0,
-//             // Or get all stock entries if needed
-//             stockEntries: item.stockEntries || []
-//         }));
-
-//         // Get current fiscal year
-//         let currentFiscalYear = req.session.currentFiscalYear;
-//         if (!currentFiscalYear && company.fiscalYear) {
-//             currentFiscalYear = await FiscalYear.findById(company.fiscalYear).lean();
+//         // Add search conditions if search term exists
+//         if (search && search.trim() !== '') {
+//             const searchRegex = new RegExp(search, 'i');
+//             query.$or = [
+//                 { name: searchRegex },
+//                 { 'category.name': searchRegex },
+//                 { hscode: !isNaN(search) ? parseInt(search) : null },
+//                 { uniqueNumber: !isNaN(search) ? parseInt(search) : null }
+//             ].filter(condition => {
+//                 if (condition.uniqueNumber === null && search.match(/^\d+$/)) {
+//                     condition.uniqueNumber = parseInt(search);
+//                     return true;
+//                 }
+//                 return condition[Object.keys(condition)[0]] !== null;
+//             });
 //         }
 
-//         // Nepali date calculation
-//         const today = new Date();
-//         const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+//         // Add VAT status filter
+//         if (vatStatus !== 'all') {
+//             query.vatStatus = vatStatus === 'false' ? 'vatable' : 'vatExempt';
+//         }
 
-//         console.log('Session data:', {
-//             currentCompany: req.session.currentCompany,
-//             currentFiscalYear: req.session.currentFiscalYear,
-//             user: req.user
+//         // Get total count for pagination
+//         const totalItems = await Item.countDocuments(query);
+
+//         // Fetch items with pagination
+//         const items = await Item.find(query)
+//             .populate('category', 'name')
+//             .populate('itemsCompany', 'name')
+//             .populate('unit', 'name')
+//             .populate('mainUnit', 'name')
+//             .populate('composition', 'name uniqueNumber')
+//             .skip(skip)
+//             .limit(parseInt(limit))
+//             .sort({ name: 1 })
+//             .lean();
+
+//         // Calculate current stock for each item
+//         const itemsWithStock = items.map(item => {
+//             let currentStock = 0;
+//             if (item.stockEntries && item.stockEntries.length > 0) {
+//                 currentStock = item.stockEntries.reduce((total, entry) => {
+//                     return total + (parseFloat(entry.quantity) || 0);
+//                 }, 0);
+//             } else {
+//                 currentStock = parseFloat(item.openingStock) || 0;
+//             }
+
+//             return {
+//                 ...item,
+//                 currentStock,
+//                 hasTransactions: 'false' // Default, you can modify this if needed
+//             };
 //         });
-
 
 //         res.json({
 //             success: true,
-//             items: itemsWithFlags,
-//             company,
-//             currentFiscalYear,
-//             vatEnabled: company?.vatEnabled || false,
-//             categories,
-//             itemsCompanies,
-//             units,
-//             mainUnits,
-//             composition,
-//             companyId,
-//             currentCompanyName: req.session.currentCompanyName || '',
-//             companyDateFormat: company?.dateFormat || 'english',
-//             nepaliDate,
-//             fiscalYear: currentFiscalYear?._id || null,
-//             user: req.user,
-//             theme: req.user.preferences?.theme || 'light',
-//             isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//             items: itemsWithStock,
+//             pagination: {
+//                 currentPage: parseInt(page),
+//                 totalPages: Math.ceil(totalItems / limit),
+//                 totalItems,
+//                 itemsPerPage: parseInt(limit),
+//                 hasNextPage: (page * limit) < totalItems,
+//                 hasPreviousPage: page > 1
+//             }
 //         });
 //     } catch (error) {
-//         console.error("Error fetching items:", error);
-//         res.status(500).json({ error: 'Failed to fetch items' });
+//         console.error("Error searching items:", error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Failed to search items',
+//             message: error.message
+//         });
 //     }
 // });
+
+// In your backend route file
+// router.get('/items/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     try {
+//         const companyId = req.session.currentCompany;
+//         const {
+//             search = '',
+//             page = 1,
+//             limit = 25,
+//             vatStatus = 'all',
+//         } = req.query;
+
+//         const skip = (page - 1) * limit;
+
+//         // Build query
+//         const query = { company: companyId };
+
+//         // Only add search conditions if search term exists
+//         if (search && search.trim() !== '') {
+//             const searchRegex = new RegExp(search, 'i');
+//             query.$or = [
+//                 { name: searchRegex },
+//                 { 'category.name': searchRegex },
+//                 { hscode: !isNaN(search) ? parseInt(search) : null },
+//                 { uniqueNumber: !isNaN(search) ? parseInt(search) : null }
+//             ].filter(condition => {
+//                 if (condition.uniqueNumber === null && search.match(/^\d+$/)) {
+//                     condition.uniqueNumber = parseInt(search);
+//                     return true;
+//                 }
+//                 return condition[Object.keys(condition)[0]] !== null;
+//             });
+//         }
+//         // If no search term, query will fetch all items (just filtered by company)
+
+//         // Add VAT status filter
+//         if (vatStatus !== 'all') {
+//             query.vatStatus = vatStatus === 'false' ? 'vatable' : 'vatExempt';
+//         }
+
+//         // Get total count for pagination
+//         const totalItems = await Item.countDocuments(query);
+
+//         // Fetch items with pagination
+//         const items = await Item.find(query)
+//             .populate('category', 'name')
+//             .populate('itemsCompany', 'name')
+//             .populate('unit', 'name')
+//             .populate('mainUnit', 'name')
+//             .populate('composition', 'name uniqueNumber')
+//             .skip(skip)
+//             .limit(parseInt(limit))
+//             .sort({ name: 1 })
+//             .lean();
+
+//         // Calculate current stock for each item
+//         const itemsWithStock = items.map(item => {
+//             let currentStock = 0;
+//             if (item.stockEntries && item.stockEntries.length > 0) {
+//                 currentStock = item.stockEntries.reduce((total, entry) => {
+//                     return total + (parseFloat(entry.quantity) || 0);
+//                 }, 0);
+//             } else {
+//                 currentStock = parseFloat(item.openingStock) || 0;
+//             }
+
+//             return {
+//                 ...item,
+//                 currentStock,
+//                 hasTransactions: 'false' // Default, you can modify this if needed
+//             };
+//         });
+
+//         res.json({
+//             success: true,
+//             items: itemsWithStock,
+//             pagination: {
+//                 currentPage: parseInt(page),
+//                 totalPages: Math.ceil(totalItems / limit),
+//                 totalItems,
+//                 itemsPerPage: parseInt(limit),
+//                 hasNextPage: (page * limit) < totalItems,
+//                 hasPreviousPage: page > 1
+//             }
+//         });
+//     } catch (error) {
+//         console.error("Error searching items:", error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Failed to search items',
+//             message: error.message
+//         });
+//     }
+// });
+
+router.get('/items/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        const companyId = req.session.currentCompany;
+        const {
+            search = '',
+            page = 1,
+            limit = 25,
+            vatStatus = 'all',
+        } = req.query;
+
+        const skip = (page - 1) * limit;
+        const query = { company: companyId };
+
+        // Simple working search
+        if (search && search.trim() !== '') {
+            const searchTerm = search.trim();
+
+            // Number search
+            if (!isNaN(searchTerm) && searchTerm.length <= 10) {
+                const numSearch = parseInt(searchTerm);
+                query.$or = [
+                    { uniqueNumber: numSearch },
+                    { hscode: numSearch }
+                ];
+            } else {
+                // Text search - simple regex for each word
+                const words = searchTerm.split(/\s+/).filter(w => w.length > 0);
+
+                if (words.length === 1) {
+                    // Single word
+                    query.$or = [
+                        { name: { $regex: words[0], $options: 'i' } },
+                        { 'category.name': { $regex: words[0], $options: 'i' } }
+                    ];
+                } else {
+                    // Multiple words - find items that contain ALL words
+                    const conditions = words.map(word => ({
+                        name: { $regex: word, $options: 'i' }
+                    }));
+                    query.$and = conditions;
+                }
+            }
+        }
+
+        // Add VAT status filter
+        if (vatStatus !== 'all') {
+            query.vatStatus = vatStatus === 'false' ? 'vatable' : 'vatExempt';
+        }
+
+        // Get total count
+        const totalItems = await Item.countDocuments(query);
+
+        // Fetch items WITH stockEntries
+        // const items = await Item.find(query)
+        //     .populate('category', 'name')
+        //     .populate('unit', 'name')
+        //     .populate({
+        //         path: 'stockEntries',
+        //         select: 'date price quantity puPrice netPuPrice uniqueUuId',
+        //         options: {
+        //             sort: { date: -1 },
+        //             limit: 25 // Limit stock entries to prevent huge response
+        //         }
+        //     })
+        //     .skip(skip)
+        //     .limit(parseInt(limit))
+        //     .sort({ name: 1 })
+        //     .lean();
+
+        // // Process items
+        // const processedItems = items.map(item => {
+        //     let currentStock = parseFloat(item.openingStock) || 0;
+        //     let latestPrice = 0;
+        //     let latestStockEntry = null;
+
+        //     if (item.stockEntries && item.stockEntries.length > 0) {
+        //         // Calculate total stock from all stock entries
+        //         for (const entry of item.stockEntries) {
+        //             currentStock += parseFloat(entry.quantity) || 0;
+        //         }
+
+        //         // Get latest price (first one since we sorted by date: -1)
+        //         latestStockEntry = item.stockEntries[0];
+        //         latestPrice = latestStockEntry?.price || 0;
+        //     }
+
+        //     return {
+        //         _id: item._id,
+        //         name: item.name,
+        //         uniqueNumber: item.uniqueNumber,
+        //         hscode: item.hscode,
+        //         vatStatus: item.vatStatus,
+        //         unit: item.unit,
+        //         category: item.category,
+        //         stock: currentStock,
+        //         latestPrice: latestPrice,
+        //         stockEntries: item.stockEntries || [] // Include stockEntries
+        //     };
+        // });
+
+        // Fetch items with pagination
+        const items = await Item.find(query)
+            .populate('category', 'name')
+            .populate('itemsCompany', 'name')
+            .populate('unit', 'name')
+            .populate('mainUnit', 'name')
+            .populate('composition', 'name uniqueNumber')
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort({ name: 1 })
+            .lean();
+
+        // Calculate current stock for each item
+        const itemsWithStock = items.map(item => {
+            let currentStock = 0;
+            if (item.stockEntries && item.stockEntries.length > 0) {
+                currentStock = item.stockEntries.reduce((total, entry) => {
+                    return total + (parseFloat(entry.quantity) || 0);
+                }, 0);
+            } else {
+                currentStock = parseFloat(item.openingStock) || 0;
+            }
+
+            return {
+                ...item,
+                currentStock,
+                hasTransactions: 'false' // Default, you can modify this if needed
+            };
+        });
+
+
+        res.json({
+            success: true,
+            items: itemsWithStock,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalItems / limit),
+                totalItems,
+                itemsPerPage: parseInt(limit),
+                hasNextPage: (page * limit) < totalItems,
+                hasPreviousPage: page > 1
+            }
+        });
+
+    } catch (error) {
+        console.error("Error searching items:", error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to search items',
+            message: error.message
+        });
+    }
+});
 
 router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
         const companyId = req.session.currentCompany;
-
         // Parallelize all independent queries
         const [
             company,
@@ -173,6 +416,10 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
             MainUnit.find({ company: companyId }).lean(),
             Composition.find({ company: companyId }).lean()
         ]);
+
+        const currentCompany = await Company.findById(new ObjectId(companyId));
+        const currentCompanyName = req.session.currentCompanyName;
+        const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
 
         // Get transaction existence in a single query
         const itemIds = items.map(item => item._id);
@@ -239,6 +486,9 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
             items: itemsWithFlags,
             company,
             currentFiscalYear,
+            currentCompany: currentCompany,
+            currentCompanyName,
+            companyDateFormat: companyDateFormat,
             vatEnabled: company?.vatEnabled || false,
             categories,
             itemsCompanies,
@@ -246,8 +496,6 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
             mainUnits,
             composition,
             companyId,
-            currentCompanyName: req.session.currentCompanyName || '',
-            companyDateFormat: company?.dateFormat || 'english',
             nepaliDate,
             fiscalYear: currentFiscalYear?._id || null,
             user: req.user,
@@ -260,26 +508,166 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
     }
 });
 
-// const NodeCache = require('node-cache');
-// const myCache = new NodeCache({ 
-//   stdTTL: 300,      // 5 minutes default TTL
-//   checkperiod: 60,   // Check for expired keys every 60 seconds
-//   useClones: false   // ⭐ Crucial: Disable cloning for Mongoose docs
-// });
+const NodeCache = require('node-cache');
 
+// Initialize cache with optimized settings
+const itemsCache = new NodeCache({
+    stdTTL: 180,           // 3 minutes TTL
+    checkperiod: 60,       // Cleanup every 60 seconds
+    useClones: false,      // Critical for performance and memory
+    deleteOnExpire: true,
+    maxKeys: 1000,         // Limit to prevent memory issues
+    forceString: false
+});
+
+// Cache service helper functions
+const cacheService = {
+    // Generate cache key based on request
+    generateKey: (req) => {
+        const companyId = req.session.currentCompany;
+        const userId = req.user._id.toString();
+        const fiscalYear = req.session.currentFiscalYear || 'default';
+        const tradeType = req.session.tradeType || 'default';
+
+        return `items_${companyId}_${userId}_${fiscalYear}_${tradeType}`;
+    },
+
+    // Get data from cache
+    get: (key) => {
+        try {
+            return itemsCache.get(key);
+        } catch (error) {
+            console.error('Cache get error:', error);
+            return null;
+        }
+    },
+
+    // Set data in cache
+    set: (key, data) => {
+        try {
+            // Optimize data before caching to reduce memory
+            const optimizedData = cacheService.optimizeData(data);
+            return itemsCache.set(key, optimizedData);
+        } catch (error) {
+            console.error('Cache set error:', error);
+            return false;
+        }
+    },
+
+    // Optimize data for caching
+    optimizeData: (data) => {
+        if (!data || typeof data !== 'object') return data;
+
+        const optimized = { ...data };
+
+        // Remove sensitive or unnecessary user data
+        if (optimized.user) {
+            optimized.user = {
+                _id: optimized.user._id,
+                name: optimized.user.name,
+                email: optimized.user.email,
+                role: optimized.user.role,
+                isAdmin: optimized.user.isAdmin,
+                preferences: optimized.user.preferences
+                // Explicitly exclude password, tokens, etc.
+            };
+        }
+
+        // Remove heavy nested data if not needed
+        if (optimized.currentCompany && typeof optimized.currentCompany === 'object') {
+            // Keep only essential company info
+            optimized.currentCompany = {
+                _id: optimized.currentCompany._id,
+                name: optimized.currentCompany.name,
+                dateFormat: optimized.currentCompany.dateFormat
+            };
+        }
+
+        // Add cache metadata
+        optimized._cachedAt = new Date().toISOString();
+        optimized._cacheVersion = '1.0';
+
+        return optimized;
+    },
+
+    // Invalidate cache for specific company
+    invalidateCompanyCache: (companyId) => {
+        const keys = itemsCache.keys();
+        let deletedCount = 0;
+
+        keys.forEach(key => {
+            if (key.includes(`_${companyId}_`)) {
+                itemsCache.del(key);
+                deletedCount++;
+            }
+        });
+
+        console.log(`Cache invalidated: ${deletedCount} entries for company ${companyId}`);
+        return deletedCount;
+    },
+
+    // Get cache statistics
+    getStats: () => {
+        const stats = itemsCache.getStats();
+        const keys = itemsCache.keys();
+
+        return {
+            hits: stats.hits,
+            misses: stats.misses,
+            keyCount: keys.length,
+            hitRate: stats.hits + stats.misses > 0
+                ? (stats.hits / (stats.hits + stats.misses) * 100).toFixed(2)
+                : 0,
+            uptime: process.uptime()
+        };
+    },
+
+    // Cleanup old cache entries if memory is high
+    cleanupIfNeeded: () => {
+        const memory = process.memoryUsage();
+        const heapUsedMB = memory.heapUsed / 1024 / 1024;
+
+        // Cleanup if using more than 400MB
+        if (heapUsedMB > 400) {
+            console.log(`High memory usage (${heapUsedMB.toFixed(1)}MB), cleaning cache...`);
+
+            const keys = itemsCache.keys();
+            const oldKeys = keys.slice(0, Math.floor(keys.length * 0.3)); // Remove 30% oldest
+
+            oldKeys.forEach(key => itemsCache.del(key));
+            console.log(`Removed ${oldKeys.length} old cache entries`);
+
+            return oldKeys.length;
+        }
+        return 0;
+    }
+};
+
+// Your main route with caching
 // router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
 //     try {
 //         const companyId = req.session.currentCompany;
 
-//         // Create a unique cache key based on request parameters
-//         const cacheKey = `items_${companyId}_${req.session.currentFiscalYear || 'noFY'}`;
+//         // Generate cache key
+//         const cacheKey = cacheService.generateKey(req);
 
-//         // Check if data exists in cache
-//         const cachedData = myCache.get(cacheKey);
+//         // Try to get from cache first
+//         const cachedData = cacheService.get(cacheKey);
 //         if (cachedData) {
-//             console.log('Serving from cache');
-//             return res.json(cachedData);
+//             console.log(`Cache hit for key: ${cacheKey}`);
+
+//             // Add cache info to response
+//             const response = {
+//                 ...cachedData,
+//                 _fromCache: true,
+//                 _cacheKey: cacheKey,
+//                 _servedAt: new Date().toISOString()
+//             };
+
+//             return res.json(response);
 //         }
+
+//         console.log(`Cache miss for key: ${cacheKey}, fetching from database...`);
 
 //         // Parallelize all independent queries
 //         const [
@@ -298,10 +686,6 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
 //                 .populate('unit', 'name')
 //                 .populate('mainUnit', 'name')
 //                 .populate('composition', 'name uniqueNumber')
-//                 .populate({
-//                     path: 'stockEntries',
-//                     select: 'quantity'
-//                 })
 //                 .lean(),
 //             Category.find({ company: companyId }).lean(),
 //             itemsCompany.find({ company: companyId }).lean(),
@@ -309,6 +693,11 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
 //             MainUnit.find({ company: companyId }).lean(),
 //             Composition.find({ company: companyId }).lean()
 //         ]);
+
+//         // Get additional company info
+//         const currentCompany = await Company.findById(new ObjectId(companyId));
+//         const currentCompanyName = req.session.currentCompanyName;
+//         const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
 
 //         // Get transaction existence in a single query
 //         const itemIds = items.map(item => item._id);
@@ -319,15 +708,29 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
 
 //         const transactionItemIds = new Set(transactions.map(t => t.item.toString()));
 
-//         // Add hasTransactions flag
-//         const itemsWithFlags = items.map(item => ({
-//             ...item,
-//             hasTransactions: transactionItemIds.has(item._id.toString()) ? 'true' : 'false',
-//             currentStock: item.stockEntries && item.stockEntries.length > 0
-//                 ? item.stockEntries[0].quantity
-//                 : 0,
-//             stockEntries: item.stockEntries || []
-//         }));
+//         // Add hasTransactions flag and calculate current stock from stockEntries
+//         const itemsWithFlags = items.map(item => {
+//             // Calculate current stock from stockEntries subdocuments
+//             let currentStock = 0;
+
+//             if (item.stockEntries && item.stockEntries.length > 0) {
+//                 // Sum all quantities from stockEntries subdocuments
+//                 currentStock = item.stockEntries.reduce((total, entry) => {
+//                     const quantity = parseFloat(entry.quantity) || 0;
+//                     return total + quantity;
+//                 }, 0);
+//             } else {
+//                 // Fallback to the item's openingStock field if no stockEntries
+//                 currentStock = parseFloat(item.openingStock) || 0;
+//             }
+
+//             return {
+//                 ...item,
+//                 hasTransactions: transactionItemIds.has(item._id.toString()) ? 'true' : 'false',
+//                 currentStock: currentStock,
+//                 stockEntriesCount: item.stockEntries ? item.stockEntries.length : 0
+//             };
+//         });
 
 //         // Get current fiscal year
 //         let currentFiscalYear = req.session.currentFiscalYear;
@@ -339,12 +742,30 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
 //         const today = new Date();
 //         const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
 
+//         // Debug logging (only in development)
+//         if (process.env.NODE_ENV !== 'production') {
+//             console.log('Session data:', {
+//                 currentCompany: req.session.currentCompany,
+//                 currentFiscalYear: req.session.currentFiscalYear,
+//                 user: req.user._id
+//             });
+
+//             console.log('Stock calculation debug - First 3 items:', itemsWithFlags.slice(0, 3).map(item => ({
+//                 name: item.name,
+//                 currentStock: item.currentStock,
+//                 stockEntriesCount: item.stockEntriesCount
+//             })));
+//         }
+
 //         // Prepare response data
 //         const responseData = {
 //             success: true,
 //             items: itemsWithFlags,
 //             company,
 //             currentFiscalYear,
+//             currentCompany: currentCompany,
+//             currentCompanyName,
+//             companyDateFormat: companyDateFormat,
 //             vatEnabled: company?.vatEnabled || false,
 //             categories,
 //             itemsCompanies,
@@ -352,27 +773,35 @@ router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ens
 //             mainUnits,
 //             composition,
 //             companyId,
-//             currentCompanyName: req.session.currentCompanyName || '',
-//             companyDateFormat: company?.dateFormat || 'english',
 //             nepaliDate,
 //             fiscalYear: currentFiscalYear?._id || null,
 //             user: req.user,
 //             theme: req.user.preferences?.theme || 'light',
-//             isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//             isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor',
+//             _fromCache: false,
+//             _cacheKey: cacheKey,
+//             _generatedAt: new Date().toISOString()
 //         };
 
-//         // Store data in cache
-//         myCache.set(cacheKey, responseData);
+//         // Store in cache
+//         cacheService.set(cacheKey, responseData);
 
-//         console.log('Data cached with key:', cacheKey);
+//         // Periodically check and cleanup cache if needed (1% chance)
+//         if (Math.random() < 0.01) {
+//             cacheService.cleanupIfNeeded();
+//         }
+
 //         res.json(responseData);
 //     } catch (error) {
 //         console.error("Error fetching items:", error);
-//         res.status(500).json({ error: 'Failed to fetch items' });
+//         res.status(500).json({ 
+//             error: 'Failed to fetch items',
+//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
 //     }
 // });
 
-// Route to get items with reorder level, current stock, and needed stock
+
 router.get('/items/reorder', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType === 'retailer') {
         const companyId = req.session.currentCompany;
@@ -551,16 +980,35 @@ router.get('/items/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
         }));
 
         // Get user's barcode preferences or use defaults
-        const barcodePreferences = await BarcodePreference.findOne({
-            user: req.user._id
-        });
+        // const barcodePreferences = await BarcodePreference.findOne({
+        //     user: req.user._id
+        // });
 
-        const printPreferences = barcodePreferences || {
+        // const printPreferences = barcodePreferences || {
+        //     labelWidth: 70,
+        //     labelHeight: 40,
+        //     labelsPerRow: 3,
+        //     barcodeType: 'code128',
+        //     defaultQuantity: 1
+        // };
+
+        const barcodePrefs = await BarcodePreference.findOne({
+            user: req.user._id
+        }).lean() || {
             labelWidth: 70,
             labelHeight: 40,
             labelsPerRow: 3,
             barcodeType: 'code128',
-            defaultQuantity: 1
+            defaultQuantity: 1,
+            includeItemName: true,
+            includePrice: true,
+            includeBatch: true,
+            includeExpiry: true,
+            fontSize: 12,
+            border: true,
+            paperSize: 'A4',
+            orientation: 'portrait',
+            margin: 10
         };
 
         const hasTransactions = await Transaction.exists({ item: req.params.id });
@@ -580,7 +1028,8 @@ router.get('/items/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                     purchasePrice
                 },
                 stockEntries,
-                printPreferences,
+                // printPreferences,
+                printPreferences: barcodePrefs,
                 barcodeBaseUrl: `/item/${item._id}/barcode`,
                 fiscalYear,
                 currentCompanyName,
@@ -1354,7 +1803,7 @@ router.get('/items-import', isLoggedIn, ensureAuthenticated, ensureCompanySelect
 //         console.log('Headers:', req.headers);
 //         console.log('=======================');
 
-        
+
 //         const fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
 //         const companyId = req.session.currentCompany;
 
@@ -1593,7 +2042,7 @@ router.get('/items-import', isLoggedIn, ensureAuthenticated, ensureCompanySelect
 router.post('/items-import', upload.single('excelFile'), async (req, res) => {
     // Add start time for performance tracking
     req.startTime = Date.now();
-    
+
     try {
         console.log('=== FILE UPLOAD DEBUG ===');
         console.log('File received:', req.file);
@@ -1670,7 +2119,7 @@ router.post('/items-import', upload.single('excelFile'), async (req, res) => {
             if (req.file && req.file.path) {
                 fs.unlinkSync(req.file.path);
             }
-            
+
             return res.status(400).json({
                 success: false,
                 error: 'INVALID_EXCEL_FILE',
@@ -1691,7 +2140,7 @@ router.post('/items-import', upload.single('excelFile'), async (req, res) => {
             if (req.file && req.file.path) {
                 fs.unlinkSync(req.file.path);
             }
-            
+
             return res.status(400).json({
                 success: false,
                 error: 'MISSING_COLUMNS',

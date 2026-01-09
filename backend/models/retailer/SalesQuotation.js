@@ -47,6 +47,6 @@ const SalesQuotationSchema = new Schema({
 });
 
 // Unique constraint for sales bills
-SalesQuotationSchema.index({ billNumber: 1, company: 1, fiscalYear: 1 }, { unique: true });
+SalesQuotationSchema.index({ date: 1, billNumber: 1, company: 1, fiscalYear: 1 }, { unique: true });
 
 module.exports = mongoose.model('SalesQuotation', SalesQuotationSchema);
