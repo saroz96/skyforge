@@ -26,29 +26,261 @@ const { getNextBillNumber } = require('../../middleware/getNextBillNumber');
 const checkDemoPeriod = require('../../middleware/checkDemoPeriod');
 const CompanyGroup = require('../../models/retailer/CompanyGroup');
 
-// Sales return Bill routes
+// // Sales return Bill routes
+// router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     try {
+//         if (req.tradeType === 'retailer') {
+//             const companyId = req.session.currentCompany;
+
+//             // Fetch all required data in parallel for better performance
+//             const [
+//                 items,
+//                 bills,
+//                 salesInvoices,
+//                 company,
+//                 lastCounter
+//             ] = await Promise.all([
+//                 Item.find({ company: companyId, status: 'active' }).populate('category').populate('unit').populate('mainUnit').populate('stockEntries').lean(),
+//                 SalesReturn.find({ company: companyId }).populate('account').populate('items.item'),
+//                 SalesBill.find({ company: companyId }),
+//                 Company.findById(companyId).select('renewalDate fiscalYear dateFormat vatEnabled').populate('fiscalYear'),
+//                 BillCounter.findOne({
+//                     company: companyId,
+//                     fiscalYear: req.session.currentFiscalYear?.id,
+//                     transactionType: 'salesReturn'
+//                 })
+//             ]);
+
+//             // Date handling
+//             const today = new Date();
+//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+//             const transactionDateNepali = new NepaliDate(today).format('YYYY-MM-DD');
+//             const companyDateFormat = company ? company.dateFormat : 'english';
+
+//             // Fiscal year handling
+//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//             let currentFiscalYear = null;
+
+//             if (fiscalYear) {
+//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//             }
+
+//             if (!currentFiscalYear && company.fiscalYear) {
+//                 currentFiscalYear = company.fiscalYear;
+
+//                 // Set the fiscal year in the session for future requests
+//                 req.session.currentFiscalYear = {
+//                     id: currentFiscalYear._id.toString(),
+//                     startDate: currentFiscalYear.startDate,
+//                     endDate: currentFiscalYear.endDate,
+//                     name: currentFiscalYear.name,
+//                     dateFormat: currentFiscalYear.dateFormat,
+//                     isActive: currentFiscalYear.isActive
+//                 };
+
+//                 fiscalYear = req.session.currentFiscalYear.id;
+//             }
+
+//             if (!fiscalYear) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     error: 'No fiscal year found in session or company.'
+//                 });
+//             }
+
+//             const itemsWithStock = items.map(item => {
+//                 const totalStock = item.stockEntries.reduce((sum, entry) => {
+//                     return sum + (entry.quantity || 0);
+//                 }, 0);
+
+//                 // Sort stock entries by date in descending order (newest first)
+//                 const sortedStockEntries = [...item.stockEntries].sort((a, b) => {
+//                     return new Date(b.date) - new Date(a.date);
+//                 });
+
+//                 // Get the latest stock entry (first item after sorting)
+//                 const latestStockEntry = sortedStockEntries[item.stockEntries.length - 1]
+//                 // Get the latest price (rounded to 2 decimal places)
+//                 const price = latestStockEntry?.price
+//                     ? Math.round(latestStockEntry.price * 100) / 100
+//                     : item.price
+//                         ? Math.round(item.price * 100) / 100
+//                         : 0;
+
+//                 return {
+//                     ...item,
+//                     stock: totalStock,
+//                     latestPrice: price,
+//                     latestStockEntry: latestStockEntry,
+
+//                 };
+//             });
+
+//             // Calculate next bill number
+//             const nextNumber = lastCounter ? lastCounter.currentBillNumber + 1 : 1;
+//             const fiscalYears = await FiscalYear.findById(fiscalYear);
+//             const prefix = fiscalYears.billPrefixes.salesReturn;
+//             const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
+
+//             // Fetch only the required company groups: Cash in Hand, Sundry Debtors, Sundry Creditors
+//             const relevantGroups = await CompanyGroup.find({
+//                 name: { $in: ['Sundry Debtors', 'Sundry Creditors'] }
+//             }).exec();
+
+//             // Convert relevant group IDs to an array of ObjectIds
+//             const relevantGroupIds = relevantGroups.map(group => group._id);
+
+//             const accounts = await Account.find({
+//                 company: companyId,
+//                 // fiscalYear: fiscalYear,
+//                 isActive: true,
+//                 $or: [
+//                     { originalFiscalYear: fiscalYear }, // Created here
+//                     {
+//                         fiscalYear: fiscalYear,
+//                         originalFiscalYear: { $lt: fiscalYear } // Migrated from older FYs
+//                     }
+//                 ],
+//                 companyGroups: { $in: relevantGroupIds }
+//             });
+
+//             // Prepare response data
+//             const responseData = {
+//                 success: true,
+//                 data: {
+//                     company: {
+//                         _id: company._id,
+//                         renewalDate: company.renewalDate,
+//                         dateFormat: company.dateFormat,
+//                         vatEnabled: company.vatEnabled,
+//                         fiscalYear: company.fiscalYear
+//                     },
+//                     items: itemsWithStock,
+//                     accounts: accounts,
+//                     salesReturns: bills.map(bill => ({
+//                         _id: bill._id,
+//                         billNumber: bill.billNumber,
+//                         account: bill.account,
+//                         items: bill.items,
+//                         totalAmount: bill.totalAmount,
+//                         discount: bill.discount,
+//                         taxableAmount: bill.taxableAmount,
+//                         vatAmount: bill.vatAmount,
+//                         grandTotal: bill.grandTotal,
+//                         transactionDate: bill.transactionDate
+//                     })),
+//                     salesInvoices: salesInvoices,
+//                     nextSalesReturnNumber: nextBillNumber,
+//                     dates: {
+//                         nepaliDate,
+//                         transactionDateNepali
+//                     },
+//                     currentFiscalYear: {
+//                         _id: currentFiscalYear._id,
+//                         name: currentFiscalYear.name,
+//                         startDate: currentFiscalYear.startDate,
+//                         endDate: currentFiscalYear.endDate,
+//                         isActive: currentFiscalYear.isActive
+//                     },
+//                     userPreferences: {
+//                         theme: req.user.preferences?.theme || 'light'
+//                     },
+//                     permissions: {
+//                         isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//                     }
+//                 }
+//             };
+
+//             return res.json(responseData);
+//         }
+//     } catch (error) {
+//         console.error('Error in /sales-return route:', error);
+//         return res.status(500).json({
+//             success: false,
+//             error: 'Internal server error',
+//             details: error.message
+//         });
+//     }
+// });
+
+// Route to get next bill number for sales return
+router.get('/sales-return/next-number', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        if (req.tradeType !== 'retailer') {
+            return res.status(403).json({
+                success: false,
+                error: 'Access forbidden for this trade type'
+            });
+        }
+
+        const companyId = req.session.currentCompany;
+        const fiscalYearId = req.session.currentFiscalYear?.id;
+
+        // Get fiscal year details first
+        const fiscalYear = await FiscalYear.findById(fiscalYearId);
+        if (!fiscalYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'Fiscal year not found'
+            });
+        }
+
+        // Get or create bill counter
+        let lastCounter = await BillCounter.findOne({
+            company: companyId,
+            fiscalYear: fiscalYearId,
+            transactionType: 'salesReturn'
+        });
+
+        // If no counter exists, create one
+        if (!lastCounter) {
+            lastCounter = new BillCounter({
+                company: companyId,
+                fiscalYear: fiscalYearId,
+                transactionType: 'salesReturn',
+                currentBillNumber: 0
+            });
+            await lastCounter.save();
+        }
+
+        // Calculate next bill number
+        const nextNumber = lastCounter.currentBillNumber + 1;
+        const prefix = fiscalYear.billPrefixes.salesReturn;
+        const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
+
+        return res.json({
+            success: true,
+            data: {
+                nextSalesReturnNumber: nextBillNumber,
+                currentCounter: lastCounter.currentBillNumber
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in /sales-return/next-number route:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            details: error.message
+        });
+    }
+});
+
+// Main route for sales return - optimized without items fetching and voucher number generation
 router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
         if (req.tradeType === 'retailer') {
             const companyId = req.session.currentCompany;
 
-            // Fetch all required data in parallel for better performance
+            // Fetch required data in parallel (except items)
             const [
-                items,
                 bills,
                 salesInvoices,
-                company,
-                lastCounter
+                company
             ] = await Promise.all([
-                Item.find({ company: companyId, status: 'active' }).populate('category').populate('unit').populate('mainUnit').populate('stockEntries').lean(),
                 SalesReturn.find({ company: companyId }).populate('account').populate('items.item'),
                 SalesBill.find({ company: companyId }),
-                Company.findById(companyId).select('renewalDate fiscalYear dateFormat vatEnabled').populate('fiscalYear'),
-                BillCounter.findOne({
-                    company: companyId,
-                    fiscalYear: req.session.currentFiscalYear?.id,
-                    transactionType: 'salesReturn'
-                })
+                Company.findById(companyId).select('renewalDate fiscalYear dateFormat vatEnabled').populate('fiscalYear')
             ]);
 
             // Date handling
@@ -88,41 +320,7 @@ router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelect
                 });
             }
 
-            const itemsWithStock = items.map(item => {
-                const totalStock = item.stockEntries.reduce((sum, entry) => {
-                    return sum + (entry.quantity || 0);
-                }, 0);
-
-                // Sort stock entries by date in descending order (newest first)
-                const sortedStockEntries = [...item.stockEntries].sort((a, b) => {
-                    return new Date(b.date) - new Date(a.date);
-                });
-
-                // Get the latest stock entry (first item after sorting)
-                const latestStockEntry = sortedStockEntries[item.stockEntries.length - 1]
-                // Get the latest price (rounded to 2 decimal places)
-                const price = latestStockEntry?.price
-                    ? Math.round(latestStockEntry.price * 100) / 100
-                    : item.price
-                        ? Math.round(item.price * 100) / 100
-                        : 0;
-
-                return {
-                    ...item,
-                    stock: totalStock,
-                    latestPrice: price,
-                    latestStockEntry: latestStockEntry,
-
-                };
-            });
-
-            // Calculate next bill number
-            const nextNumber = lastCounter ? lastCounter.currentBillNumber + 1 : 1;
-            const fiscalYears = await FiscalYear.findById(fiscalYear);
-            const prefix = fiscalYears.billPrefixes.salesReturn;
-            const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
-
-            // Fetch only the required company groups: Cash in Hand, Sundry Debtors, Sundry Creditors
+            // Fetch only the required company groups: Sundry Debtors, Sundry Creditors
             const relevantGroups = await CompanyGroup.find({
                 name: { $in: ['Sundry Debtors', 'Sundry Creditors'] }
             }).exec();
@@ -132,7 +330,6 @@ router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelect
 
             const accounts = await Account.find({
                 company: companyId,
-                // fiscalYear: fiscalYear,
                 isActive: true,
                 $or: [
                     { originalFiscalYear: fiscalYear }, // Created here
@@ -144,7 +341,7 @@ router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelect
                 companyGroups: { $in: relevantGroupIds }
             });
 
-            // Prepare response data
+            // Prepare response data (without items and without nextSalesReturnNumber)
             const responseData = {
                 success: true,
                 data: {
@@ -155,7 +352,6 @@ router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelect
                         vatEnabled: company.vatEnabled,
                         fiscalYear: company.fiscalYear
                     },
-                    items: itemsWithStock,
                     accounts: accounts,
                     salesReturns: bills.map(bill => ({
                         _id: bill._id,
@@ -170,7 +366,6 @@ router.get('/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelect
                         transactionDate: bill.transactionDate
                     })),
                     salesInvoices: salesInvoices,
-                    nextSalesReturnNumber: nextBillNumber,
                     dates: {
                         nepaliDate,
                         transactionDateNepali
@@ -461,9 +656,9 @@ router.get('/sales-bill-by-number/:billNumber', isLoggedIn, ensureAuthenticated,
             originalSalesBill: salesBill._id,
             company: companyId
         })
-        .select('billNumber date totalAmount items')
-        .sort({ date: -1 })
-        .lean();
+            .select('billNumber date totalAmount items')
+            .sort({ date: -1 })
+            .lean();
 
         // Calculate returned quantities for each item
         const returnedQuantities = {};
@@ -484,7 +679,7 @@ router.get('/sales-bill-by-number/:billNumber', isLoggedIn, ensureAuthenticated,
         // Process items for the response
         const processedItems = salesBill.items.map((item, index) => {
             const itemData = item.item || {};
-            
+
             // Create key for matching returned items
             const key = `${item.item?._id}_${item.batchNumber}`;
             const returnedQty = returnedQuantities[key] || 0;
@@ -1111,6 +1306,316 @@ router.post('/sales-return', ensureAuthenticated, ensureCompanySelected, ensureT
     }
 });
 
+// router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     try {
+//         if (req.tradeType !== 'retailer') {
+//             return res.status(403).json({
+//                 success: false,
+//                 error: 'Access forbidden for this trade type'
+//             });
+//         }
+
+//         const companyId = req.session.currentCompany;
+
+//         // Fetch all required data in parallel for better performance
+//         const [
+//             company,
+//             items,
+//             bills,
+//             salesInvoice,
+//             lastCounter,
+//             fiscalYears,
+//             categories,
+//             units,
+//             companyGroups,
+//         ] = await Promise.all([
+//             Company.findById(companyId)
+//                 .select('renewalDate fiscalYear dateFormat vatEnabled')
+//                 .populate('fiscalYear'),
+//             Item.find({ company: companyId, status: 'active' }).populate('category').populate('unit').populate('mainUnit').populate('stockEntries'),
+//             SalesReturn.find({ company: companyId })
+//                 .populate('account')
+//                 .populate('items.item'),
+//             SalesBill.find({ company: companyId }),
+//             BillCounter.findOne({
+//                 company: companyId,
+//                 fiscalYear: req.session.currentFiscalYear?.id,
+//                 transactionType: 'salesReturn'
+//             }),
+//             FiscalYear.findById(req.session.currentFiscalYear?.id),
+//             Category.find({ company: companyId }),
+//             Unit.find({ company: companyId }),
+//             CompanyGroup.find({ company: companyId }),
+//         ]);
+
+//         // Date handling
+//         const today = new Date();
+//         const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+//         const transactionDateNepali = new NepaliDate(today).format('YYYY-MM-DD');
+//         const companyDateFormat = company ? company.dateFormat : 'english';
+
+//         // Fiscal year handling
+//         let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+//         let currentFiscalYear = null;
+
+//         if (fiscalYear) {
+//             currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//         }
+
+//         if (!currentFiscalYear && company.fiscalYear) {
+//             currentFiscalYear = company.fiscalYear;
+//             fiscalYear = currentFiscalYear._id.toString();
+//         }
+
+//         if (!fiscalYear) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'No fiscal year found in session or company.'
+//             });
+//         }
+
+//         // Process items with stock information
+//         const itemsWithStock = items.map(item => {
+//             const totalStock = item.stockEntries.reduce((sum, entry) => {
+//                 return sum + (entry.quantity || 0);
+//             }, 0);
+
+//             // Sort stock entries by date in descending order (newest first)
+//             const sortedStockEntries = [...item.stockEntries].sort((a, b) => {
+//                 return new Date(b.date) - new Date(a.date);
+//             });
+
+//             // Get the latest stock entry (first item after sorting)
+//             const latestStockEntry = sortedStockEntries[0] || null;
+
+//             const price = latestStockEntry?.price
+//                 ? Math.round(latestStockEntry.price * 100) / 100
+//                 : item.price
+//                     ? Math.round(item.price * 100) / 100
+//                     : 0;
+
+//             return {
+//                 ...item.toObject(),
+//                 stock: totalStock,
+//                 latestPrice: price,
+//                 latestStockEntry: latestStockEntry
+//             };
+//         });
+
+//         // Calculate next bill number
+//         const nextNumber = lastCounter ? lastCounter.currentBillNumber + 1 : 1;
+//         const prefix = fiscalYears.billPrefixes.salesReturn;
+//         const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
+
+//         // 1. Fetch active cash accounts from Account collection
+//         const relevantGroups = await CompanyGroup.find({
+//             name: { $in: ['Cash in Hand'] }
+//         }).exec();
+
+//         const relevantGroupIds = relevantGroups.map(group => group._id);
+
+//         const activeAccounts = await Account.find({
+//             company: companyId,
+//             fiscalYear: fiscalYear,
+//             isActive: true,
+//             companyGroups: { $in: relevantGroupIds }
+//         }).select('name address pan phone email defaultCashAccount');
+
+//         // 2. Fetch previously used cash accounts from SalesBill collection
+//         const usedCashAccounts = await SalesBill.aggregate([
+//             {
+//                 $match: {
+//                     company: new mongoose.Types.ObjectId(companyId),
+//                     cashAccount: { $exists: true, $ne: null }
+//                 }
+//             },
+//             {
+//                 $group: {
+//                     _id: "$cashAccount",
+//                     address: { $first: "$cashAccountAddress" },
+//                     pan: { $first: "$cashAccountPan" },
+//                     phone: { $first: "$cashAccountPhone" },
+//                     email: { $first: "$cashAccountEmail" }
+//                 }
+//             },
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     name: "$_id",
+//                     address: 1,
+//                     pan: 1,
+//                     phone: 1,
+//                     email: 1,
+//                     isHistorical: true // Flag to identify historical accounts
+//                 }
+//             }
+//         ]);
+
+//         // Combine both results, ensuring no duplicates
+//         const combinedAccounts = [...activeAccounts.map(acc => ({
+//             ...acc.toObject(),
+//             isHistorical: false
+//         }))];
+
+//         usedCashAccounts.forEach(usedAccount => {
+//             // Only add if not already in activeAccounts
+//             if (!activeAccounts.some(acc => acc.name === usedAccount.name)) {
+//                 combinedAccounts.push({
+//                     _id: null, // No ID since it's from SalesBill
+//                     name: usedAccount.name,
+//                     address: usedAccount.address,
+//                     pan: usedAccount.pan,
+//                     phone: usedAccount.phone,
+//                     email: usedAccount.email,
+//                     isHistorical: true
+//                 });
+//             }
+//         });
+
+//         // Sort combined accounts alphabetically by name
+//         combinedAccounts.sort((a, b) => a.name.localeCompare(b.name));
+
+//         // Prepare response data
+//         const responseData = {
+//             success: true,
+//             data: {
+//                 company: {
+//                     _id: company._id,
+//                     renewalDate: company.renewalDate,
+//                     dateFormat: company.dateFormat,
+//                     vatEnabled: company.vatEnabled,
+//                     fiscalYear: company.fiscalYear
+//                 },
+//                 items: itemsWithStock,
+//                 accounts: combinedAccounts,
+//                 salesReturnBills: bills.map(bill => ({
+//                     _id: bill._id,
+//                     billNumber: bill.billNumber,
+//                     account: bill.account,
+//                     items: bill.items,
+//                     totalAmount: bill.totalAmount,
+//                     discount: bill.discount,
+//                     taxableAmount: bill.taxableAmount,
+//                     vatAmount: bill.vatAmount,
+//                     grandTotal: bill.grandTotal,
+//                     transactionDate: bill.transactionDate
+//                 })),
+//                 salesInvoices: salesInvoice.map(invoice => ({
+//                     _id: invoice._id,
+//                     billNumber: invoice.billNumber,
+//                     account: invoice.account,
+//                     grandTotal: invoice.grandTotal,
+//                     transactionDate: invoice.transactionDate
+//                 })),
+//                 nextSalesReturnBillNumber: nextBillNumber,
+//                 dates: {
+//                     nepaliDate,
+//                     transactionDateNepali
+//                 },
+//                 currentFiscalYear: {
+//                     _id: currentFiscalYear._id,
+//                     name: currentFiscalYear.name,
+//                     startDate: currentFiscalYear.startDate,
+//                     endDate: currentFiscalYear.endDate,
+//                     isActive: currentFiscalYear.isActive
+//                 },
+//                 categories: categories.map(cat => ({
+//                     _id: cat._id,
+//                     name: cat.name
+//                 })),
+//                 units: units.map(unit => ({
+//                     _id: unit._id,
+//                     name: unit.name
+//                 })),
+//                 companyGroups: companyGroups.map(group => ({
+//                     _id: group._id,
+//                     name: group.name
+//                 })),
+//                 userPreferences: {
+//                     theme: req.user.preferences?.theme || 'light'
+//                 },
+//                 permissions: {
+//                     isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+//                 }
+//             }
+//         };
+
+//         return res.json(responseData);
+
+//     } catch (error) {
+//         console.error('Error in /cash/sales-return/add route:', error);
+//         return res.status(500).json({
+//             success: false,
+//             error: 'Internal server error',
+//             details: error.message
+//         });
+//     }
+// });
+
+// Route to get next bill number for cash sales return
+router.get('/cash/sales-return/next-number', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        if (req.tradeType !== 'retailer') {
+            return res.status(403).json({
+                success: false,
+                error: 'Access forbidden for this trade type'
+            });
+        }
+
+        const companyId = req.session.currentCompany;
+        const fiscalYearId = req.session.currentFiscalYear?.id;
+
+        // Get fiscal year details first
+        const fiscalYear = await FiscalYear.findById(fiscalYearId);
+        if (!fiscalYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'Fiscal year not found'
+            });
+        }
+
+        // Get or create bill counter
+        let lastCounter = await BillCounter.findOne({
+            company: companyId,
+            fiscalYear: fiscalYearId,
+            transactionType: 'salesReturn'
+        });
+
+        // If no counter exists, create one
+        if (!lastCounter) {
+            lastCounter = new BillCounter({
+                company: companyId,
+                fiscalYear: fiscalYearId,
+                transactionType: 'salesReturn',
+                currentBillNumber: 0
+            });
+            await lastCounter.save();
+        }
+
+        // Calculate next bill number
+        const nextNumber = lastCounter.currentBillNumber + 1;
+        const prefix = fiscalYear.billPrefixes.salesReturn;
+        const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
+
+        return res.json({
+            success: true,
+            data: {
+                nextSalesReturnBillNumber: nextBillNumber,
+                currentCounter: lastCounter.currentBillNumber
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in /cash/sales-return/next-number route:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            details: error.message
+        });
+    }
+});
+
+// Main route for cash sales return - optimized without items fetching and voucher number generation
 router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
         if (req.tradeType !== 'retailer') {
@@ -1122,13 +1627,11 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
 
         const companyId = req.session.currentCompany;
 
-        // Fetch all required data in parallel for better performance
+        // Fetch all required data in parallel for better performance (except items)
         const [
             company,
-            items,
             bills,
             salesInvoice,
-            lastCounter,
             fiscalYears,
             categories,
             units,
@@ -1137,16 +1640,10 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
             Company.findById(companyId)
                 .select('renewalDate fiscalYear dateFormat vatEnabled')
                 .populate('fiscalYear'),
-            Item.find({ company: companyId, status: 'active' }).populate('category').populate('unit').populate('mainUnit').populate('stockEntries'),
             SalesReturn.find({ company: companyId })
                 .populate('account')
                 .populate('items.item'),
             SalesBill.find({ company: companyId }),
-            BillCounter.findOne({
-                company: companyId,
-                fiscalYear: req.session.currentFiscalYear?.id,
-                transactionType: 'salesReturn'
-            }),
             FiscalYear.findById(req.session.currentFiscalYear?.id),
             Category.find({ company: companyId }),
             Unit.find({ company: companyId }),
@@ -1178,39 +1675,6 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
                 error: 'No fiscal year found in session or company.'
             });
         }
-
-        // Process items with stock information
-        const itemsWithStock = items.map(item => {
-            const totalStock = item.stockEntries.reduce((sum, entry) => {
-                return sum + (entry.quantity || 0);
-            }, 0);
-
-            // Sort stock entries by date in descending order (newest first)
-            const sortedStockEntries = [...item.stockEntries].sort((a, b) => {
-                return new Date(b.date) - new Date(a.date);
-            });
-
-            // Get the latest stock entry (first item after sorting)
-            const latestStockEntry = sortedStockEntries[0] || null;
-
-            const price = latestStockEntry?.price
-                ? Math.round(latestStockEntry.price * 100) / 100
-                : item.price
-                    ? Math.round(item.price * 100) / 100
-                    : 0;
-
-            return {
-                ...item.toObject(),
-                stock: totalStock,
-                latestPrice: price,
-                latestStockEntry: latestStockEntry
-            };
-        });
-
-        // Calculate next bill number
-        const nextNumber = lastCounter ? lastCounter.currentBillNumber + 1 : 1;
-        const prefix = fiscalYears.billPrefixes.salesReturn;
-        const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
 
         // 1. Fetch active cash accounts from Account collection
         const relevantGroups = await CompanyGroup.find({
@@ -1280,7 +1744,7 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
         // Sort combined accounts alphabetically by name
         combinedAccounts.sort((a, b) => a.name.localeCompare(b.name));
 
-        // Prepare response data
+        // Prepare response data (without items and without nextBillNumber)
         const responseData = {
             success: true,
             data: {
@@ -1291,7 +1755,6 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
                     vatEnabled: company.vatEnabled,
                     fiscalYear: company.fiscalYear
                 },
-                items: itemsWithStock,
                 accounts: combinedAccounts,
                 salesReturnBills: bills.map(bill => ({
                     _id: bill._id,
@@ -1312,7 +1775,7 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
                     grandTotal: invoice.grandTotal,
                     transactionDate: invoice.transactionDate
                 })),
-                nextSalesReturnBillNumber: nextBillNumber,
+                // Note: nextSalesReturnBillNumber is removed from here
                 dates: {
                     nepaliDate,
                     transactionDateNepali
@@ -1348,7 +1811,7 @@ router.get('/cash/sales-return', isLoggedIn, ensureAuthenticated, ensureCompanyS
         return res.json(responseData);
 
     } catch (error) {
-        console.error('Error in /cash/sales-return/add route:', error);
+        console.error('Error in /cash/sales-return route:', error);
         return res.status(500).json({
             success: false,
             error: 'Internal server error',

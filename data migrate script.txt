@@ -1,0 +1,11 @@
+# 1. Create backup directory
+mkdir -p /backup/atlas-migration
+cd /backup/atlas-migration
+
+# 2. Dump from Atlas (replace with your actual connection string)
+mongodump --uri="mongodb+srv://username:password@cluster.mongodb.net/" \
+  --out ./atlas-dump-$(date +%Y%m%d)
+
+# 3. Restore to Contabo MongoDB
+mongorestore --uri="mongodb://localhost:27017" \
+  ./atlas-dump-$(date +%Y%m%d)

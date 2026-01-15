@@ -1,0 +1,55 @@
+# Start MongoDB service
+sudo systemctl start mongod
+
+# Enable it to start on boot
+sudo systemctl enable mongod
+
+# Check status
+sudo systemctl status mongod
+
+# View current config file
+sudo cat /etc/mongod.conf
+
+sudo tee /etc/mongod.conf << 'EOF'
+# MongoDB configuration file - YAML format
+
+storage:
+  dbPath: /var/lib/mongodb
+  journal:
+    enabled: true
+
+systemLog:
+  destination: file
+  logAppend: true
+  path: /var/log/mongodb/mongod.log
+  logRotate: reopen
+
+net:
+  port: 27017
+  bindIp: 0.0.0.0  # Listen on all interfaces
+
+processManagement:
+  fork: true
+  pidFilePath: /var/run/mongodb/mongod.pid
+  timeZoneInfo: /usr/share/zoneinfo
+
+# Security - COMMENT OUT if you don't need auth yet
+# security:
+#   authorization: enabled
+#   keyFile: /etc/mongodb-keyfile  # Only needed for replica sets
+
+# Operation Profiling (optional)
+# operationProfiling:
+#   slowOpThresholdMs: 100
+#   mode: slowOp
+
+# Replication - COMMENT OUT if single server
+# replication:
+#   replSetName: "rs0"
+
+# Sharding - COMMENT OUT if not using sharding
+# sharding:
+#   clusterRole: configsvr|shardsvr
+EOF
+
+sudo cp -r /var/lib/mongodb /root/mongodb-old-data-$(date +%Y%m%d)

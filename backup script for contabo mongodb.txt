@@ -1,0 +1,300 @@
+step 1:
+# Connect via SSH (replace with your VPS IP)
+ssh username@84.247.142.54
+# or
+ssh root@84.247.142.54
+
+step 2:
+cd /opt
+
+step 3:
+
+sudo mkdir -p mongodb-backups
+sudo chown -R $(whoami):$(whoami) mongodb-backups
+
+step 4:
+
+# Navigate to the directory
+cd mongodb-backups
+
+# Create the backup script file using nano editor
+nano backup-script.sh
+
+
+step 5:Copy and Paste the Script Content
+When nano opens, copy and paste THIS COMPLETE SCRIPT
+
+
+#!/bin/bash
+
+# ============================================
+# MONGODB BACKUP SCRIPT FOR SARATHI DATABASE
+# ============================================
+# This script automatically backs up your MongoDB database
+# and manages backup retention
+
+# Configuration Section
+BACKUP_DIR="/opt/mongodb-backups"
+LOG_DIR="/var/log/mongodb-backups"
+LOG_FILE="$LOG_DIR/backup-$(date +\%Y\%m\%d).log"
+RETENTION_DAYS=7  # Keep backups for 7 days
+
+# MongoDB Connection Details (from your .env file)
+MONGO_HOST="84.247.142.54"
+MONGO_PORT="27017"
+MONGO_DB="Sarathi"
+MONGO_USER="admin"
+MONGO_PASS="admin123"
+
+# ============================================
+# FUNCTIONS
+# ============================================
+
+# Function to log messages
+log_message() {
+    local message="$1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" | tee -a "$LOG_FILE"
+}
+
+# Function to create necessary directories
+setup_directories() {
+    log_message "Setting up directories..."
+    
+    # Create main backup directories
+    mkdir -p "$BACKUP_DIR/daily"
+    mkdir -p "$BACKUP_DIR/weekly"
+    mkdir -p "$BACKUP_DIR/monthly"
+    mkdir -p "$BACKUP_DIR/archives"
+    
+    # Create log directory
+    sudo mkdir -p "$LOG_DIR"
+    sudo chmod 755 "$LOG_DIR"
+    
+    log_message "Directories created successfully"
+}
+
+# Function to perform MongoDB backup
+perform_backup() {
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_file="$BACKUP_DIR/daily/sarathi_backup_$timestamp.gz"
+    
+    log_message "Starting MongoDB backup..."
+    log_message "Database: $MONGO_DB"
+    log_message "Backup file: $backup_file"
+    
+    # Perform mongodump with authentication
+    mongodump \
+        --host "$MONGO_HOST" \
+        --port "$MONGO_PORT" \
+        --username "$MONGO_USER" \
+        --password "$MONGO_PASS" \
+        --authenticationDatabase admin \
+        --db "$MONGO_DB" \
+        --archive="$backup_file" \
+        --gzip
+    
+    # Check if backup was successful
+    if [ $? -eq 0 ]; then
+        # Get backup size
+        backup_size=$(du -h "$backup_file" | cut -f1)
+        
+        log_message "✅ Backup completed successfully!"
+        log_message "📊 Backup size: $backup_size"
+        log_message "💾 Saved to: $backup_file"
+        
+        # Move to archives
+        cp "$backup_file" "$BACKUP_DIR/archives/"
+        
+        # Create weekly backup on Sundays
+        if [ $(date +%u) -eq 7 ]; then
+            log_message "Creating weekly backup..."
+            cp "$backup_file" "$BACKUP_DIR/weekly/sarathi_weekly_$timestamp.gz"
+        fi
+        
+        # Create monthly backup on 1st of month
+        if [ $(date +%d) -eq 01 ]; then
+            log_message "Creating monthly backup..."
+            cp "$backup_file" "$BACKUP_DIR/monthly/sarathi_monthly_$timestamp.gz"
+        fi
+        
+        return 0
+    else
+        log_message "❌ ERROR: Backup failed!"
+        return 1
+    fi
+}
+
+# Function to cleanup old backups
+cleanup_old_backups() {
+    log_message "Cleaning up old backups (older than $RETENTION_DAYS days)..."
+    
+    # Clean daily backups
+    find "$BACKUP_DIR/daily" -name "*.gz" -mtime +$RETENTION_DAYS -delete 2>/dev/null
+    
+    # Clean archived backups (keep longer - 30 days)
+    find "$BACKUP_DIR/archives" -name "*.gz" -mtime +30 -delete 2>/dev/null
+    
+    # Clean weekly backups (keep for 90 days)
+    find "$BACKUP_DIR/weekly" -name "*.gz" -mtime +90 -delete 2>/dev/null
+    
+    # Clean monthly backups (keep for 365 days)
+    find "$BACKUP_DIR/monthly" -name "*.gz" -mtime +365 -delete 2>/dev/null
+    
+    # Clean old log files (keep for 30 days)
+    find "$LOG_DIR" -name "*.log" -mtime +30 -delete 2>/dev/null
+    
+    log_message "Cleanup completed"
+}
+
+# Function to check disk space
+check_disk_space() {
+    log_message "Checking disk space..."
+    
+    # Get disk usage percentage
+    usage=$(df -h "$BACKUP_DIR" | awk 'NR==2 {print $5}' | sed 's/%//')
+    
+    if [ "$usage" -gt 90 ]; then
+        log_message "⚠️ WARNING: Disk usage is at ${usage}%"
+        return 1
+    elif [ "$usage" -gt 80 ]; then
+        log_message "ℹ️ INFO: Disk usage is at ${usage}%"
+        return 0
+    else
+        log_message "✅ Disk usage is at ${usage}% - OK"
+        return 0
+    fi
+}
+
+# Function to verify backup integrity
+verify_backup() {
+    local backup_file="$1"
+    
+    log_message "Verifying backup integrity..."
+    
+    # Check if file exists and is not empty
+    if [ ! -f "$backup_file" ]; then
+        log_message "❌ ERROR: Backup file not found!"
+        return 1
+    fi
+    
+    if [ ! -s "$backup_file" ]; then
+        log_message "❌ ERROR: Backup file is empty!"
+        return 1
+    fi
+    
+    # Check if it's a valid gzip file
+    if ! gzip -t "$backup_file" 2>/dev/null; then
+        log_message "❌ ERROR: Backup file is corrupted!"
+        return 1
+    fi
+    
+    log_message "✅ Backup verification passed"
+    return 0
+}
+
+# Function to send email notification (optional)
+send_notification() {
+    local subject="$1"
+    local message="$2"
+    
+    # Check if mail command is available
+    if command -v mail &> /dev/null; then
+        echo "$message" | mail -s "$subject" "your-email@example.com"
+    fi
+    
+    # Also log to syslog
+    logger -t "MongoDB-Backup" "$subject"
+}
+
+# ============================================
+# MAIN SCRIPT EXECUTION
+# ============================================
+
+log_message "========================================"
+log_message "MongoDB Backup Process Started"
+log_message "========================================"
+
+# Step 1: Setup directories
+setup_directories
+
+# Step 2: Check disk space
+if ! check_disk_space; then
+    send_notification "MongoDB Backup Warning" "Low disk space on backup server"
+fi
+
+# Step 3: Perform backup
+if perform_backup; then
+    # Get the latest backup file
+    latest_backup=$(ls -t "$BACKUP_DIR/daily"/*.gz 2>/dev/null | head -1)
+    
+    # Step 4: Verify backup
+    if [ -n "$latest_backup" ]; then
+        if verify_backup "$latest_backup"; then
+            log_message "✅ Backup process completed successfully"
+            send_notification "MongoDB Backup Success" "Backup completed: $latest_backup"
+        else
+            log_message "❌ Backup verification failed!"
+            send_notification "MongoDB Backup Failed" "Backup verification failed!"
+            exit 1
+        fi
+    fi
+else
+    log_message "❌ Backup process failed!"
+    send_notification "MongoDB Backup Failed" "Backup process failed!"
+    exit 1
+fi
+
+# Step 5: Cleanup old backups
+cleanup_old_backups
+
+# Step 6: Show backup summary
+log_message "========================================"
+log_message "Backup Summary"
+log_message "========================================"
+log_message "Date: $(date)"
+log_message "Database: $MONGO_DB"
+log_message "Backup location: $BACKUP_DIR"
+
+# List recent backups
+log_message "Recent daily backups:"
+ls -lh "$BACKUP_DIR/daily"/*.gz 2>/dev/null | tail -3 || log_message "No daily backups found"
+
+log_message "Recent archives:"
+ls -lh "$BACKUP_DIR/archives"/*.gz 2>/dev/null | tail -3 || log_message "No archives found"
+
+log_message "Disk space usage:"
+df -h "$BACKUP_DIR" | awk 'NR==2 {print "Used: "$3", Free: "$4", Usage: "$5}'
+
+log_message "========================================"
+log_message "MongoDB Backup Process Completed"
+log_message "========================================"
+
+
+Step 6: Save the File in Nano
+After pasting the script:
+
+Press Ctrl + O to save
+
+Press Enter to confirm filename
+
+Press Ctrl + X to exit nano
+
+Step 7: Make the Script Executable
+# Make the script executable
+chmod +x backup-script.sh
+
+# Check permissions
+ls -la backup-script.sh
+# Should show: -rwxr-xr-x
+
+Step 9: Test the Backup Script
+
+from: root@vmi3020945:/opt/mongodb-backups# ./backup-script.sh
+
+[2026-01-14 19:43:27] Backup file: /opt/mongodb-backups/daily/sarathi_backup_20260114_194327.gz
+
+# Test the backup script
+./backup-script.sh
+
+# Check the log file
+tail -f /var/log/mongodb-backups/backup-$(date +%Y%m%d).log

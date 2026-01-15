@@ -2488,19 +2488,6 @@ const SalesBillsList = () => {
 
                         {/* Action Buttons */}
                         <div className="col-12 col-md-auto d-flex align-items-end justify-content-end gap-2">
-                            {/* <button
-                                className="btn btn-primary btn-sm d-flex align-items-center"
-                                onClick={() => navigate('/retailer/sales')}
-                                style={{
-                                    height: '30px',
-                                    padding: '0 12px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <i className="fas fa-receipt me-1"></i>New Voucher
-                            </button> */}
                             <button
                                 className="btn btn-secondary btn-sm d-flex align-items-center"
                                 onClick={() => handlePrint(false)}

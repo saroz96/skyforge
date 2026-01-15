@@ -163,7 +163,8 @@ const ItemsLedger = () => {
                 params: {
                     search: searchTerm,
                     page: page,
-                    limit: searchTerm.trim() ? 15 : 25,
+                    // limit: searchTerm.trim() ? 15 : 25,
+                    limit: 15,
                     sortBy: searchTerm.trim() ? 'relevance' : 'name'
                 }
             });
@@ -194,8 +195,14 @@ const ItemsLedger = () => {
     };
 
     // Load more items for infinite scrolling
+    // const loadMoreSearchItems = () => {
+    //     if (!isSearching) {
+    //         fetchItemsFromBackend(itemSearchQuery, searchPage + 1);
+    //     }
+    // };
+
     const loadMoreSearchItems = () => {
-        if (!isSearching) {
+        if (!isSearching && hasMoreSearchResults) {
             fetchItemsFromBackend(itemSearchQuery, searchPage + 1);
         }
     };
@@ -1112,7 +1119,7 @@ const ItemsLedger = () => {
                                 <div className="d-flex justify-content-between w-100">
                                     <div>
                                         Showing {searchResults.length} of {totalSearchItems} items
-                                        {itemSearchQuery.trim() && searchResults.length >= 15 && ' (Showing first 15 matches)'}
+                                        {/* {itemSearchQuery.trim() && searchResults.length >= 15 && ' (Showing first 15 matches)'} */}
                                     </div>
                                 </div>
                             </div>

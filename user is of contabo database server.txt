@@ -1,0 +1,59 @@
+# ✅ CORRECT - With replicaSet parameter
+MONGODB_URI=mongodb://admin:password@84.247.142.54:27017/yourdb?authSource=admin&replicaSet=rs0
+
+# ✅ Also works (shorter)
+MONGODB_URI=mongodb://84.247.142.54:27017/yourdb?replicaSet=rs0
+
+# ✅ For production with full options
+MONGODB_URI=mongodb://admin:password@84.247.142.54:27017/yourdb?authSource=admin&replicaSet=rs0&retryWrites=true&w=majority
+
+
+
+
+mongosh --eval "
+  use admin
+  db.createUser({
+    user: 'admin',
+    pwd: 'admin123',
+    roles: [
+      { role: 'root', db: 'admin' },
+      { role: 'userAdminAnyDatabase', db: 'admin' },
+      { role: 'readWriteAnyDatabase', db: 'admin' },
+      { role: 'dbAdminAnyDatabase', db: 'admin' }
+    ]
+  })
+  print('✅ Admin user created successfully');
+"
+
+> ^C
+root@vmi3020945:~# ^C
+root@vmi3020945:~# mongosh --eval
+Current Mongosh Log ID: 6967d9c1c5f791cb918ce5af
+Connecting to:          mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
+Using MongoDB:          8.0.17
+Using Mongosh:          2.6.0
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+rs0 [direct: primary] test> use admin
+switched to db admin
+rs0 [direct: primary] admin> db.createUser({
+...     user: 'admin',
+...     pwd: 'admin123',
+...     roles: [{ role: 'root', db: 'admin' }]
+...   });
+{
+  ok: 1,
+  '$clusterTime': {
+    clusterTime: Timestamp({ t: 1768413658, i: 4 }),
+    signature: {
+      hash: Binary.createFromBase64('dl6v/FmLESMqVJKpaBKDWnJu6Bc=', 0),
+      keyId: Long('7595270816795721734')
+    }
+  },
+  operationTime: Timestamp({ t: 1768413658, i: 4 })
+}
+rs0 [direct: primary] admin>   print('✅ Admin user created');
+✅ Admin user created
+
+rs0 [direct: primary] admin>

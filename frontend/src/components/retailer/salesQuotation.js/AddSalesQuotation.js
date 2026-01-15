@@ -3816,8 +3816,8 @@ const AddSalesQuotation = () => {
                 params: {
                     search: searchTerm,
                     page: page,
-                    // limit: 25,
-                    limit: searchTerm.trim() ? 15 : 25, // Limit to 15 when searching, 25 otherwise
+                    limit: 15,
+                    // limit: searchTerm.trim() ? 15 : 25, // Limit to 15 when searching, 25 otherwise
                     vatStatus: formData.isVatExempt,
                     sortBy: searchTerm.trim() ? 'relevance' : 'name' // Sort by relevance when searching
                 }
@@ -4129,15 +4129,29 @@ const AddSalesQuotation = () => {
         setShowItemDropdown(true);
     };
 
+    // const handleHeaderItemSearch = (e) => {
+    //     const query = e.target.value;
+    //     setHeaderSearchQuery(query);
+
+    //     // Clear the last search results flag when user types something new
+    //     if (query.trim() !== '' && headerShouldShowLastSearchResults) {
+    //         setHeaderShouldShowLastSearchResults(false);
+    //         setHeaderLastSearchQuery('');
+    //     }
+    // };
+
     const handleHeaderItemSearch = (e) => {
         const query = e.target.value;
         setHeaderSearchQuery(query);
+        setHeaderSearchPage(1); // Reset to page 1 on new search
 
-        // Clear the last search results flag when user types something new
         if (query.trim() !== '' && headerShouldShowLastSearchResults) {
             setHeaderShouldShowLastSearchResults(false);
             setHeaderLastSearchQuery('');
         }
+
+        // Fetch items with the search term
+        fetchItemsFromBackend(query, 1, true);
     };
 
     const handleSearchFocus = () => {

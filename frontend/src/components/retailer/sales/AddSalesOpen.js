@@ -479,7 +479,8 @@ const AddSalesOpen = () => {
                 params: {
                     search: searchTerm,
                     page: page,
-                    limit: searchTerm.trim() ? 15 : 25,
+                    // limit: searchTerm.trim() ? 15 : 25,
+                    limit: 15,
                     vatStatus: formData.isVatExempt,
                     sortBy: searchTerm.trim() ? 'relevance' : 'name'
                 }
@@ -666,14 +667,28 @@ const AddSalesOpen = () => {
         setShowItemDropdown(true);
     };
 
+    // const handleHeaderItemSearch = (e) => {
+    //     const query = e.target.value;
+    //     setHeaderSearchQuery(query);
+
+    //     if (query.trim() !== '' && headerShouldShowLastSearchResults) {
+    //         setHeaderShouldShowLastSearchResults(false);
+    //         setHeaderLastSearchQuery('');
+    //     }
+    // };
+
     const handleHeaderItemSearch = (e) => {
         const query = e.target.value;
         setHeaderSearchQuery(query);
+        setHeaderSearchPage(1); // Reset to page 1 on new search
 
         if (query.trim() !== '' && headerShouldShowLastSearchResults) {
             setHeaderShouldShowLastSearchResults(false);
             setHeaderLastSearchQuery('');
         }
+
+        // Fetch items with the search term
+        fetchItemsFromBackend(query, 1, true);
     };
 
     const handleSearchFocus = () => {

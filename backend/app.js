@@ -77,8 +77,8 @@ db.once("open", () => {
 
 // // Middleware
 app.use(cors({
-    // origin: 'https://skyforgee.com',
-    origin: 'http://localhost:3000',
+    origin: 'https://skyforgee.com',
+    // origin: 'http://localhost:3000',
     // origin: 'https://web.skyforgee.com',
     // origin: ['https://skyforgee.com', 'https://skyforgee.com'],//this is for desktop app
     // origin: ['https://web.skyforgee.com', 'https://web.skyforgee.com'],//this is for desktop app
@@ -114,7 +114,6 @@ app.use(session({
         }
     }
 }))
-
 
 // app.use(session(sessionConfig));
 app.use(flash());
