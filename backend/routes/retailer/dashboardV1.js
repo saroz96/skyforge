@@ -171,29 +171,6 @@ router.get('/retailerDashboard/indexv1', isLoggedIn, ensureAuthenticated, ensure
             })
         ]);
 
-        // // Calculate cash balance
-        // let cashBalance = 0;
-        // if (cashAccount) {
-        //     const cashTransactions = await Transaction.find({
-        //         account: cashAccount._id,
-        //         date: { $lte: currentFiscalYear.endDate }
-        //     });
-
-        //     cashTransactions.forEach(txn => {
-        //         cashBalance += (txn.debit || 0) - (txn.credit || 0);
-        //     });
-
-        //     const openingBalanceEntry = cashAccount.openingBalanceByFiscalYear.find(
-        //         entry => entry.fiscalYear.equals(currentFiscalYear._id)
-        //     );
-
-        //     if (openingBalanceEntry) {
-        //         cashBalance += openingBalanceEntry.type === 'Dr'
-        //             ? openingBalanceEntry.amount
-        //             : -openingBalanceEntry.amount;
-        //     }
-        // }
-
         // Calculate cash balance
         let cashBalance = 0;
         if (cashAccount) {

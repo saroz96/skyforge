@@ -58,7 +58,7 @@ const attendanceRoutes = require('./routes/attendance');
 const dutyScheduleRoutes = require('./routes/dutySchedule');
 
 //------------------System Owner------------------------------
-const clientsRoutes=require('./routes/systemOwner/clients');
+const clientsRoutes = require('./routes/systemOwner/clients');
 
 //------------------------------------------------------------
 
@@ -77,9 +77,10 @@ db.once("open", () => {
 
 // // Middleware
 app.use(cors({
-    origin: 'https://skyforgee.com',
-    // origin: 'http://localhost:3000',
+    // origin: 'https://skyforgee.com',
+    origin: 'http://localhost:3000',
     // origin: 'https://web.skyforgee.com',
+    // origin: ['http://localhost:3000', 'http://localhost:3000'],//this is for desktop app
     // origin: ['https://skyforgee.com', 'https://skyforgee.com'],//this is for desktop app
     // origin: ['https://web.skyforgee.com', 'https://web.skyforgee.com'],//this is for desktop app
     credentials: true,

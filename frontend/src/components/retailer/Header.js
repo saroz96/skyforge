@@ -392,7 +392,7 @@ const Header = () => {
                           <Link to="/retailer/sales-return">Add</Link>
                         </li>
                         <li className="menu-item">
-                          <Link to="/sales-return/finds">Edit</Link>
+                          <Link to="/retailer/sales-return/finds">Edit</Link>
                         </li>
                       </ul>
                     </li>

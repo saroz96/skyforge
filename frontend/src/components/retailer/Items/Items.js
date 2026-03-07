@@ -98,6 +98,7 @@ const Items = () => {
     const api = axios.create({
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
+        timeout: 30000
     });
 
     const showNotificationMessage = (message, type) => {
@@ -872,18 +873,31 @@ const Items = () => {
             e.preventDefault();
         }
         setIsSaving(true);
+
+        console.log('=== SUBMITTING FORM DATA ===');
+        console.log('Form data:', formData);
+        console.log('Current item:', currentItem);
+
         try {
             if (currentItem) {
-                await api.put(`/api/retailer/items/${currentItem._id}`, formData);
+                console.log('Updating item:', currentItem._id);
+                const response = await api.put(`/api/retailer/items/${currentItem._id}`, formData);
+                console.log('Update response:', response.data);
                 showNotificationMessage('Item updated successfully!', 'success');
                 handleCancel();
             } else {
-                await api.post('/api/retailer/items/create', formData);
+                console.log('Creating new item');
+                const response = await api.post('/api/retailer/items/create', formData);
+                console.log('Create response:', response.data);
                 showNotificationMessage('Item created successfully!', 'success');
                 resetForm();
             }
             fetchItems();
         } catch (err) {
+            console.error('=== SUBMIT ERROR ===');
+            console.error('Error response:', err.response?.data);
+            console.error('Error status:', err.response?.status);
+            console.error('Error message:', err.message);
             handleApiError(err);
         } finally {
             setIsSaving(false);

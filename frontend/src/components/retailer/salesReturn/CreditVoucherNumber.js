@@ -1,157 +1,5 @@
-// import React, { useState, useEffect } from 'react';
 
-// import { useNavigate } from 'react-router-dom';
-// import axios from 'axios';
-// import Header from '../Header';
-// import ProductModal from '../dashboard/modals/ProductModal';
-
-// const PurchaseVoucherNumber = () => {
-//     const [billNumber, setBillNumber] = useState('');
-//     const [error, setError] = useState('');
-//     const [isLoading, setIsLoading] = useState(false);
-//     const [isFetchingLatest, setIsFetchingLatest] = useState(true);
-//     const navigate = useNavigate();
-//     const [showProductModal, setShowProductModal] = useState(false);
-
-//     const api = axios.create({
-//         baseURL: process.env.REACT_APP_API_BASE_URL,
-//         withCredentials: true,
-//     });
-//     // Fetch the latest bill number when component mounts
-//     useEffect(() => {
-//         const fetchLatestBillNumber = async () => {
-//             try {
-//                 const response = await api.get('/api/retailer/purchase/finds', {
-//                     withCredentials: true
-//                 });
-
-//                 console.log('API Response:', response.data);
-//                 if (response.data.success) {
-//                     console.log('Bill number from API:', response.data.data.billNumber);
-//                     setBillNumber(response.data.data.billNumber);
-//                 }
-//             } catch (err) {
-//                 console.error('Error fetching latest bill number:', err);
-//                 // Don't show error to user - just proceed with empty field
-//             } finally {
-//                 setIsFetchingLatest(false);
-//             }
-//         };
-
-//         fetchLatestBillNumber();
-//     }, []);
-
-//     useEffect(() => {
-//         // Add F9 key handler here
-//         const handF9leKeyDown = (e) => {
-//             if (e.key === 'F9') {
-//                 e.preventDefault();
-//                 setShowProductModal(prev => !prev); // Toggle modal visibility
-//             }
-//         };
-//         window.addEventListener('keydown', handF9leKeyDown);
-//         return () => {
-//             window.removeEventListener('keydown', handF9leKeyDown);
-//         };
-//     }, []);
-
-//     const handleSubmit = async (e) => {
-//         e.preventDefault();
-//         setError('');
-
-//         if (!billNumber.trim()) {
-//             setError('Please enter a voucher number');
-//             return;
-//         }
-
-//         setIsLoading(true);
-//         try {
-//             // Call the API endpoint to find quotation by bill number
-//             const response = await axios.get('/api/retailer/purchase/edit/billNumber', {
-//                 params: { billNumber },
-//                 withCredentials: true
-//             });
-
-//             if (response.data.success) {
-//                 // Navigate to edit page with the quotation ID
-//                 navigate(`/retailer/purchase/edit/${response.data.data.purchaseInvoice._id}`);
-//             } else {
-//                 setError(response.data.error || 'Purchase voucher not found');
-//             }
-//         } catch (err) {
-//             setError(err.response?.data?.error || 'An error occurred while fetching purchase');
-//             console.error('Error fetching purchase', err);
-//         } finally {
-//             setIsLoading(false);
-//         }
-//     };
-
-//     return (
-//         <div className='Container-fluid'>
-//             <Header />
-//             <div className="container mt-5 wow-form centered-container">
-//                 <div className="card shadow-lg p-4 animate__animated animate__fadeInUp expanded-card">
-//                     <h1 className="text-center mb-4">Enter Voucher Number</h1>
-//                     <form onSubmit={handleSubmit} className="needs-validation" noValidate>
-//                         <div className="form-group">
-//                             <label htmlFor="billNumber">Voucher Number:</label>
-//                             <input
-//                                 type="text"
-//                                 name="billNumber"
-//                                 id="billNumber"
-//                                 className={`form-control ${error ? 'is-invalid' : ''}`}
-//                                 required
-//                                 placeholder="Enter your voucher number"
-//                                 aria-describedby="billHelp"
-//                                 autoComplete="off"
-//                                 autoFocus
-//                                 value={billNumber}
-//                                 onChange={(e) => setBillNumber(e.target.value)}
-//                                 onKeyDown={(e) => {
-//                                     if (e.key === 'Enter') {
-//                                         e.preventDefault();
-//                                         document.getElementById('findBill')?.focus();
-//                                     }
-//                                 }}
-//                                 disabled={isFetchingLatest} // Disable while loading
-//                             />
-//                             {isFetchingLatest && (
-//                                 <div className="text-muted small">Loading latest voucher number...</div>
-//                             )}
-//                             <small id="billHelp" className="form-text text-muted">
-//                                 Please enter a valid voucher number to find the purchase.
-//                             </small>
-//                             {error && (
-//                                 <div className="invalid-feedback">
-//                                     {error}
-//                                 </div>
-//                             )}
-//                         </div>
-//                         <button
-//                             type="submit"
-//                             className="btn btn-primary btn-block"
-//                             disabled={isLoading || isFetchingLatest}
-//                             id="findBill"
-//                         >
-//                             {isLoading ? 'Searching...' : 'Find Purchase'}
-//                         </button>
-//                     </form>
-//                 </div>
-//             </div>
-
-//             {/* Product modal */}
-//             {showProductModal && (
-//                 <ProductModal onClose={() => setShowProductModal(false)} />
-//             )}
-//         </div>
-//     );
-// };
-
-// export default PurchaseVoucherNumber;
-
-//---------------------------------------------------------------end
-
-// PurchaseVoucherNumber.js - FIXED VERSION
+// CreditSalesReturnVoucherNumber.js - FIXED VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -160,7 +8,7 @@ import ProductModal from '../dashboard/modals/ProductModal';
 import '../../../stylesheet/retailer/purchase/FindPurchase.css';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 
-const PurchaseVoucherNumber = () => {
+const CreditSalesReturnVoucherNumber = () => {
     const [billNumber, setBillNumber] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -192,7 +40,7 @@ const PurchaseVoucherNumber = () => {
     useEffect(() => {
         const fetchLatestBillNumber = async () => {
             try {
-                const response = await api.get('/api/retailer/purchase/finds');
+                const response = await api.get('/api/retailer/sales-return/finds');
                 if (response.data.success) {
                     setBillNumber(response.data.data.billNumber || '');
                 }
@@ -267,9 +115,9 @@ const PurchaseVoucherNumber = () => {
         }
     };
 
-    const handleFindPurchase = async (e) => {
+    const handleFindSalesReturn = async (e) => {
         e.preventDefault();
-        console.log('Find Purchase clicked');
+        console.log('Find Sales Return clicked');
         setError('');
 
         if (!billNumber.trim()) {
@@ -281,7 +129,7 @@ const PurchaseVoucherNumber = () => {
         try {
             console.log('Fetching party info for bill:', billNumber);
             // Step 1: Fetch party information for the voucher
-            const response = await api.get('/api/retailer/purchase/find-party', {
+            const response = await api.get('/api/retailer/sales-return/find-party', {
                 params: { billNumber: billNumber }
             });
 
@@ -346,7 +194,7 @@ const PurchaseVoucherNumber = () => {
 
         setIsLoading(true);
         try {
-            const response = await api.put(`/api/retailer/purchase/change-party/${billNumber}`, {
+            const response = await api.put(`/api/retailer/sales-return/change-party/${billNumber}`, {
                 accountId: selectedAccount._id
             });
 
@@ -378,7 +226,7 @@ const PurchaseVoucherNumber = () => {
     };
 
     const handleGoToEditPage = async () => {
-        console.log('Edit purchase clicked');
+        console.log('Edit sales return clicked');
         if (!currentPartyInfo) {
             setError('Please find a voucher first');
             return;
@@ -387,14 +235,14 @@ const PurchaseVoucherNumber = () => {
         setIsLoading(true);
         try {
             // Get the MongoDB _id for navigation
-            const response = await api.get('/api/retailer/purchase/get-id-by-number', {
+            const response = await api.get('/api/retailer/sales-return/get-id-by-number', {
                 params: { billNumber: billNumber }
             });
 
             if (response.data.success) {
                 console.log('Navigating to edit page with ID:', response.data.data._id);
                 // Navigate to edit page with MongoDB _id
-                navigate(`/retailer/purchase/edit/${response.data.data._id}`);
+                navigate(`/retailer/sales-return/edit/${response.data.data._id}`);
             } else {
                 setError('Could not find voucher details for editing');
             }
@@ -409,7 +257,7 @@ const PurchaseVoucherNumber = () => {
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !showPartyModal) {
             e.preventDefault();
-            handleFindPurchase();
+            handleFindSalesReturn();
         }
     };
 
@@ -430,7 +278,7 @@ const PurchaseVoucherNumber = () => {
             {/* Main Search Form - ALWAYS VISIBLE */}
             <div className="container mt-5 wow-form centered-container">
                 <div className="card shadow-lg p-4 animate__animated animate__fadeInUp expanded-card">
-                    <h1 className="text-center mb-4">Enter Purchase Voucher Number</h1>
+                    <h1 className="text-center mb-4">Enter Sales Return Voucher Number</h1>
 
                     {error && (
                         <div className="alert alert-danger alert-dismissible fade show" role="alert">
@@ -439,7 +287,7 @@ const PurchaseVoucherNumber = () => {
                         </div>
                     )}
 
-                    <form onSubmit={handleFindPurchase} className="needs-validation" noValidate>
+                    <form onSubmit={handleFindSalesReturn} className="needs-validation" noValidate>
                         <div className="form-group">
                             <label htmlFor="billNumber" className="form-label">Voucher Number</label>
                             <input
@@ -461,7 +309,7 @@ const PurchaseVoucherNumber = () => {
                                 <div className="text-muted small mt-1">Loading latest voucher number...</div>
                             )}
                             <small id="billHelp" className="form-text text-muted">
-                                Enter voucher number to find and edit purchase
+                                Enter voucher number to find and edit sales return
                             </small>
                         </div>
 
@@ -476,7 +324,7 @@ const PurchaseVoucherNumber = () => {
                                     <span className="spinner-border spinner-border-sm me-2"></span>
                                     Searching...
                                 </>
-                            ) : 'Find Purchase'}
+                            ) : 'Find Credit Sales Return'}
                         </button>
                     </form>
                 </div>
@@ -499,9 +347,6 @@ const PurchaseVoucherNumber = () => {
                                             <span className="fw-semibold"># {currentPartyInfo.billNumber}</span>
                                             <small className="text-light opacity-75">• {new Date(currentPartyInfo.date).toLocaleDateString()}</small>
                                             <span className="badge bg-light text-dark ms-1 fs-6">{currentPartyInfo.paymentMode}</span>
-                                            {currentPartyInfo.partyBillNumber && (
-                                                <small className="text-light opacity-75">• Inv: {currentPartyInfo.partyBillNumber}</small>
-                                            )}
                                         </div>
                                         <button type="button" className="btn-close btn-close-white" onClick={handleClosePartyModal} aria-label="Close"></button>
                                     </div>
@@ -661,6 +506,6 @@ const PurchaseVoucherNumber = () => {
     );
 };
 
-export default PurchaseVoucherNumber;
+export default CreditSalesReturnVoucherNumber;
 
 //--------------------------------------------------------------end

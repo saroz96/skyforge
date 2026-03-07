@@ -1354,7 +1354,7 @@ router.put('/admin/users/user-permissions/:id', isLoggedIn, ensureAuthenticated,
             stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     }
-});
+}); 
 
 router.post('/logout', (req, res) => {
     req.logout((err) => {

@@ -26,23 +26,6 @@ async function checkFiscalYearDateRange(req, res, next) {
         ('Current fiscal year in session:', JSON.stringify(req.session.currentFiscalYear, null, 2));
         // Destructure the start and end dates along with the date format from the session
         const { startDate, endDate, dateFormat } = req.session.currentFiscalYear;
-
-        // Determine the type of entry to dynamically set the redirect URL
-        // let redirectUrl;
-        // const routePath = req.route.path; // Get the current route path
-
-        // if (routePath.includes('purchase-bills/edit')) {
-        //     redirectUrl = '/purchase-bills-list'
-        // } else if (routePath.includes('purchase-bills')) {
-        //     redirectUrl = '/purchase-bills'; // Redirect to purchase entry page
-        // } else if (routePath.includes('billsTrackBatchOpen')) {
-        //     redirectUrl = '/billsTrackBatchOpen'
-        // } else if (routePath.includes('bills')) {
-        //     redirectUrl = '/bills'; // Redirect to sales entry page
-        // } else {
-        //     redirectUrl = '/'; // Default redirect URL
-        // }
-
         // Parse the entry date based on the company's selected date format
         // let entryDate;
         if (dateFormat === 'nepali') {

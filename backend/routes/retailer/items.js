@@ -47,192 +47,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Backend route for searching items
-// router.get('/items/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
-//     try {
-//         const companyId = req.session.currentCompany;
-//         const {
-//             search = '',
-//             page = 1,
-//             limit = 50,
-//             vatStatus = 'all'
-//         } = req.query;
-
-//         const skip = (page - 1) * limit;
-
-//         // Build query
-//         const query = { company: companyId };
-
-//         // Add search conditions if search term exists
-//         if (search && search.trim() !== '') {
-//             const searchRegex = new RegExp(search, 'i');
-//             query.$or = [
-//                 { name: searchRegex },
-//                 { 'category.name': searchRegex },
-//                 { hscode: !isNaN(search) ? parseInt(search) : null },
-//                 { uniqueNumber: !isNaN(search) ? parseInt(search) : null }
-//             ].filter(condition => {
-//                 if (condition.uniqueNumber === null && search.match(/^\d+$/)) {
-//                     condition.uniqueNumber = parseInt(search);
-//                     return true;
-//                 }
-//                 return condition[Object.keys(condition)[0]] !== null;
-//             });
-//         }
-
-//         // Add VAT status filter
-//         if (vatStatus !== 'all') {
-//             query.vatStatus = vatStatus === 'false' ? 'vatable' : 'vatExempt';
-//         }
-
-//         // Get total count for pagination
-//         const totalItems = await Item.countDocuments(query);
-
-//         // Fetch items with pagination
-//         const items = await Item.find(query)
-//             .populate('category', 'name')
-//             .populate('itemsCompany', 'name')
-//             .populate('unit', 'name')
-//             .populate('mainUnit', 'name')
-//             .populate('composition', 'name uniqueNumber')
-//             .skip(skip)
-//             .limit(parseInt(limit))
-//             .sort({ name: 1 })
-//             .lean();
-
-//         // Calculate current stock for each item
-//         const itemsWithStock = items.map(item => {
-//             let currentStock = 0;
-//             if (item.stockEntries && item.stockEntries.length > 0) {
-//                 currentStock = item.stockEntries.reduce((total, entry) => {
-//                     return total + (parseFloat(entry.quantity) || 0);
-//                 }, 0);
-//             } else {
-//                 currentStock = parseFloat(item.openingStock) || 0;
-//             }
-
-//             return {
-//                 ...item,
-//                 currentStock,
-//                 hasTransactions: 'false' // Default, you can modify this if needed
-//             };
-//         });
-
-//         res.json({
-//             success: true,
-//             items: itemsWithStock,
-//             pagination: {
-//                 currentPage: parseInt(page),
-//                 totalPages: Math.ceil(totalItems / limit),
-//                 totalItems,
-//                 itemsPerPage: parseInt(limit),
-//                 hasNextPage: (page * limit) < totalItems,
-//                 hasPreviousPage: page > 1
-//             }
-//         });
-//     } catch (error) {
-//         console.error("Error searching items:", error);
-//         res.status(500).json({
-//             success: false,
-//             error: 'Failed to search items',
-//             message: error.message
-//         });
-//     }
-// });
-
-// In your backend route file
-// router.get('/items/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
-//     try {
-//         const companyId = req.session.currentCompany;
-//         const {
-//             search = '',
-//             page = 1,
-//             limit = 25,
-//             vatStatus = 'all',
-//         } = req.query;
-
-//         const skip = (page - 1) * limit;
-
-//         // Build query
-//         const query = { company: companyId };
-
-//         // Only add search conditions if search term exists
-//         if (search && search.trim() !== '') {
-//             const searchRegex = new RegExp(search, 'i');
-//             query.$or = [
-//                 { name: searchRegex },
-//                 { 'category.name': searchRegex },
-//                 { hscode: !isNaN(search) ? parseInt(search) : null },
-//                 { uniqueNumber: !isNaN(search) ? parseInt(search) : null }
-//             ].filter(condition => {
-//                 if (condition.uniqueNumber === null && search.match(/^\d+$/)) {
-//                     condition.uniqueNumber = parseInt(search);
-//                     return true;
-//                 }
-//                 return condition[Object.keys(condition)[0]] !== null;
-//             });
-//         }
-//         // If no search term, query will fetch all items (just filtered by company)
-
-//         // Add VAT status filter
-//         if (vatStatus !== 'all') {
-//             query.vatStatus = vatStatus === 'false' ? 'vatable' : 'vatExempt';
-//         }
-
-//         // Get total count for pagination
-//         const totalItems = await Item.countDocuments(query);
-
-//         // Fetch items with pagination
-//         const items = await Item.find(query)
-//             .populate('category', 'name')
-//             .populate('itemsCompany', 'name')
-//             .populate('unit', 'name')
-//             .populate('mainUnit', 'name')
-//             .populate('composition', 'name uniqueNumber')
-//             .skip(skip)
-//             .limit(parseInt(limit))
-//             .sort({ name: 1 })
-//             .lean();
-
-//         // Calculate current stock for each item
-//         const itemsWithStock = items.map(item => {
-//             let currentStock = 0;
-//             if (item.stockEntries && item.stockEntries.length > 0) {
-//                 currentStock = item.stockEntries.reduce((total, entry) => {
-//                     return total + (parseFloat(entry.quantity) || 0);
-//                 }, 0);
-//             } else {
-//                 currentStock = parseFloat(item.openingStock) || 0;
-//             }
-
-//             return {
-//                 ...item,
-//                 currentStock,
-//                 hasTransactions: 'false' // Default, you can modify this if needed
-//             };
-//         });
-
-//         res.json({
-//             success: true,
-//             items: itemsWithStock,
-//             pagination: {
-//                 currentPage: parseInt(page),
-//                 totalPages: Math.ceil(totalItems / limit),
-//                 totalItems,
-//                 itemsPerPage: parseInt(limit),
-//                 hasNextPage: (page * limit) < totalItems,
-//                 hasPreviousPage: page > 1
-//             }
-//         });
-//     } catch (error) {
-//         console.error("Error searching items:", error);
-//         res.status(500).json({
-//             success: false,
-//             error: 'Failed to search items',
-//             message: error.message
-//         });
-//     }
-// });
 
 router.get('/items/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
@@ -643,165 +457,6 @@ const cacheService = {
     }
 };
 
-// Your main route with caching
-// router.get('/items', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
-//     try {
-//         const companyId = req.session.currentCompany;
-
-//         // Generate cache key
-//         const cacheKey = cacheService.generateKey(req);
-
-//         // Try to get from cache first
-//         const cachedData = cacheService.get(cacheKey);
-//         if (cachedData) {
-//             console.log(`Cache hit for key: ${cacheKey}`);
-
-//             // Add cache info to response
-//             const response = {
-//                 ...cachedData,
-//                 _fromCache: true,
-//                 _cacheKey: cacheKey,
-//                 _servedAt: new Date().toISOString()
-//             };
-
-//             return res.json(response);
-//         }
-
-//         console.log(`Cache miss for key: ${cacheKey}, fetching from database...`);
-
-//         // Parallelize all independent queries
-//         const [
-//             company,
-//             items,
-//             categories,
-//             itemsCompanies,
-//             units,
-//             mainUnits,
-//             composition
-//         ] = await Promise.all([
-//             Company.findById(companyId).select('renewalDate fiscalYear dateFormat vatEnabled').lean(),
-//             Item.find({ company: companyId })
-//                 .populate('category', 'name')
-//                 .populate('itemsCompany', 'name')
-//                 .populate('unit', 'name')
-//                 .populate('mainUnit', 'name')
-//                 .populate('composition', 'name uniqueNumber')
-//                 .lean(),
-//             Category.find({ company: companyId }).lean(),
-//             itemsCompany.find({ company: companyId }).lean(),
-//             Unit.find({ company: companyId }).lean(),
-//             MainUnit.find({ company: companyId }).lean(),
-//             Composition.find({ company: companyId }).lean()
-//         ]);
-
-//         // Get additional company info
-//         const currentCompany = await Company.findById(new ObjectId(companyId));
-//         const currentCompanyName = req.session.currentCompanyName;
-//         const companyDateFormat = currentCompany ? currentCompany.dateFormat : 'english';
-
-//         // Get transaction existence in a single query
-//         const itemIds = items.map(item => item._id);
-//         const transactions = await Transaction.find({
-//             item: { $in: itemIds },
-//             company: companyId
-//         }).select('item').lean();
-
-//         const transactionItemIds = new Set(transactions.map(t => t.item.toString()));
-
-//         // Add hasTransactions flag and calculate current stock from stockEntries
-//         const itemsWithFlags = items.map(item => {
-//             // Calculate current stock from stockEntries subdocuments
-//             let currentStock = 0;
-
-//             if (item.stockEntries && item.stockEntries.length > 0) {
-//                 // Sum all quantities from stockEntries subdocuments
-//                 currentStock = item.stockEntries.reduce((total, entry) => {
-//                     const quantity = parseFloat(entry.quantity) || 0;
-//                     return total + quantity;
-//                 }, 0);
-//             } else {
-//                 // Fallback to the item's openingStock field if no stockEntries
-//                 currentStock = parseFloat(item.openingStock) || 0;
-//             }
-
-//             return {
-//                 ...item,
-//                 hasTransactions: transactionItemIds.has(item._id.toString()) ? 'true' : 'false',
-//                 currentStock: currentStock,
-//                 stockEntriesCount: item.stockEntries ? item.stockEntries.length : 0
-//             };
-//         });
-
-//         // Get current fiscal year
-//         let currentFiscalYear = req.session.currentFiscalYear;
-//         if (!currentFiscalYear && company.fiscalYear) {
-//             currentFiscalYear = await FiscalYear.findById(company.fiscalYear).lean();
-//         }
-
-//         // Nepali date calculation
-//         const today = new Date();
-//         const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
-
-//         // Debug logging (only in development)
-//         if (process.env.NODE_ENV !== 'production') {
-//             console.log('Session data:', {
-//                 currentCompany: req.session.currentCompany,
-//                 currentFiscalYear: req.session.currentFiscalYear,
-//                 user: req.user._id
-//             });
-
-//             console.log('Stock calculation debug - First 3 items:', itemsWithFlags.slice(0, 3).map(item => ({
-//                 name: item.name,
-//                 currentStock: item.currentStock,
-//                 stockEntriesCount: item.stockEntriesCount
-//             })));
-//         }
-
-//         // Prepare response data
-//         const responseData = {
-//             success: true,
-//             items: itemsWithFlags,
-//             company,
-//             currentFiscalYear,
-//             currentCompany: currentCompany,
-//             currentCompanyName,
-//             companyDateFormat: companyDateFormat,
-//             vatEnabled: company?.vatEnabled || false,
-//             categories,
-//             itemsCompanies,
-//             units,
-//             mainUnits,
-//             composition,
-//             companyId,
-//             nepaliDate,
-//             fiscalYear: currentFiscalYear?._id || null,
-//             user: req.user,
-//             theme: req.user.preferences?.theme || 'light',
-//             isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor',
-//             _fromCache: false,
-//             _cacheKey: cacheKey,
-//             _generatedAt: new Date().toISOString()
-//         };
-
-//         // Store in cache
-//         cacheService.set(cacheKey, responseData);
-
-//         // Periodically check and cleanup cache if needed (1% chance)
-//         if (Math.random() < 0.01) {
-//             cacheService.cleanupIfNeeded();
-//         }
-
-//         res.json(responseData);
-//     } catch (error) {
-//         console.error("Error fetching items:", error);
-//         res.status(500).json({ 
-//             error: 'Failed to fetch items',
-//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
-//         });
-//     }
-// });
-
-
 router.get('/items/reorder', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType === 'retailer') {
         const companyId = req.session.currentCompany;
@@ -1140,7 +795,22 @@ router.post('/items/create', ensureAuthenticated, ensureCompanySelected, ensureT
     }
 
     try {
+        console.log('=== CREATE ITEM DEBUG ===');
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('Session currentFiscalYear:', req.session.currentFiscalYear);
+        console.log('Session currentCompany:', req.session.currentCompany);
+
         const { name, hscode, category, itemsCompany, compositionIds, mainUnit, WSUnit, unit, price, puPrice, vatStatus, openingStock, reorderLevel, openingStockBalance } = req.body;
+
+        console.log('Required fields check:', {
+            name: !!name,
+            category: !!category,
+            itemsCompany: !!itemsCompany,
+            mainUnit: !!mainUnit,
+            unit: !!unit,
+            vatStatus: !!vatStatus
+        });
+
         const companyId = req.session.currentCompany;
 
         if (!companyId) {
@@ -1170,6 +840,9 @@ router.post('/items/create', ensureAuthenticated, ensureCompanySelected, ensureT
 
         // Fetch company and fiscal year
         const company = await Company.findById(companyId).populate('fiscalYear');
+        console.log('Found company:', company?._id);
+        console.log('Company fiscalYear:', company?.fiscalYear);
+
         let fiscalYear = req.session.currentFiscalYear?.id;
         let currentFiscalYear = null;
 
@@ -1267,9 +940,16 @@ router.post('/items/create', ensureAuthenticated, ensureCompanySelected, ensureT
 
     } catch (error) {
         console.error('Error creating item:', error);
+        console.error('=== CREATE ITEM ERROR ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+
         return res.status(500).json({
             error: 'Server error',
-            details: error.message
+            details: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });
@@ -1545,22 +1225,6 @@ router.get('/products', ensureAuthenticated, ensureCompanySelected, ensureTradeT
             return res.status(400).json({ error: 'No fiscal year found in session or company.' });
         }
         try {
-            // const products = await Item.find({
-            //     company: companyId,
-            //     status: 'active',
-            //     $or: [
-            //         { originalFiscalYear: fiscalYear },
-            //         {
-            //             fiscalYear: fiscalYear,
-            //             originalFiscalYear: { $lt: fiscalYear }
-            //         }
-            //     ]
-            // })
-            //     .populate('category', 'name')
-            //     .populate('itemsCompany', 'name')
-            //     .populate('unit', 'name')
-            //     .populate('composition', 'name uniqueNumber')
-            //     .lean();
 
             const products = await Item.find({ company: companyId, status: 'active' })
                 .populate('category')
@@ -1792,252 +1456,6 @@ router.get('/items-import', isLoggedIn, ensureAuthenticated, ensureCompanySelect
         });
     }
 });
-
-// router.post('/items-import', upload.single('excelFile'), async (req, res) => {
-//     try {
-
-//         console.log('=== FILE UPLOAD DEBUG ===');
-//         console.log('File received:', req.file);
-//         console.log('File path:', req.file?.path);
-//         console.log('File size:', req.file?.size);
-//         console.log('Headers:', req.headers);
-//         console.log('=======================');
-
-
-//         const fiscalYearId = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//         const companyId = req.session.currentCompany;
-
-//         // Validate session data
-//         if (!companyId) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'COMPANY_NOT_SELECTED',
-//                 message: 'Company ID not found in session.',
-//                 code: 'SESSION_COMPANY_MISSING'
-//             });
-//         }
-
-//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat name').populate('fiscalYear');
-//         const currentCompany = await Company.findById(new ObjectId(companyId));
-
-//         // Check if fiscal year is available
-//         let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//         let currentFiscalYear = null;
-
-//         if (fiscalYear) {
-//             currentFiscalYear = await FiscalYear.findById(fiscalYear);
-//         }
-
-//         // If no fiscal year is found in session, use company's fiscal year
-//         if (!currentFiscalYear && company.fiscalYear) {
-//             currentFiscalYear = company.fiscalYear;
-//             fiscalYear = currentFiscalYear._id.toString();
-
-//             // Update session
-//             req.session.currentFiscalYear = {
-//                 id: currentFiscalYear._id.toString(),
-//                 startDate: currentFiscalYear.startDate,
-//                 endDate: currentFiscalYear.endDate,
-//                 name: currentFiscalYear.name,
-//                 dateFormat: currentFiscalYear.dateFormat,
-//                 isActive: currentFiscalYear.isActive
-//             };
-//         }
-
-//         if (!fiscalYear) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'FISCAL_YEAR_MISSING',
-//                 message: 'No fiscal year found in session or company.',
-//                 code: 'FISCAL_YEAR_REQUIRED'
-//             });
-//         }
-
-//         // Validate file
-//         if (!req.file) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'NO_FILE_UPLOADED',
-//                 message: 'No Excel file uploaded.',
-//                 code: 'FILE_MISSING'
-//             });
-//         }
-
-//         // Process Excel file
-//         const rows = await readXlsxFile(req.file.path);
-
-//         // Validate Excel structure
-//         if (!rows || rows.length < 2) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'INVALID_EXCEL_FILE',
-//                 message: 'Excel file is empty or has no data rows.',
-//                 code: 'EMPTY_FILE'
-//             });
-//         }
-
-//         const headers = rows[0].map(h => h ? h.toString().trim().toLowerCase() : '');
-//         const dataRows = rows.slice(1);
-
-//         // Validate required columns
-//         const requiredColumns = ['name', 'hscode', 'itemscompany', 'category', 'mainunit', 'unit', 'vatstatus', 'company'];
-//         const missingColumns = requiredColumns.filter(col => !headers.includes(col));
-
-//         if (missingColumns.length > 0) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'MISSING_COLUMNS',
-//                 message: `Required columns missing: ${missingColumns.join(', ')}`,
-//                 code: 'INVALID_TEMPLATE',
-//                 missingColumns
-//             });
-//         }
-
-//         const results = {
-//             total: dataRows.length,
-//             success: 0,
-//             errors: [],
-//             processed: 0,
-//             skipped: 0
-//         };
-
-//         // Process each row
-//         for (let i = 0; i < dataRows.length; i++) {
-//             const row = dataRows[i];
-//             results.processed++;
-
-//             // Skip empty rows
-//             if (row.every(cell => !cell || cell.toString().trim() === '')) {
-//                 results.skipped++;
-//                 continue;
-//             }
-
-//             const rowData = {};
-//             headers.forEach((header, index) => {
-//                 rowData[header] = row[index] ? row[index].toString().trim() : null;
-//             });
-
-//             try {
-//                 // Validate required fields
-//                 if (!rowData.name || rowData.name.trim() === '') {
-//                     throw new Error('Item name is required');
-//                 }
-
-//                 // Resolve relational references with exact match
-//                 const [itemscompany, category, mainunit, unit, company] = await Promise.all([
-//                     mongoose.model('itemsCompany').findOne({ name: new RegExp(`^${rowData.itemscompany}$`, 'i') }),
-//                     mongoose.model('Category').findOne({ name: new RegExp(`^${rowData.category}$`, 'i') }),
-//                     mongoose.model('MainUnit').findOne({ name: new RegExp(`^${rowData.mainunit}$`, 'i') }),
-//                     mongoose.model('Unit').findOne({ name: new RegExp(`^${rowData.unit}$`, 'i') }),
-//                     mongoose.model('Company').findOne({ name: rowData.company }),
-//                 ]);
-
-//                 // Validate references
-//                 if (!itemscompany) throw new Error(`Company of item not found: ${rowData.itemscompany}`);
-//                 if (!category) throw new Error(`Category not found: ${rowData.category}`);
-//                 if (!mainunit) throw new Error(`MainUnit not found: ${rowData.mainunit}`);
-//                 if (!unit) throw new Error(`Unit not found: ${rowData.unit}`);
-//                 if (!company) throw new Error(`Company not found: ${rowData.company}`);
-
-//                 // Create item with proper ObjectIds
-//                 const itemData = {
-//                     name: rowData.name.trim(),
-//                     hscode: rowData.hscode ? rowData.hscode.trim() : '',
-//                     itemsCompany: itemscompany._id,
-//                     category: category._id,
-//                     mainUnit: mainunit._id,
-//                     unit: unit._id,
-//                     vatStatus: rowData.vatstatus ? rowData.vatstatus.trim() : 'Taxable',
-//                     fiscalYear: fiscalYearId,
-//                     company: company._id,
-//                 };
-
-//                 // Check for existing item
-//                 const existingItem = await mongoose.model('Item').findOne({
-//                     name: itemData.name,
-//                     company: company._id,
-//                     fiscalYear: fiscalYearId
-//                 });
-
-//                 if (existingItem) {
-//                     throw new Error(`Item already exists: ${itemData.name}`);
-//                 }
-
-//                 const item = new Item(itemData);
-//                 await item.save();
-//                 results.success++;
-
-//             } catch (error) {
-//                 results.errors.push({
-//                     row: i + 2,
-//                     message: error.message,
-//                     data: {
-//                         name: rowData.name,
-//                         itemscompany: rowData.itemscompany,
-//                         category: rowData.category,
-//                         mainunit: rowData.mainunit,
-//                         unit: rowData.unit,
-//                         company: rowData.company
-//                     }
-//                 });
-//             }
-//         }
-
-//         // Clean up uploaded file
-//         try {
-//             if (req.file && req.file.path) {
-//                 fs.unlinkSync(req.file.path);
-//             }
-//         } catch (cleanupError) {
-//             console.error('Error cleaning up uploaded file:', cleanupError);
-//         }
-
-//         // Return JSON response
-//         return res.json({
-//             success: true,
-//             data: {
-//                 results: {
-//                     total: results.total,
-//                     success: results.success,
-//                     errors: results.errors,
-//                     processed: results.processed,
-//                     skipped: results.skipped,
-//                     successRate: results.total > 0 ? ((results.success / results.total) * 100).toFixed(2) : 0
-//                 },
-//                 summary: {
-//                     company: company.name,
-//                     fiscalYear: currentFiscalYear ? currentFiscalYear.name : 'N/A',
-//                     importDate: new Date().toISOString(),
-//                     fileName: req.file.originalname
-//                 }
-//             },
-//             metadata: {
-//                 timestamp: new Date().toISOString(),
-//                 processedIn: `${Date.now() - req.startTime}ms`
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error('Import error:', error);
-
-//         // Clean up uploaded file on error
-//         try {
-//             if (req.file && req.file.path) {
-//                 fs.unlinkSync(req.file.path);
-//             }
-//         } catch (cleanupError) {
-//             console.error('Error cleaning up uploaded file on error:', cleanupError);
-//         }
-
-//         return res.status(500).json({
-//             success: false,
-//             error: 'IMPORT_FAILED',
-//             message: 'Failed to process import file.',
-//             code: 'PROCESSING_ERROR',
-//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
-//         });
-//     }
-// });
 
 router.post('/items-import', upload.single('excelFile'), async (req, res) => {
     // Add start time for performance tracking

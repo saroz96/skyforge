@@ -298,3 +298,13 @@ from: root@vmi3020945:/opt/mongodb-backups# ./backup-script.sh
 
 # Check the log file
 tail -f /var/log/mongodb-backups/backup-$(date +%Y%m%d).log
+
+
+root@vmi3020945:/opt/mongodb-backups#
+
+
+
+to copy/download backup:
+scp -r root@84.247.142.54:/opt/mongodb-backups C:\mongodb-backups
+
+C:\> scp -r root@84.247.142.54:/opt/mongodb-backups C:\mongodb-backups

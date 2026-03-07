@@ -2590,13 +2590,11 @@ const PurchaseBillsList = () => {
                         <>
                             {/* Bills Table */}
                             <div
-                                className="table-responsive"
                                 style={{
-                                    minHeight: "400px",
-                                    maxHeight: "400px",
-                                    overflowY: "auto",
+                                    height: "400px",
                                     border: '1px solid #dee2e6',
-                                    backgroundColor: '#fff'
+                                    backgroundColor: '#fff',
+                                    position: 'relative'
                                 }}
                                 ref={tableBodyRef}
                             >
@@ -2631,12 +2629,12 @@ const PurchaseBillsList = () => {
                                             return (
                                                 <div style={{
                                                     position: 'relative',
-                                                    height: height - 0, // Adjust for footer
+                                                    height: height, // Adjust for footer
                                                     width: Math.max(width, totalWidth),
                                                 }}>
                                                     <TableHeader />
                                                     <List
-                                                        height={height - 0}
+                                                        height={height - 28}
                                                         itemCount={filteredBills.length}
                                                         itemSize={28}
                                                         width={Math.max(width, totalWidth)}

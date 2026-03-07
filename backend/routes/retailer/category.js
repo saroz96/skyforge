@@ -34,9 +34,6 @@ const checkFiscalYearDateRange = require('../../middleware/checkFiscalYearDateRa
 const { ensureTradeType } = require('../../middleware/tradeType');
 const ensureFiscalYear = require('../../middleware/checkActiveFiscalYear');
 const FiscalYear = require('../../models/FiscalYear');
-// const BarcodePreference = require('../../models/retailer/barcodePreference');
-// const { createCanvas, loadImage } = require('canvas');
-// const itemsCompany = require('../../models/retailer/itemsCompany');
 
 
 // Category routes

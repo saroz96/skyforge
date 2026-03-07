@@ -100,31 +100,9 @@ const VirtualizedItemList = memo(({
   const loadingRef = useRef(false);
   const [visibleItems, setVisibleItems] = useState([]);
 
-  // Filter items based on search state - limit to 15 when searching
-  // const displayedItems = useMemo(() => {
-  //   if (!searchQuery.trim()) {
-  //     // When not searching, show all items
-  //     return items;
-  //   }
-  //   // When searching, show only first 15 items
-  //   return items.slice(0, 15);
-  // }, [items, searchQuery]);
-
   const displayedItems = useMemo(() => {
     return items; // Always show all items
   }, [items]);
-
-
-  // Update visible items based on display limit
-  // useEffect(() => {
-  //   if (!searchQuery.trim()) {
-  //     // When not searching, show all items
-  //     setVisibleItems(items);
-  //   } else {
-  //     // When searching, limit to 15
-  //     setVisibleItems(items.slice(0, 15));
-  //   }
-  // }, [items, searchQuery]);
 
   useEffect(() => {
     setVisibleItems(items); // Always show all items

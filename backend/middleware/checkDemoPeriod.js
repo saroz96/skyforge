@@ -6,7 +6,7 @@ const checkDemoPeriod = async (req, res, next) => {
         const companyId = req.session.currentCompany;
         const { billDate, nepaliDate } = req.body; // Extract both billDate and nepaliDate from the request body
 
-        // Fetch the company details
+        // Fetch the company details0
         const Company = mongoose.model('Company');
         const company = await Company.findById(companyId);
 

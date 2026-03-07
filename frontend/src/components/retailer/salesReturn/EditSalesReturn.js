@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import NepaliDate from 'nepali-date-converter';
 import axios from 'axios';
 import Header from '../Header';
@@ -13,9 +12,10 @@ import useDebounce from '../../../hooks/useDebounce';
 import VirtualizedItemList from '../../VirtualizedItemList';
 import VirtualizedAccountList from '../../VirtualizedAccountList';
 
-const AddSalesReturn = () => {
-    const { draftCreditSalesReturnSave, setDraftCreditSalesReturnSave, clearCreditSalesReturnDraft } = usePageNotRefreshContext();
+const EditSalesReturn = () => {
+    const { id } = useParams();
     const navigate = useNavigate();
+    const { clearCreditSalesReturnDraft } = usePageNotRefreshContext();
 
     // Account search states
     const [isAccountSearching, setIsAccountSearching] = useState(false);
@@ -76,7 +76,6 @@ const AddSalesReturn = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingItems, setLoadingItems] = useState(new Set());
-    const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -87,15 +86,15 @@ const AddSalesReturn = () => {
         nepaliDate: ''
     });
 
-    const [formData, setFormData] = useState(draftCreditSalesReturnSave?.formData || {
+    const [formData, setFormData] = useState({
         accountId: '',
         accountName: '',
         accountAddress: '',
         accountPan: '',
-        transactionDateNepali: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-        transactionDateRoman: new Date().toISOString().split('T')[0],
-        nepaliDate: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-        billDate: new Date().toISOString().split('T')[0],
+        transactionDateNepali: '',
+        transactionDateRoman: '',
+        nepaliDate: '',
+        billDate: '',
         billNumber: '',
         paymentMode: 'credit',
         isVatExempt: 'all',
@@ -104,10 +103,12 @@ const AddSalesReturn = () => {
         roundOffAmount: 0,
         vatPercentage: 13,
         salesInvoiceNumber: '',
+        originalSalesBill: '',
         items: []
     });
 
-    const [items, setItems] = useState(draftCreditSalesReturnSave?.items || []);
+    const [items, setItems] = useState([]);
+    const [originalItems, setOriginalItems] = useState([]);
     const [salesInvoiceData, setSalesInvoiceData] = useState(null);
     const [salesInvoiceLoading, setSalesInvoiceLoading] = useState(false);
     const [accounts, setAccounts] = useState([]);
@@ -121,7 +122,7 @@ const AddSalesReturn = () => {
         vatEnabled: true,
         fiscalYear: {}
     });
-    const [nextBillNumber, setNextBillNumber] = useState('');
+    const [canEdit, setCanEdit] = useState(true);
 
     const accountSearchRef = useRef(null);
     const itemSearchRef = useRef(null);
@@ -132,6 +133,119 @@ const AddSalesReturn = () => {
         baseURL: process.env.REACT_APP_API_BASE_URL,
         withCredentials: true,
     });
+
+    const handleBack = () => {
+        navigate(-1);
+    };
+
+    // Fetch sales return data for editing
+    useEffect(() => {
+        const fetchSalesReturnForEdit = async () => {
+            try {
+                setIsLoading(true);
+
+                // First check if the sales return can be edited
+                const checkResponse = await api.get(`/api/retailer/sales-return/${id}/can-edit`);
+                if (!checkResponse.data.data.canEdit) {
+                    setNotification({
+                        show: true,
+                        message: checkResponse.data.data.message,
+                        type: 'warning'
+                    });
+                    setCanEdit(false);
+                    setTimeout(() => {
+                        handleBack();
+                    }, 3000);
+                    return;
+                }
+
+                // Fetch the sales return data
+                const response = await api.get(`/api/retailer/sales-return/edit/${id}`);
+
+                if (response.data.success) {
+                    const { data } = response.data;
+                    const salesReturn = data.salesReturnInvoice;
+
+                    // Set company data
+                    setCompany(data.company);
+
+                    // Format dates
+                    const formatDate = (date) => {
+                        if (!date) return '';
+                        if (date.includes('T')) {
+                            return date.split('T')[0];
+                        }
+                        return date;
+                    };
+
+                    // Set form data
+                    setFormData({
+                        accountId: salesReturn.account?._id || '',
+                        accountName: salesReturn.account?.name || '',
+                        accountAddress: salesReturn.account?.address || '',
+                        accountPan: salesReturn.account?.pan || '',
+                        transactionDateNepali: formatDate(salesReturn.transactionDate),
+                        transactionDateRoman: formatDate(salesReturn.transactionDate),
+                        nepaliDate: formatDate(salesReturn.date),
+                        billDate: formatDate(salesReturn.date),
+                        billNumber: salesReturn.billNumber,
+                        paymentMode: salesReturn.paymentMode || 'credit',
+                        isVatExempt: salesReturn.isVatExempt ? 'true' : (salesReturn.isVatAll ? 'all' : 'false'),
+                        discountPercentage: salesReturn.discountPercentage || 0,
+                        discountAmount: salesReturn.discountAmount || 0,
+                        roundOffAmount: salesReturn.roundOffAmount || 0,
+                        vatPercentage: salesReturn.vatPercentage || 13,
+                        salesInvoiceNumber: salesReturn.originalSalesBillNumber || '',
+                        originalSalesBill: salesReturn.originalSalesBill || null,
+                        items: []
+                    });
+
+                    // Set items
+                    const transformedItems = salesReturn.items.map(item => ({
+                        item: item.item?._id || item.item,
+                        _id: item.item?._id || item.item,
+                        uniqueNumber: item.uniqueNumber || item.item?.uniqueNumber || '',
+                        hscode: item.hscode || item.item?.hscode || '',
+                        name: item.name || item.item?.name || '',
+                        category: item.category?.name || item.item?.category?.name || 'No Category',
+                        batchNumber: item.batchNumber || 'XXX',
+                        expiryDate: formatDate(item.expiryDate) || getDefaultExpiryDate(),
+                        quantity: item.quantity || 0,
+                        unit: item.unit || item.item?.unit || null,
+                        price: item.price || 0,
+                        amount: (item.quantity * item.price).toFixed(2),
+                        vatStatus: item.vatStatus || item.item?.vatStatus || 'vatable',
+                        uniqueUuId: item.uniqueUuId || ''
+                    }));
+
+                    setItems(transformedItems);
+                    setOriginalItems(transformedItems);
+
+                    // Set accounts list
+                    setAccounts(data.accounts || []);
+
+                    // Fetch accounts for modal
+                    fetchAccountsFromBackend('', 1);
+
+                    setIsInitialDataLoaded(true);
+                }
+            } catch (error) {
+                console.error('Error fetching sales return for edit:', error);
+                setNotification({
+                    show: true,
+                    message: error.response?.data?.error || 'Error loading sales return data',
+                    type: 'error'
+                });
+                setTimeout(() => {
+                    handleBack();
+                }, 3000);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchSalesReturnForEdit();
+    }, [id]);
 
     // Fetch accounts from backend
     const fetchAccountsFromBackend = async (searchTerm = '', page = 1) => {
@@ -149,10 +263,8 @@ const AddSalesReturn = () => {
             if (response.data.success) {
                 if (page === 1) {
                     setAccountSearchResults(response.data.accounts);
-                    setAccounts(response.data.accounts);
                 } else {
                     setAccountSearchResults(prev => [...prev, ...response.data.accounts]);
-                    setAccounts(prev => [...prev, ...response.data.accounts]);
                 }
                 setHasMoreAccountResults(response.data.pagination.hasNextPage);
                 setTotalAccounts(response.data.pagination.totalAccounts);
@@ -281,16 +393,6 @@ const AddSalesReturn = () => {
     }, [debouncedHeaderSearchQuery, formData.isVatExempt, showHeaderItemModal, headerShouldShowLastSearchResults, headerLastSearchQuery]);
 
     useEffect(() => {
-        if (formData.accountId || items.length > 0) {
-            setDraftCreditSalesReturnSave({
-                formData,
-                items,
-                accounts
-            });
-        }
-    }, [formData, items, accounts, setDraftCreditSalesReturnSave]);
-
-    useEffect(() => {
         const handF9leKeyDown = (e) => {
             if (e.key === 'F9') {
                 e.preventDefault();
@@ -339,32 +441,6 @@ const AddSalesReturn = () => {
             window.removeEventListener('keydown', handleF6KeyForHeaderModal);
         };
     }, [showHeaderItemModal]);
-
-    useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                // First, fetch the next bill number
-                const numberResponse = await api.get('/api/retailer/sales-return/next-number');
-                setFormData(prev => ({
-                    ...prev,
-                    billNumber: numberResponse.data.data.nextSalesReturnNumber
-                }));
-
-                // Then fetch other initial data (if needed)
-                const response = await api.get('/api/retailer/sales-return');
-                const { data } = response;
-
-                setCompany(data.data.company);
-                setNextBillNumber(numberResponse.data.data.nextSalesReturnNumber);
-
-                fetchAccountsFromBackend('', 1);
-                setIsInitialDataLoaded(true);
-            } catch (error) {
-                console.error('Error fetching initial data:', error);
-            }
-        };
-        fetchInitialData();
-    }, []);
 
     useEffect(() => {
         const fetchTransactionSettings = async () => {
@@ -527,14 +603,13 @@ const AddSalesReturn = () => {
         scrollToItemsTable();
     };
 
-
     const addItemToBill = async (item) => {
         if (itemSearchRef.current?.value) {
             setLastSearchQuery(itemSearchRef.current.value);
             setShouldShowLastSearchResults(true);
         }
 
-        const sortedStockEntries = item.stockEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+        const sortedStockEntries = item.stockEntries?.sort((a, b) => new Date(a.date) - new Date(b.date)) || [];
         const firstStockEntry = sortedStockEntries[0] || {};
 
         let expiryDate = '';
@@ -878,160 +953,9 @@ const AddSalesReturn = () => {
         }
     };
 
-    // const resetForm = async () => {
-    //     try {
-    //         setIsLoading(true);
-
-    //         const response = await api.get('/api/retailer/sales-return');
-    //         const { data } = response;
-
-    //         const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-    //         const currentRomanDate = new Date().toISOString().split('T')[0];
-
-    //         setFormData({
-    //             accountId: '',
-    //             accountName: '',
-    //             accountAddress: '',
-    //             accountPan: '',
-    //             transactionDateNepali: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-    //             transactionDateRoman: currentRomanDate,
-    //             nepaliDate: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-    //             billDate: currentRomanDate,
-    //             billNumber: data.data.nextSalesReturnNumber,
-    //             paymentMode: 'credit',
-    //             isVatExempt: 'all',
-    //             discountPercentage: 0,
-    //             discountAmount: 0,
-    //             roundOffAmount: 0,
-    //             vatPercentage: 13,
-    //             salesInvoiceNumber: '',
-    //             items: []
-    //         });
-
-    //         setAccountSearchQuery('');
-    //         setAccountSearchPage(1);
-    //         setAccountSearchResults([]);
-    //         setHasMoreAccountResults(false);
-    //         setTotalAccounts(0);
-
-    //         fetchAccountsFromBackend('', 1);
-
-    //         setAccounts([]);
-    //         setNextBillNumber(data.data.nextSalesReturnNumber);
-    //         setItems([]);
-    //         setSalesInvoiceData(null);
-    //         setSalesInvoiceLoading(false);
-    //         clearCreditSalesReturnDraft();
-
-    //         if (accountSearchRef.current) {
-    //             accountSearchRef.current.value = '';
-    //         }
-
-    //         setSearchQuery('');
-    //         setSearchResults([]);
-    //         setSearchPage(1);
-    //         setHasMoreSearchResults(false);
-    //         setTotalSearchItems(0);
-    //         setShowItemDropdown(false);
-
-    //         setHeaderSearchQuery('');
-    //         setHeaderLastSearchQuery('');
-    //         setHeaderShouldShowLastSearchResults(false);
-    //         setSelectedItemForInsert(null);
-
-    //         setTimeout(() => {
-    //             if (transactionDateRef.current) {
-    //                 transactionDateRef.current.focus();
-    //             }
-    //         }, 100);
-    //     } catch (err) {
-    //         console.error('Error resetting form:', err);
-    //         setNotification({
-    //             show: true,
-    //             message: 'Error refreshing form data',
-    //             type: 'error'
-    //         });
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    const resetForm = async () => {
-        try {
-            setIsLoading(true);
-
-            // Fetch the next bill number
-            const numberResponse = await api.get('/api/retailer/sales-return/next-number');
-            const nextBillNum = numberResponse.data.data.nextSalesReturnNumber;
-
-            const currentNepaliDate = new NepaliDate().format('YYYY-MM-DD');
-            const currentRomanDate = new Date().toISOString().split('T')[0];
-
-            setFormData({
-                accountId: '',
-                accountName: '',
-                accountAddress: '',
-                accountPan: '',
-                transactionDateNepali: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-                transactionDateRoman: currentRomanDate,
-                nepaliDate: new NepaliDate(currentNepaliDate).format('YYYY-MM-DD'),
-                billDate: currentRomanDate,
-                billNumber: nextBillNum, // Use the fetched number
-                paymentMode: 'credit',
-                isVatExempt: 'all',
-                discountPercentage: 0,
-                discountAmount: 0,
-                roundOffAmount: 0,
-                vatPercentage: 13,
-                salesInvoiceNumber: '',
-                items: []
-            });
-
-            setAccountSearchQuery('');
-            setAccountSearchPage(1);
-            setAccountSearchResults([]);
-            setHasMoreAccountResults(false);
-            setTotalAccounts(0);
-
-            fetchAccountsFromBackend('', 1);
-
-            setAccounts([]);
-            setNextBillNumber(nextBillNum); // Update the state
-            setItems([]);
-            setSalesInvoiceData(null);
-            setSalesInvoiceLoading(false);
-            clearCreditSalesReturnDraft();
-
-            if (accountSearchRef.current) {
-                accountSearchRef.current.value = '';
-            }
-
-            setSearchQuery('');
-            setSearchResults([]);
-            setSearchPage(1);
-            setHasMoreSearchResults(false);
-            setTotalSearchItems(0);
-            setShowItemDropdown(false);
-
-            setHeaderSearchQuery('');
-            setHeaderLastSearchQuery('');
-            setHeaderShouldShowLastSearchResults(false);
-            setSelectedItemForInsert(null);
-
-            setTimeout(() => {
-                if (transactionDateRef.current) {
-                    transactionDateRef.current.focus();
-                }
-            }, 100);
-        } catch (err) {
-            console.error('Error resetting form:', err);
-            setNotification({
-                show: true,
-                message: 'Error refreshing form data',
-                type: 'error'
-            });
-        } finally {
-            setIsLoading(false);
+    const handleCancel = () => {
+        if (window.confirm('Are you sure you want to cancel? Any unsaved changes will be lost.')) {
+            handleBack();
         }
     };
 
@@ -1064,40 +988,40 @@ const AddSalesReturn = () => {
 
                     setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
                     setSalesInvoiceData(null);
-                    setItems([]);
+                    setItems(originalItems);
 
                     return;
                 }
 
-                // Check if this bill already has existing returns
+                // Check if this bill already has existing returns (excluding current one)
                 if (billData.hasExistingReturns && billData.existingReturns.length > 0) {
-                    setSalesInvoiceLoading(false);
+                    const otherReturns = billData.existingReturns.filter(ret => ret._id !== id);
 
-                    // Show detailed warning message
-                    const returnDetails = billData.existingReturns
-                        .map((ret, idx) =>
-                            `Return ${idx + 1}: ${ret.billNumber} (${new Date(ret.date).toLocaleDateString()}) - Rs. ${ret.totalAmount?.toFixed(2) || '0.00'}`
-                        )
-                        .join('\n');
+                    if (otherReturns.length > 0) {
+                        setSalesInvoiceLoading(false);
 
-                    setNotification({
-                        show: true,
-                        message: `⚠️ Sales return already exists for invoice ${invoiceNumber}!\n\nExisting Returns:\n${returnDetails}\n\nYou cannot create another return for the same invoice.`,
-                        type: 'warning'
-                    });
+                        const returnDetails = otherReturns
+                            .map((ret, idx) =>
+                                `Return ${idx + 1}: ${ret.billNumber} (${new Date(ret.date).toLocaleDateString()}) - Rs. ${ret.totalAmount?.toFixed(2) || '0.00'}`
+                            )
+                            .join('\n');
 
-                    // Clear the input field
-                    setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+                        setNotification({
+                            show: true,
+                            message: `⚠️ Another sales return already exists for invoice ${invoiceNumber}!\n\nExisting Returns:\n${returnDetails}\n\nYou cannot have multiple returns for the same invoice.`,
+                            type: 'warning'
+                        });
 
-                    // Clear any loaded data
-                    setSalesInvoiceData(null);
-                    setItems([]);
+                        setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
+                        setSalesInvoiceData(null);
+                        setItems(originalItems);
 
-                    return;
+                        return;
+                    }
                 }
 
-                // Check if bill is fully returned
-                if (billData.isFullyReturned) {
+                // Check if bill is fully returned (excluding current return)
+                if (billData.isFullyReturned && !billData.existingReturns?.some(ret => ret._id === id)) {
                     setSalesInvoiceLoading(false);
 
                     setNotification({
@@ -1108,31 +1032,28 @@ const AddSalesReturn = () => {
 
                     setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
                     setSalesInvoiceData(null);
-                    setItems([]);
+                    setItems(originalItems);
 
                     return;
                 }
 
                 // Calculate VAT status based on items in the bill
-                let isVatExemptValue = 'all'; // Default to 'all'
+                let isVatExemptValue = 'all';
 
                 if (billData.items && billData.items.length > 0) {
                     const vatStatuses = billData.items.map(item => {
                         return item.item?.vatStatus || item.vatStatus || 'vatable';
                     });
 
-                    // Check if all items are vatable
                     const allVatable = vatStatuses.every(status => status === 'vatable');
-                    // Check if all items are vatExempt
                     const allVatExempt = vatStatuses.every(status => status === 'vatExempt');
 
-                    // Apply logic:
                     if (allVatable) {
-                        isVatExemptValue = 'false'; // All items are vatable, so show 13%
+                        isVatExemptValue = 'false';
                     } else if (allVatExempt) {
-                        isVatExemptValue = 'true'; // All items are exempt, so show Exempt
+                        isVatExemptValue = 'true';
                     } else {
-                        isVatExemptValue = 'all'; // Mixed items, show All
+                        isVatExemptValue = 'all';
                     }
                 }
 
@@ -1143,19 +1064,18 @@ const AddSalesReturn = () => {
                     accountName: billData.account?.name || '',
                     accountAddress: billData.account?.address || '',
                     accountPan: billData.account?.pan || '',
-                    // Copy bill summary details
                     discountPercentage: billData.billSummary?.discountPercentage || 0,
                     discountAmount: billData.billSummary?.discountAmount || 0,
                     vatPercentage: billData.billSummary?.vatPercentage || 13,
                     paymentMode: billData.billSummary?.paymentMode || 'credit',
                     isVatExempt: isVatExemptValue,
                     roundOffAmount: billData.billSummary?.roundOffAmount || 0,
-                    salesInvoiceNumber: invoiceNumber
+                    salesInvoiceNumber: invoiceNumber,
+                    originalSalesBill: billData._id
                 }));
 
                 // Transform items correctly
                 const transformedItems = billData.items.map((item, index) => {
-                    // Handle unit
                     let unit = item.unit;
                     if (unit && typeof unit === 'string') {
                         unit = { _id: unit };
@@ -1165,7 +1085,6 @@ const AddSalesReturn = () => {
                         unit = { _id: null, name: '' };
                     }
 
-                    // Handle expiry date
                     let expiryDate = item.expiryDate;
                     if (expiryDate) {
                         if (typeof expiryDate === 'string' && expiryDate.includes('T')) {
@@ -1177,7 +1096,6 @@ const AddSalesReturn = () => {
                         expiryDate = getDefaultExpiryDate();
                     }
 
-                    // Use available quantity as default
                     const defaultQuantity = Math.max(0, item.availableQuantity || 0);
 
                     return {
@@ -1209,7 +1127,6 @@ const AddSalesReturn = () => {
                     type: 'success'
                 });
 
-                // Focus on first item's quantity
                 setTimeout(() => {
                     if (transformedItems.length > 0) {
                         const batchNumberInput = document.getElementById(`batchNumber-0`);
@@ -1221,40 +1138,23 @@ const AddSalesReturn = () => {
                 }, 100);
 
             } else {
-                const errorData = response.data;
-
-                if (errorData.isCashSales) {
-                    setNotification({
-                        show: true,
-                        message: `❌ ${invoiceNumber} is a Cash Sales bill!\n\nCash Account: ${errorData.cashAccount || 'N/A'}\nAddress: ${errorData.cashAccountAddress || 'N/A'}\n\nCash sales returns should be created from the Cash Sales Return section.`,
-                        type: 'error'
-                    });
-                } else if (errorData.isCreditSales === false) {
-                    setNotification({
-                        show: true,
-                        message: `❌ ${invoiceNumber} is not a valid credit sales bill.\nPlease check the bill type.`,
-                        type: 'error'
-                    });
-                } else {
-                    setNotification({
-                        show: true,
-                        message: errorData.error || 'Sales bill not found',
-                        type: 'error'
-                    });
-                }
+                setNotification({
+                    show: true,
+                    message: response.data.error || 'Sales bill not found',
+                    type: 'error'
+                });
 
                 setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
                 setSalesInvoiceData(null);
-                setItems([]);
+                setItems(originalItems);
             }
         } catch (error) {
             console.error('Error fetching sales bill:', error);
 
             if (error.response?.data?.isCashSales) {
-                const errorData = error.response.data;
                 setNotification({
                     show: true,
-                    message: `❌ ${invoiceNumber} is a Cash Sales bill!\n\nCash Account: ${errorData.cashAccount || 'N/A'}\nAddress: ${errorData.cashAccountAddress || 'N/A'}\n\nCash sales returns should be created from the Cash Sales Return section.`,
+                    message: `❌ ${invoiceNumber} is a Cash Sales bill!\n\nCash sales returns should be created from the Cash Sales Return section.`,
                     type: 'error'
                 });
             } else if (error.response?.data?.isCreditSales === false) {
@@ -1279,7 +1179,7 @@ const AddSalesReturn = () => {
 
             setFormData(prev => ({ ...prev, salesInvoiceNumber: '' }));
             setSalesInvoiceData(null);
-            setItems([]);
+            setItems(originalItems);
         } finally {
             setSalesInvoiceLoading(false);
         }
@@ -1294,16 +1194,15 @@ const AddSalesReturn = () => {
     const handleSubmit = async (e, print = false) => {
         e.preventDefault();
 
-        if (salesInvoiceData?.hasExistingReturns) {
+        if (!canEdit) {
             setNotification({
                 show: true,
-                message: `Cannot save: Sales return already exists for invoice ${formData.salesInvoiceNumber}`,
+                message: 'This sales return cannot be edited',
                 type: 'error'
             });
             return;
         }
 
-        // Validation
         if (!formData.accountId) {
             setNotification({
                 show: true,
@@ -1325,9 +1224,7 @@ const AddSalesReturn = () => {
         setIsSaving(true);
 
         try {
-            // Prepare items for submission
             const preparedItems = items.map(item => {
-                // Extract unit ID correctly
                 let unitId = null;
                 if (item.unit) {
                     if (typeof item.unit === 'object' && item.unit._id) {
@@ -1337,7 +1234,6 @@ const AddSalesReturn = () => {
                     }
                 }
 
-                // Format expiry date
                 let expiryDate = item.expiryDate;
                 if (expiryDate) {
                     if (typeof expiryDate === 'string' && expiryDate.includes('T')) {
@@ -1364,7 +1260,6 @@ const AddSalesReturn = () => {
 
             const calculatedValues = calculateTotal();
 
-            // Prepare bill data
             const billData = {
                 accountId: formData.accountId,
                 items: preparedItems,
@@ -1378,22 +1273,17 @@ const AddSalesReturn = () => {
                 discountAmount: Number(formData.discountAmount) || 0,
                 paymentMode: formData.paymentMode,
                 roundOffAmount: Number(formData.roundOffAmount) || 0,
-                originalSalesBill: salesInvoiceData?._id || null,
+                originalSalesBill: formData.originalSalesBill || salesInvoiceData?._id || null,
                 originalSalesBillNumber: formData.salesInvoiceNumber || '',
-                subTotal: calculatedValues.subTotal,
-                taxableAmount: calculatedValues.taxableAmount,
-                nonTaxableAmount: calculatedValues.nonTaxableAmount,
-                vatAmount: calculatedValues.vatAmount,
-                totalAmount: calculatedValues.totalAmount,
                 print
             };
 
-            const response = await api.post('/api/retailer/sales-return', billData);
+            const response = await api.put(`/api/retailer/sales-return/${id}`, billData);
 
             if (response.data.success) {
                 setNotification({
                     show: true,
-                    message: 'Sales return saved successfully!',
+                    message: 'Sales return updated successfully!',
                     type: 'success'
                 });
 
@@ -1403,26 +1293,28 @@ const AddSalesReturn = () => {
                     setIsSaving(false);
                     await printImmediately(response.data.data.bill._id);
                     setTimeout(() => {
-                        resetForm();
+                        handleBack();
                     }, 1000);
                 } else {
                     setIsSaving(false);
-                    resetForm();
+                    setTimeout(() => {
+                        handleBack();
+                    }, 1500);
                 }
 
             } else {
                 setNotification({
                     show: true,
-                    message: response.data.message || response.data.error || 'Failed to save sales return',
+                    message: response.data.message || response.data.error || 'Failed to update sales return',
                     type: 'error'
                 });
                 setIsSaving(false);
             }
         } catch (error) {
-            console.error('Error saving sales return:', error);
+            console.error('Error updating sales return:', error);
             setNotification({
                 show: true,
-                message: error.response?.data?.message || error.response?.data?.error || 'Failed to save sales return',
+                message: error.response?.data?.message || error.response?.data?.error || 'Failed to update sales return',
                 type: 'error'
             });
             setIsSaving(false);
@@ -1554,7 +1446,6 @@ const AddSalesReturn = () => {
         }
         setHeaderSearchQuery('');
 
-        // Set default values for batch and expiry
         setSelectedItemBatchNumber('XXX');
         setSelectedItemExpiryDate(getDefaultExpiryDate());
 
@@ -1648,7 +1539,6 @@ const AddSalesReturn = () => {
             return;
         }
 
-        // Validate required fields
         if (!validateHeaderFields()) {
             return;
         }
@@ -1660,8 +1550,8 @@ const AddSalesReturn = () => {
                 hscode: selectedItemForInsert.hscode,
                 name: selectedItemForInsert.name,
                 category: selectedItemForInsert.category?.name || 'No Category',
-                batchNumber: 'XXX',
-                expiryDate: getDefaultExpiryDate(),
+                batchNumber: selectedItemBatchNumber || 'XXX',
+                expiryDate: selectedItemExpiryDate || getDefaultExpiryDate(),
                 quantity: selectedItemQuantity || 0,
                 unit: selectedItemForInsert.unit,
                 price: selectedItemRate || 0,
@@ -1952,13 +1842,26 @@ const AddSalesReturn = () => {
             console.error('Error fetching print data:', error);
             setNotification({
                 show: true,
-                message: 'Bill saved but failed to load print data',
+                message: 'Bill updated but failed to load print data',
                 type: 'warning'
             });
         }
     };
 
     const totals = calculateTotal();
+
+    if (isLoading) {
+        return (
+            <div className="container-fluid">
+                <Header />
+                <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container-fluid">
@@ -1967,13 +1870,11 @@ const AddSalesReturn = () => {
                 <div className="card-header">
                     <div className="d-flex justify-content-between align-items-center">
                         <h2 className="card-title mb-0">
-                            <i className="bi bi-file-text me-2"></i>
-                            Credit Sales Return Entry
+                            <i className="bi bi-pencil-square me-2"></i>
+                            Edit Credit Sales Return
                         </h2>
                         <div>
-                            {formData.billNumber === '' && (
-                                <span className="badge bg-danger me-2">Invoice number is required!</span>
-                            )}
+                            <span className="badge bg-info me-2">Bill No: {formData.billNumber}</span>
                             {dateErrors.transactionDateNepali && (
                                 <span className="badge bg-danger me-2">{dateErrors.transactionDateNepali}</span>
                             )}
@@ -1984,6 +1885,11 @@ const AddSalesReturn = () => {
                     </div>
                 </div>
                 <div className="card-body p-2 p-md-3">
+                    {!canEdit && (
+                        <div className="alert alert-warning mb-3">
+                            This sales return has already been updated and cannot be edited further.
+                        </div>
+                    )}
                     <form onSubmit={handleSubmit} id="billForm" className="needs-validation" noValidate>
                         {/* Date and Basic Info Row */}
                         <div className="row g-2 mb-3">
@@ -2045,22 +1951,10 @@ const AddSalesReturn = () => {
                                                         }
                                                     }
                                                 }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const pastedData = e.clipboardData.getData('text');
-                                                    const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                                    const newValue = formData.transactionDateNepali + cleanedData;
-                                                    if (newValue.length <= 10) {
-                                                        setFormData({ ...formData, transactionDateNepali: newValue });
-                                                    }
-                                                }}
                                                 onBlur={(e) => {
                                                     try {
                                                         const dateStr = e.target.value.trim();
-                                                        if (!dateStr) {
-                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                            return;
-                                                        }
+                                                        if (!dateStr) return;
                                                         const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
                                                         if (!nepaliDateFormat.test(dateStr)) {
                                                             const currentDate = new NepaliDate();
@@ -2076,41 +1970,6 @@ const AddSalesReturn = () => {
                                                                 type: 'warning',
                                                                 duration: 3000
                                                             });
-                                                            return;
-                                                        }
-                                                        const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                        const [year, month, day] = normalizedDateStr.split('/').map(Number);
-                                                        if (month < 1 || month > 12) {
-                                                            throw new Error("Month must be between 1-12");
-                                                        }
-                                                        if (day < 1 || day > 32) {
-                                                            throw new Error("Day must be between 1-32");
-                                                        }
-                                                        const nepaliDate = new NepaliDate(year, month - 1, day);
-                                                        if (
-                                                            nepaliDate.getYear() !== year ||
-                                                            nepaliDate.getMonth() + 1 !== month ||
-                                                            nepaliDate.getDate() !== day
-                                                        ) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                            setFormData({
-                                                                ...formData,
-                                                                transactionDateNepali: correctedDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        } else {
-                                                            setFormData({
-                                                                ...formData,
-                                                                transactionDateNepali: nepaliDate.format('YYYY-MM-DD')
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
                                                         }
                                                     } catch (error) {
                                                         const currentDate = new NepaliDate();
@@ -2120,16 +1979,11 @@ const AddSalesReturn = () => {
                                                             transactionDateNepali: correctedDate
                                                         });
                                                         setDateErrors(prev => ({ ...prev, transactionDateNepali: '' }));
-                                                        setNotification({
-                                                            show: true,
-                                                            message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
                                                     }
                                                 }}
                                                 placeholder="YYYY-MM-DD"
                                                 required
+                                                disabled={!canEdit}
                                                 style={{
                                                     height: '26px',
                                                     fontSize: '0.875rem',
@@ -2151,11 +2005,6 @@ const AddSalesReturn = () => {
                                             >
                                                 Transaction Date: <span className="text-danger">*</span>
                                             </label>
-                                            {dateErrors.transactionDateNepali && (
-                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                                    {dateErrors.transactionDateNepali}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
 
@@ -2214,22 +2063,10 @@ const AddSalesReturn = () => {
                                                         }
                                                     }
                                                 }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const pastedData = e.clipboardData.getData('text');
-                                                    const cleanedData = pastedData.replace(/[^0-9/-]/g, '');
-                                                    const newValue = formData.nepaliDate + cleanedData;
-                                                    if (newValue.length <= 10) {
-                                                        setFormData({ ...formData, nepaliDate: newValue });
-                                                    }
-                                                }}
                                                 onBlur={(e) => {
                                                     try {
                                                         const dateStr = e.target.value.trim();
-                                                        if (!dateStr) {
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                            return;
-                                                        }
+                                                        if (!dateStr) return;
                                                         const nepaliDateFormat = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/;
                                                         if (!nepaliDateFormat.test(dateStr)) {
                                                             const currentDate = new NepaliDate();
@@ -2245,41 +2082,6 @@ const AddSalesReturn = () => {
                                                                 type: 'warning',
                                                                 duration: 3000
                                                             });
-                                                            return;
-                                                        }
-                                                        const normalizedDateStr = dateStr.replace(/-/g, '/');
-                                                        const [year, month, day] = normalizedDateStr.split('/').map(Number);
-                                                        if (month < 1 || month > 12) {
-                                                            throw new Error("Month must be between 1-12");
-                                                        }
-                                                        if (day < 1 || day > 32) {
-                                                            throw new Error("Day must be between 1-32");
-                                                        }
-                                                        const nepaliDate = new NepaliDate(year, month - 1, day);
-                                                        if (
-                                                            nepaliDate.getYear() !== year ||
-                                                            nepaliDate.getMonth() + 1 !== month ||
-                                                            nepaliDate.getDate() !== day
-                                                        ) {
-                                                            const currentDate = new NepaliDate();
-                                                            const correctedDate = currentDate.format('YYYY-MM-DD');
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: correctedDate
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                            setNotification({
-                                                                show: true,
-                                                                message: 'Invalid Nepali date. Auto-corrected to current date.',
-                                                                type: 'warning',
-                                                                duration: 3000
-                                                            });
-                                                        } else {
-                                                            setFormData({
-                                                                ...formData,
-                                                                nepaliDate: nepaliDate.format('YYYY-MM-DD')
-                                                            });
-                                                            setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
                                                         }
                                                     } catch (error) {
                                                         const currentDate = new NepaliDate();
@@ -2289,16 +2091,11 @@ const AddSalesReturn = () => {
                                                             nepaliDate: correctedDate
                                                         });
                                                         setDateErrors(prev => ({ ...prev, nepaliDate: '' }));
-                                                        setNotification({
-                                                            show: true,
-                                                            message: error.message ? `${error.message}. Auto-corrected to current date.` : 'Invalid date. Auto-corrected to current date.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
                                                     }
                                                 }}
                                                 placeholder="YYYY-MM-DD"
                                                 required
+                                                disabled={!canEdit}
                                                 style={{
                                                     height: '26px',
                                                     fontSize: '0.875rem',
@@ -2320,11 +2117,6 @@ const AddSalesReturn = () => {
                                             >
                                                 Invoice Date: <span className="text-danger">*</span>
                                             </label>
-                                            {dateErrors.nepaliDate && (
-                                                <div className="invalid-feedback d-block" style={{ fontSize: '0.7rem' }}>
-                                                    {dateErrors.nepaliDate}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </>
@@ -2375,22 +2167,9 @@ const AddSalesReturn = () => {
                                                         handleKeyDown(e, 'transactionDateRoman');
                                                     }
                                                 }}
-                                                onBlur={(e) => {
-                                                    const value = e.target.value;
-                                                    if (!value) {
-                                                        const today = new Date();
-                                                        const todayStr = today.toISOString().split('T')[0];
-                                                        setFormData({ ...formData, transactionDateRoman: todayStr });
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Date required. Auto-corrected to today.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    }
-                                                }}
                                                 max={new Date().toISOString().split('T')[0]}
                                                 required
+                                                disabled={!canEdit}
                                                 style={{
                                                     height: '26px',
                                                     fontSize: '0.875rem',
@@ -2459,22 +2238,9 @@ const AddSalesReturn = () => {
                                                         handleKeyDown(e, 'billDate');
                                                     }
                                                 }}
-                                                onBlur={(e) => {
-                                                    const value = e.target.value;
-                                                    if (!value) {
-                                                        const today = new Date();
-                                                        const todayStr = today.toISOString().split('T')[0];
-                                                        setFormData({ ...formData, billDate: todayStr });
-                                                        setNotification({
-                                                            show: true,
-                                                            message: 'Date required. Auto-corrected to today.',
-                                                            type: 'warning',
-                                                            duration: 3000
-                                                        });
-                                                    }
-                                                }}
                                                 max={new Date().toISOString().split('T')[0]}
                                                 required
+                                                disabled={!canEdit}
                                                 style={{
                                                     height: '26px',
                                                     fontSize: '0.875rem',
@@ -2510,16 +2276,13 @@ const AddSalesReturn = () => {
                                         className="form-control form-control-sm"
                                         value={formData.billNumber}
                                         readOnly
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'billNumber');
-                                            }
-                                        }}
+                                        disabled
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
                                             paddingTop: '0.75rem',
-                                            width: '100%'
+                                            width: '100%',
+                                            backgroundColor: '#f8f9fa'
                                         }}
                                     />
                                     <label
@@ -2552,6 +2315,7 @@ const AddSalesReturn = () => {
                                                 handleKeyDown(e, 'paymentMode');
                                             }
                                         }}
+                                        disabled={!canEdit}
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
@@ -2579,7 +2343,6 @@ const AddSalesReturn = () => {
                                 </div>
                             </div>
 
-
                             <div className="col-12 col-md-6 col-lg-2">
                                 <div className="position-relative">
                                     <div className="input-group">
@@ -2600,7 +2363,7 @@ const AddSalesReturn = () => {
                                                 }
                                             }}
                                             placeholder="Enter org. sales invoice"
-                                            disabled={salesInvoiceLoading}
+                                            disabled={salesInvoiceLoading || !canEdit}
                                             style={{
                                                 height: '26px',
                                                 fontSize: '0.875rem',
@@ -2644,6 +2407,7 @@ const AddSalesReturn = () => {
                                                 handleKeyDown(e, 'isVatExempt');
                                             }
                                         }}
+                                        disabled={!canEdit}
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
@@ -2682,20 +2446,17 @@ const AddSalesReturn = () => {
                                         name="account"
                                         className="form-control form-control-sm"
                                         value={formData.accountName}
-                                        onClick={() => setShowAccountModal(true)}
-                                        onFocus={() => setShowAccountModal(true)}
+                                        onClick={() => canEdit && setShowAccountModal(true)}
+                                        onFocus={() => canEdit && setShowAccountModal(true)}
                                         readOnly
                                         required
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleKeyDown(e, 'account');
-                                            }
-                                        }}
+                                        disabled={!canEdit}
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
                                             paddingTop: '0.75rem',
-                                            width: '100%'
+                                            width: '100%',
+                                            backgroundColor: canEdit ? '#fff' : '#f8f9fa'
                                         }}
                                     />
                                     <label
@@ -2728,7 +2489,8 @@ const AddSalesReturn = () => {
                                             border: '1px solid #ced4da',
                                             borderRadius: '0.375rem',
                                             overflow: 'hidden',
-                                            whiteSpace: 'nowrap'
+                                            whiteSpace: 'nowrap',
+                                            backgroundColor: '#f8f9fa'
                                         }}
                                     >
                                         <AccountBalanceDisplay
@@ -2764,11 +2526,13 @@ const AddSalesReturn = () => {
                                             }
                                         }}
                                         readOnly
+                                        disabled
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
                                             paddingTop: '0.75rem',
-                                            width: '100%'
+                                            width: '100%',
+                                            backgroundColor: '#f8f9fa'
                                         }}
                                     />
                                     <label
@@ -2802,11 +2566,13 @@ const AddSalesReturn = () => {
                                             }
                                         }}
                                         readOnly
+                                        disabled
                                         style={{
                                             height: '26px',
                                             fontSize: '0.875rem',
                                             paddingTop: '0.75rem',
-                                            width: '100%'
+                                            width: '100%',
+                                            backgroundColor: '#f8f9fa'
                                         }}
                                     />
                                     <label
@@ -2827,58 +2593,105 @@ const AddSalesReturn = () => {
                             </div>
                         </div>
 
-                        <div
-                            className="table-responsive"
-                            style={{
-                                minHeight: "270px",
-                                maxHeight: "270px",
-                                overflowY: "auto",
-                                border: items.length > 0 ? '1px solid #dee2e6' : '1px dashed #ced4da',
-                                backgroundColor: '#fff'
-                            }}
-                            ref={itemsTableRef}
-                        >
-                            <table className="table table-sm table-bordered table-hover mb-0">
-                                <thead className="sticky-top bg-light">
-                                    <tr style={{
-                                        height: '26px',
-                                        backgroundColor: '#ffffff',
-                                        position: 'sticky',
-                                        top: 0,
-                                        zIndex: 10,
-                                        boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
-                                    }}>
-                                        <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <div className="position-relative">
+                        {canEdit && (
+                            <div
+                                className="table-responsive"
+                                style={{
+                                    minHeight: "270px",
+                                    maxHeight: "270px",
+                                    overflowY: "auto",
+                                    border: items.length > 0 ? '1px solid #dee2e6' : '1px dashed #ced4da',
+                                    backgroundColor: '#fff'
+                                }}
+                                ref={itemsTableRef}
+                            >
+                                <table className="table table-sm table-bordered table-hover mb-0">
+                                    <thead className="sticky-top bg-light">
+                                        <tr style={{
+                                            height: '26px',
+                                            backgroundColor: '#ffffff',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 10,
+                                            boxShadow: '0 2px 3px rgba(0,0,0,0.1)'
+                                        }}>
+                                            <td width="5%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <div className="position-relative">
+                                                    <input
+                                                        type="text"
+                                                        id="headerItemSearch"
+                                                        className="form-control form-control-sm"
+                                                        placeholder="Search..."
+                                                        value={headerSearchQuery}
+                                                        onChange={handleHeaderItemSearch}
+                                                        onFocus={() => {
+                                                            setShowHeaderItemModal(true);
+                                                            handleHeaderSearchFocus();
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                if (!headerSearchQuery.trim()) {
+                                                                    setShowHeaderItemModal(false);
+                                                                    setTimeout(() => {
+                                                                        const discountInput = document.getElementById('discountPercentage');
+                                                                        if (discountInput) {
+                                                                            discountInput.focus();
+                                                                            discountInput.select();
+                                                                        }
+                                                                    }, 50);
+                                                                } else {
+                                                                    setShowHeaderItemModal(true);
+                                                                }
+                                                            } else if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                setShowHeaderItemModal(false);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            height: '20px',
+                                                            fontSize: '0.75rem',
+                                                            padding: '0 4px',
+                                                            backgroundColor: '#ffffff'
+                                                        }}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td width="8%" style={{
+                                                padding: '2px',
+                                                fontSize: '0.75rem',
+                                                textAlign: 'center',
+                                                backgroundColor: '#ffffff'
+                                            }}>
+                                                {selectedItemForInsert ? selectedItemForInsert.uniqueNumber || 'N/A' : ''}
+                                            </td>
+                                            <td width="8%" style={{
+                                                padding: '2px',
+                                                fontSize: '0.75rem',
+                                                textAlign: 'center',
+                                                backgroundColor: '#ffffff'
+                                            }}>
+                                                {selectedItemForInsert ? selectedItemForInsert.hscode || 'N/A' : ''}
+                                            </td>
+                                            <td width="20%" style={{
+                                                padding: '2px',
+                                                fontSize: '0.75rem',
+                                                backgroundColor: '#ffffff'
+                                            }}>
+                                                {selectedItemForInsert ? selectedItemForInsert.name : ''}
+                                            </td>
+                                            <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
                                                 <input
                                                     type="text"
-                                                    id="headerItemSearch"
                                                     className="form-control form-control-sm"
-                                                    placeholder="Search..."
-                                                    value={headerSearchQuery}
-                                                    onChange={handleHeaderItemSearch}
-                                                    onFocus={() => {
-                                                        setShowHeaderItemModal(true);
-                                                        handleHeaderSearchFocus();
-                                                    }}
+                                                    placeholder="Batch"
+                                                    id='headerBatch'
+                                                    value={selectedItemBatchNumber}
+                                                    onChange={(e) => setSelectedItemBatchNumber(e.target.value)}
                                                     onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
+                                                        if ((e.key === 'Tab' || e.key === 'Enter')) {
                                                             e.preventDefault();
-                                                            if (!headerSearchQuery.trim()) {
-                                                                setShowHeaderItemModal(false);
-                                                                setTimeout(() => {
-                                                                    const discountInput = document.getElementById('discountPercentage');
-                                                                    if (discountInput) {
-                                                                        discountInput.focus();
-                                                                        discountInput.select();
-                                                                    }
-                                                                }, 50);
-                                                            } else {
-                                                                setShowHeaderItemModal(true);
-                                                            }
-                                                        } else if (e.key === 'Escape') {
-                                                            e.preventDefault();
-                                                            setShowHeaderItemModal(false);
+                                                            document.getElementById('headerExpiryDate').focus();
                                                         }
                                                     }}
                                                     style={{
@@ -2888,167 +2701,105 @@ const AddSalesReturn = () => {
                                                         backgroundColor: '#ffffff'
                                                     }}
                                                 />
-                                            </div>
-                                        </td>
-                                        <td width="8%" style={{
-                                            padding: '2px',
-                                            fontSize: '0.75rem',
-                                            textAlign: 'center',
-                                            backgroundColor: '#ffffff'
-                                        }}>
-                                            {selectedItemForInsert ? selectedItemForInsert.uniqueNumber || 'N/A' : ''}
-                                        </td>
-                                        <td width="8%" style={{
-                                            padding: '2px',
-                                            fontSize: '0.75rem',
-                                            textAlign: 'center',
-                                            backgroundColor: '#ffffff'
-                                        }}>
-                                            {selectedItemForInsert ? selectedItemForInsert.hscode || 'N/A' : ''}
-                                        </td>
-                                        <td width="20%" style={{
-                                            padding: '2px',
-                                            fontSize: '0.75rem',
-                                            backgroundColor: '#ffffff'
-                                        }}>
-                                            {selectedItemForInsert ? selectedItemForInsert.name : ''}
-                                        </td>
-                                        <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="text"
-                                                className="form-control form-control-sm"
-                                                placeholder="Batch"
-                                                id='headerBatch'
-                                                value={selectedItemBatchNumber}
-                                                onChange={(e) => setSelectedItemBatchNumber(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if ((e.key === 'Tab' || e.key === 'Enter')) {
-                                                        e.preventDefault();
-                                                        document.getElementById('headerExpiryDate').focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '20px',
-                                                    fontSize: '0.75rem',
-                                                    padding: '0 4px',
-                                                    backgroundColor: '#ffffff'
-                                                }}
-                                            />
-                                        </td>
-                                        <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="date"
-                                                className="form-control form-control-sm"
-                                                placeholder="Expiry"
-                                                id="headerExpiryDate"
-                                                value={selectedItemExpiryDate}
-                                                onChange={(e) => setSelectedItemExpiryDate(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if ((e.key === 'Tab' || e.key === 'Enter')) {
-                                                        e.preventDefault();
-                                                        document.getElementById('headerQuantity').focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '20px',
-                                                    fontSize: '0.75rem',
-                                                    padding: '0 4px',
-                                                    backgroundColor: '#ffffff'
-                                                }}
-                                            />
-                                        </td>
-                                        <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                placeholder="Qty"
-                                                id="headerQuantity"
-                                                value={selectedItemQuantity}
-                                                onChange={(e) => {
-                                                    const value = parseFloat(e.target.value) || 0;
-                                                    setSelectedItemQuantity(value);
-                                                }}
-                                                onFocus={(e) => e.target.select()}
-                                                onKeyDown={(e) => {
-                                                    if ((e.key === 'Tab' || e.key === 'Enter')) {
-                                                        e.preventDefault();
-                                                        document.getElementById('headerRate').focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '20px',
-                                                    fontSize: '0.75rem',
-                                                    padding: '0 4px',
-                                                    backgroundColor: '#ffffff'
-                                                }}
-                                            />
-                                        </td>
-                                        <td width="8%" style={{
-                                            padding: '2px',
-                                            fontSize: '0.75rem',
-                                            textAlign: 'center',
-                                            backgroundColor: '#ffffff'
-                                        }}>
-                                            {selectedItemForInsert ? (selectedItemForInsert.unit?.name || 'N/A') : '-'}
-                                        </td>
-                                        <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
-                                            <input
-                                                type="number"
-                                                className="form-control form-control-sm"
-                                                placeholder="Rate"
-                                                id="headerRate"
-                                                value={Math.round(selectedItemRate * 100) / 100}
-                                                onChange={(e) => setSelectedItemRate(e.target.value)}
-                                                onFocus={(e) => e.target.select()}
-                                                onKeyDown={(e) => {
-                                                    if ((e.key === 'Tab' || e.key === 'Enter')) {
-                                                        e.preventDefault();
-                                                        document.getElementById('insertButton').focus();
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '20px',
-                                                    fontSize: '0.75rem',
-                                                    padding: '0 4px',
-                                                    backgroundColor: '#ffffff'
-                                                }}
-                                            />
-                                        </td>
-                                        <td width="10%" style={{
-                                            padding: '2px',
-                                            fontSize: '0.75rem',
-                                            textAlign: 'center',
-                                            backgroundColor: '#ffffff'
-                                        }}>
-                                            Rs. {formatter.format(selectedItemQuantity * selectedItemRate)}
-                                        </td>
+                                            </td>
+                                            <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="date"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Expiry"
+                                                    id="headerExpiryDate"
+                                                    value={selectedItemExpiryDate}
+                                                    onChange={(e) => setSelectedItemExpiryDate(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if ((e.key === 'Tab' || e.key === 'Enter')) {
+                                                            e.preventDefault();
+                                                            document.getElementById('headerQuantity').focus();
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '20px',
+                                                        fontSize: '0.75rem',
+                                                        padding: '0 4px',
+                                                        backgroundColor: '#ffffff'
+                                                    }}
+                                                />
+                                            </td>
+                                            <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="number"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Qty"
+                                                    id="headerQuantity"
+                                                    value={selectedItemQuantity}
+                                                    onChange={(e) => {
+                                                        const value = parseFloat(e.target.value) || 0;
+                                                        setSelectedItemQuantity(value);
+                                                    }}
+                                                    onFocus={(e) => e.target.select()}
+                                                    onKeyDown={(e) => {
+                                                        if ((e.key === 'Tab' || e.key === 'Enter')) {
+                                                            e.preventDefault();
+                                                            document.getElementById('headerRate').focus();
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '20px',
+                                                        fontSize: '0.75rem',
+                                                        padding: '0 4px',
+                                                        backgroundColor: '#ffffff'
+                                                    }}
+                                                />
+                                            </td>
+                                            <td width="8%" style={{
+                                                padding: '2px',
+                                                fontSize: '0.75rem',
+                                                textAlign: 'center',
+                                                backgroundColor: '#ffffff'
+                                            }}>
+                                                {selectedItemForInsert ? (selectedItemForInsert.unit?.name || 'N/A') : '-'}
+                                            </td>
+                                            <td width="8%" style={{ padding: '2px', backgroundColor: '#ffffff' }}>
+                                                <input
+                                                    type="number"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Rate"
+                                                    id="headerRate"
+                                                    value={Math.round(selectedItemRate * 100) / 100}
+                                                    onChange={(e) => setSelectedItemRate(e.target.value)}
+                                                    onFocus={(e) => e.target.select()}
+                                                    onKeyDown={(e) => {
+                                                        if ((e.key === 'Tab' || e.key === 'Enter')) {
+                                                            e.preventDefault();
+                                                            document.getElementById('insertButton').focus();
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '20px',
+                                                        fontSize: '0.75rem',
+                                                        padding: '0 4px',
+                                                        backgroundColor: '#ffffff'
+                                                    }}
+                                                />
+                                            </td>
+                                            <td width="10%" style={{
+                                                padding: '2px',
+                                                fontSize: '0.75rem',
+                                                textAlign: 'center',
+                                                backgroundColor: '#ffffff'
+                                            }}>
+                                                Rs. {formatter.format(selectedItemQuantity * selectedItemRate)}
+                                            </td>
 
-                                        <td width="10%" style={{
-                                            padding: '2px',
-                                            textAlign: 'center',
-                                            backgroundColor: '#ffffff'
-                                        }}>
-                                            <button
-                                                type="button"
-                                                id="insertButton"
-                                                className="btn btn-sm btn-success py-0 px-2"
-                                                onClick={() => {
-                                                    if (selectedItemForInsert && selectedItemQuantity > 0) {
-                                                        insertSelectedItem();
-                                                        setTimeout(() => {
-                                                            if (itemsTableRef.current) {
-                                                                itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
-                                                            }
-                                                        }, 50);
-                                                    }
-                                                }}
-                                                disabled={!selectedItemForInsert}
-                                                title={selectedItemForInsert ?
-                                                    `Insert item ${selectedItemQuantity > 0 ? `(Quantity: ${selectedItemQuantity})` : '(Quantity will be 0)'}`
-                                                    : 'Insert item'}
-                                                onKeyDown={(e) => {
-                                                    if ((e.key === 'Tab' || e.key === 'Enter')) {
-                                                        e.preventDefault();
+                                            <td width="10%" style={{
+                                                padding: '2px',
+                                                textAlign: 'center',
+                                                backgroundColor: '#ffffff'
+                                            }}>
+                                                <button
+                                                    type="button"
+                                                    id="insertButton"
+                                                    className="btn btn-sm btn-success py-0 px-2"
+                                                    onClick={() => {
                                                         if (selectedItemForInsert && selectedItemQuantity > 0) {
                                                             insertSelectedItem();
                                                             setTimeout(() => {
@@ -3057,237 +2808,316 @@ const AddSalesReturn = () => {
                                                                 }
                                                             }, 50);
                                                         }
-                                                    }
-                                                }}
-                                                style={{
-                                                    height: '20px',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 'bold',
-                                                    backgroundColor: '#198754',
-                                                    borderColor: '#198754',
-                                                    opacity: !selectedItemForInsert ? 0.5 : 1
-                                                }}
-                                            >
-                                                INSERT
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <tr style={{
-                                        height: '26px',
-                                        backgroundColor: '#e9ecef',
-                                        position: 'sticky',
-                                        top: '26px',
-                                        zIndex: 9
-                                    }}>
-                                        <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>#</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>HSN</th>
-                                        <th width="20%" style={{ padding: '3px', fontSize: '0.75rem' }}>Description of Goods</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Batch</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Expiry</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Qty</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Unit</th>
-                                        <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Rate</th>
-                                        <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Amount</th>
-                                        <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="items" style={{ backgroundColor: '#fff' }}>
-                                    {items.map((item, index) => {
-                                        return (
-                                            <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
-                                                <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
-                                                <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
-                                                <td style={{ padding: '3px', fontSize: '0.75rem' }}>
-                                                    <input type="hidden" name={`items[${index}][hscode]`} value={item.hscode} />
-                                                    {item.hscode}
-                                                </td>
-                                                <td style={{ padding: '3px', fontSize: '0.75rem' }}>
-                                                    <input type="hidden" name={`items[${index}][item]`} value={item.item} />
-                                                    {item.name}
-                                                </td>
-                                                <td style={{ padding: '3px' }}>
-                                                    <input
-                                                        type="text"
-                                                        name={`items[${index}][batchNumber]`}
-                                                        className="form-control form-control-sm"
-                                                        id={`batchNumber-${index}`}
-                                                        value={item.batchNumber}
-                                                        onChange={(e) => updateItemField(index, 'batchNumber', e.target.value)}
-                                                        required
-                                                        onFocus={(e) => {
-                                                            e.target.select();
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                document.getElementById(`expiryDate-${index}`)?.focus();
+                                                    }}
+                                                    disabled={!selectedItemForInsert}
+                                                    title={selectedItemForInsert ?
+                                                        `Insert item ${selectedItemQuantity > 0 ? `(Quantity: ${selectedItemQuantity})` : '(Quantity will be 0)'}`
+                                                        : 'Insert item'}
+                                                    onKeyDown={(e) => {
+                                                        if ((e.key === 'Tab' || e.key === 'Enter')) {
+                                                            e.preventDefault();
+                                                            if (selectedItemForInsert && selectedItemQuantity > 0) {
+                                                                insertSelectedItem();
+                                                                setTimeout(() => {
+                                                                    if (itemsTableRef.current) {
+                                                                        itemsTableRef.current.scrollTop = itemsTableRef.current.scrollHeight;
+                                                                    }
+                                                                }, 50);
                                                             }
-                                                        }}
-                                                        readOnly={!!salesInvoiceData}
-                                                        style={{
-                                                            height: '20px',
-                                                            fontSize: '0.75rem',
-                                                            padding: '0 4px'
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td style={{ padding: '3px' }}>
-                                                    <input
-                                                        type="date"
-                                                        name={`items[${index}][expiryDate]`}
-                                                        className="form-control form-control-sm"
-                                                        id={`expiryDate-${index}`}
-                                                        value={item.expiryDate}
-                                                        onChange={(e) => updateItemField(index, 'expiryDate', e.target.value)}
-                                                        required
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                document.getElementById(`quantity-${index}`)?.focus();
-                                                            }
-                                                        }}
-                                                        readOnly={!!salesInvoiceData}
-                                                        style={{
-                                                            height: '20px',
-                                                            fontSize: '0.75rem',
-                                                            padding: '0 4px'
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td style={{ padding: '3px' }}>
-                                                    <input
-                                                        type="number"
-                                                        name={`items[${index}][quantity]`}
-                                                        className="form-control form-control-sm"
-                                                        id={`quantity-${index}`}
-                                                        value={item.quantity}
-                                                        onChange={(e) => {
-                                                            const value = parseFloat(e.target.value) || 0;
-                                                            updateItemField(index, 'quantity', value);
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            const value = parseFloat(e.target.value) || 0;
-                                                            updateItemField(index, 'quantity', value);
-                                                        }}
-                                                        required
-                                                        min="0"
-                                                        step="0.01"
-                                                        onFocus={(e) => {
-                                                            e.target.select();
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                document.getElementById(`price-${index}`)?.focus();
-                                                            } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                                                                e.preventDefault();
-                                                                const currentValue = parseFloat(e.target.value) || 0;
-                                                                const step = e.shiftKey ? 10 : (e.ctrlKey ? 0.1 : 1);
-                                                                const newValue = e.key === 'ArrowUp' ? currentValue + step : Math.max(0, currentValue - step);
-                                                                updateItemField(index, 'quantity', newValue);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            height: '20px',
-                                                            fontSize: '0.75rem',
-                                                            padding: '0 4px'
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td className="text-nowrap" style={{ padding: '3px', fontSize: '0.75rem' }}>
-                                                    {item.unit?.name}
-                                                    <input type="hidden" name={`items[${index}][unit]`} value={item.unit?._id} />
-                                                </td>
-                                                <td style={{ padding: '3px' }}>
-                                                    <input
-                                                        type="number"
-                                                        name={`items[${index}][price]`}
-                                                        className="form-control form-control-sm"
-                                                        id={`price-${index}`}
-                                                        value={Math.round(item.price * 100) / 100}
-                                                        onChange={(e) => updateItemField(index, 'price', e.target.value)}
-                                                        onFocus={(e) => {
-                                                            e.target.select();
-                                                            setTimeout(() => {
-                                                                const row = e.target.closest('tr');
-                                                                if (row && itemsTableRef.current) {
-                                                                    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                                                }
-                                                            }, 10);
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                itemSearchRef.current?.focus();
-                                                            }
-                                                        }}
-                                                        readOnly={!!salesInvoiceData}
-                                                        style={{
-                                                            height: '20px',
-                                                            fontSize: '0.75rem',
-                                                            padding: '0 4px'
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td className="item-amount" style={{ padding: '3px', fontSize: '0.75rem' }}>{formatter.format(item.amount)}</td>
-                                                <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap' }}>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-info py-0 px-1"
-                                                        onClick={() => fetchLastTransactions(item.item)}
-                                                        title="View last transactions"
-                                                        disabled={isLoadingTransactions}
-                                                        style={{
-                                                            height: '18px',
-                                                            width: '18px',
-                                                            minWidth: '18px',
-                                                            fontSize: '0.6rem',
-                                                            marginRight: '2px',
-                                                            backgroundColor: '#0dcaf0',
-                                                            borderColor: '#0dcaf0'
-                                                        }}
-                                                    >
-                                                        {isLoadingTransactions ? (
-                                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: "8px", height: "8px" }}></span>
-                                                        ) : (
-                                                            <i className="bi bi-clock-history"></i>
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-danger py-0 px-1"
-                                                        onClick={() => removeItem(index)}
-                                                        style={{
-                                                            height: '18px',
-                                                            width: '18px',
-                                                            minWidth: '18px',
-                                                            fontSize: '0.6rem',
-                                                            marginLeft: '2px',
-                                                            backgroundColor: '#dc3545',
-                                                            borderColor: '#dc3545'
-                                                        }}
-                                                    >
-                                                        <i className="bi bi-trash"></i>
-                                                    </button>
-                                                </td>
-                                                <td className="d-none">
-                                                    <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                    {items.length === 0 && (
-                                        <tr style={{ height: '24px' }}>
-                                            <td colSpan="11" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
-                                                No items added yet. Use the search box above to add items.
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        height: '20px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 'bold',
+                                                        backgroundColor: '#198754',
+                                                        borderColor: '#198754',
+                                                        opacity: !selectedItemForInsert ? 0.5 : 1
+                                                    }}
+                                                >
+                                                    INSERT
+                                                </button>
                                             </td>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+
+                                        <tr style={{
+                                            height: '26px',
+                                            backgroundColor: '#e9ecef',
+                                            position: 'sticky',
+                                            top: '26px',
+                                            zIndex: 9
+                                        }}>
+                                            <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>#</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>HSN</th>
+                                            <th width="20%" style={{ padding: '3px', fontSize: '0.75rem' }}>Description of Goods</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Batch</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Expiry</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Qty</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Unit</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Rate</th>
+                                            <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Amount</th>
+                                            <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items" style={{ backgroundColor: '#fff' }}>
+                                        {items.map((item, index) => {
+                                            return (
+                                                <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+                                                        <input type="hidden" name={`items[${index}][hscode]`} value={item.hscode} />
+                                                        {item.hscode}
+                                                    </td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>
+                                                        <input type="hidden" name={`items[${index}][item]`} value={item.item} />
+                                                        {item.name}
+                                                    </td>
+                                                    <td style={{ padding: '3px' }}>
+                                                        <input
+                                                            type="text"
+                                                            name={`items[${index}][batchNumber]`}
+                                                            className="form-control form-control-sm"
+                                                            id={`batchNumber-${index}`}
+                                                            value={item.batchNumber}
+                                                            onChange={(e) => updateItemField(index, 'batchNumber', e.target.value)}
+                                                            required
+                                                            onFocus={(e) => {
+                                                                e.target.select();
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    document.getElementById(`expiryDate-${index}`)?.focus();
+                                                                }
+                                                            }}
+                                                            disabled={!canEdit}
+                                                            style={{
+                                                                height: '20px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 4px'
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '3px' }}>
+                                                        <input
+                                                            type="date"
+                                                            name={`items[${index}][expiryDate]`}
+                                                            className="form-control form-control-sm"
+                                                            id={`expiryDate-${index}`}
+                                                            value={item.expiryDate}
+                                                            onChange={(e) => updateItemField(index, 'expiryDate', e.target.value)}
+                                                            required
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    document.getElementById(`quantity-${index}`)?.focus();
+                                                                }
+                                                            }}
+                                                            disabled={!canEdit}
+                                                            style={{
+                                                                height: '20px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 4px'
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '3px' }}>
+                                                        <input
+                                                            type="number"
+                                                            name={`items[${index}][quantity]`}
+                                                            className="form-control form-control-sm"
+                                                            id={`quantity-${index}`}
+                                                            value={item.quantity}
+                                                            onChange={(e) => {
+                                                                const value = parseFloat(e.target.value) || 0;
+                                                                updateItemField(index, 'quantity', value);
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                const value = parseFloat(e.target.value) || 0;
+                                                                updateItemField(index, 'quantity', value);
+                                                            }}
+                                                            required
+                                                            min="0"
+                                                            step="0.01"
+                                                            onFocus={(e) => {
+                                                                e.target.select();
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    document.getElementById(`price-${index}`)?.focus();
+                                                                } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                                                    e.preventDefault();
+                                                                    const currentValue = parseFloat(e.target.value) || 0;
+                                                                    const step = e.shiftKey ? 10 : (e.ctrlKey ? 0.1 : 1);
+                                                                    const newValue = e.key === 'ArrowUp' ? currentValue + step : Math.max(0, currentValue - step);
+                                                                    updateItemField(index, 'quantity', newValue);
+                                                                }
+                                                            }}
+                                                            disabled={!canEdit}
+                                                            style={{
+                                                                height: '20px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 4px'
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td className="text-nowrap" style={{ padding: '3px', fontSize: '0.75rem' }}>
+                                                        {item.unit?.name}
+                                                        <input type="hidden" name={`items[${index}][unit]`} value={item.unit?._id} />
+                                                    </td>
+                                                    <td style={{ padding: '3px' }}>
+                                                        <input
+                                                            type="number"
+                                                            name={`items[${index}][price]`}
+                                                            className="form-control form-control-sm"
+                                                            id={`price-${index}`}
+                                                            value={Math.round(item.price * 100) / 100}
+                                                            onChange={(e) => updateItemField(index, 'price', e.target.value)}
+                                                            onFocus={(e) => {
+                                                                e.target.select();
+                                                                setTimeout(() => {
+                                                                    const row = e.target.closest('tr');
+                                                                    if (row && itemsTableRef.current) {
+                                                                        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                                                    }
+                                                                }, 10);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    itemSearchRef.current?.focus();
+                                                                }
+                                                            }}
+                                                            disabled={!canEdit}
+                                                            style={{
+                                                                height: '20px',
+                                                                fontSize: '0.75rem',
+                                                                padding: '0 4px'
+                                                            }}
+                                                        />
+                                                    </td>
+                                                    <td className="item-amount" style={{ padding: '3px', fontSize: '0.75rem' }}>{formatter.format(item.amount)}</td>
+                                                    <td className="text-center" style={{ padding: '2px', whiteSpace: 'nowrap' }}>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-info py-0 px-1"
+                                                            onClick={() => fetchLastTransactions(item.item)}
+                                                            title="View last transactions"
+                                                            disabled={isLoadingTransactions || !canEdit}
+                                                            style={{
+                                                                height: '18px',
+                                                                width: '18px',
+                                                                minWidth: '18px',
+                                                                fontSize: '0.6rem',
+                                                                marginRight: '2px',
+                                                                backgroundColor: '#0dcaf0',
+                                                                borderColor: '#0dcaf0',
+                                                                opacity: !canEdit ? 0.5 : 1
+                                                            }}
+                                                        >
+                                                            {isLoadingTransactions ? (
+                                                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: "8px", height: "8px" }}></span>
+                                                            ) : (
+                                                                <i className="bi bi-clock-history"></i>
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-danger py-0 px-1"
+                                                            onClick={() => removeItem(index)}
+                                                            disabled={!canEdit}
+                                                            style={{
+                                                                height: '18px',
+                                                                width: '18px',
+                                                                minWidth: '18px',
+                                                                fontSize: '0.6rem',
+                                                                marginLeft: '2px',
+                                                                backgroundColor: '#dc3545',
+                                                                borderColor: '#dc3545',
+                                                                opacity: !canEdit ? 0.5 : 1
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                    <td className="d-none">
+                                                        <input type="hidden" name={`items[${index}][vatStatus]`} value={item.vatStatus} />
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {items.length === 0 && (
+                                            <tr style={{ height: '24px' }}>
+                                                <td colSpan="11" className="text-center text-muted py-1" style={{ fontSize: '0.75rem' }}>
+                                                    No items added yet. Use the search box above to add items.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {!canEdit && (
+                            <div
+                                className="table-responsive"
+                                style={{
+                                    minHeight: "270px",
+                                    maxHeight: "270px",
+                                    overflowY: "auto",
+                                    border: '1px solid #dee2e6',
+                                    backgroundColor: '#f8f9fa'
+                                }}
+                            >
+                                <table className="table table-sm table-bordered table-hover mb-0">
+                                    <thead className="sticky-top bg-light">
+                                        <tr style={{
+                                            height: '26px',
+                                            backgroundColor: '#e9ecef',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 9
+                                        }}>
+                                            <th width="5%" style={{ padding: '3px', fontSize: '0.75rem' }}>S.N.</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>#</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>HSN</th>
+                                            <th width="20%" style={{ padding: '3px', fontSize: '0.75rem' }}>Description of Goods</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Batch</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Expiry</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Qty</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Unit</th>
+                                            <th width="8%" style={{ padding: '3px', fontSize: '0.75rem' }}>Rate</th>
+                                            <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Amount</th>
+                                            <th width="10%" style={{ padding: '3px', fontSize: '0.75rem' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items" style={{ backgroundColor: '#f8f9fa' }}>
+                                        {items.map((item, index) => {
+                                            return (
+                                                <tr key={index} className={`item ${item.vatStatus === 'vatable' ? 'vatable-item' : 'non-vatable-item'}`} style={{ height: '26px' }}>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{index + 1}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.uniqueNumber}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.hscode}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.name}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.batchNumber}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.expiryDate}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.quantity}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{item.unit?.name}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{Math.round(item.price * 100) / 100}</td>
+                                                    <td style={{ padding: '3px', fontSize: '0.75rem' }}>{formatter.format(item.amount)}</td>
+                                                    <td className="text-center" style={{ padding: '2px' }}>
+                                                        <span className="text-muted">-</span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
 
                         {/* Totals Section */}
                         <div className="table-responsive mb-2">
@@ -3326,11 +3156,13 @@ const AddSalesReturn = () => {
                                                             handleKeyDown(e, 'discountPercentage');
                                                         }
                                                     }}
+                                                    disabled={!canEdit}
                                                     style={{
                                                         height: '22px',
                                                         fontSize: '0.875rem',
                                                         paddingTop: '0.5rem',
-                                                        width: '100%'
+                                                        width: '100%',
+                                                        backgroundColor: canEdit ? '#fff' : '#f8f9fa'
                                                     }}
                                                 />
                                             </div>
@@ -3356,11 +3188,13 @@ const AddSalesReturn = () => {
                                                             handleKeyDown(e, 'discountAmount');
                                                         }
                                                     }}
+                                                    disabled={!canEdit}
                                                     style={{
                                                         height: '22px',
                                                         fontSize: '0.875rem',
                                                         paddingTop: '0.5rem',
-                                                        width: '100%'
+                                                        width: '100%',
+                                                        backgroundColor: canEdit ? '#fff' : '#f8f9fa'
                                                     }}
                                                 />
                                             </div>
@@ -3387,14 +3221,7 @@ const AddSalesReturn = () => {
                                                         className="form-control form-control-sm"
                                                         value={formData.vatPercentage}
                                                         readOnly
-                                                        onFocus={(e) => {
-                                                            e.target.select();
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                handleKeyDown(e, 'vatPercentage');
-                                                            }
-                                                        }}
+                                                        disabled
                                                         style={{
                                                             height: '22px',
                                                             fontSize: '0.875rem',
@@ -3434,14 +3261,16 @@ const AddSalesReturn = () => {
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
                                                             e.preventDefault();
-                                                            document.getElementById('saveBill')?.focus();
+                                                            document.getElementById(canEdit ? 'updateBill' : 'cancelBtn')?.focus();
                                                         }
                                                     }}
+                                                    disabled={!canEdit}
                                                     style={{
                                                         height: '22px',
                                                         fontSize: '0.875rem',
                                                         paddingTop: '0.5rem',
-                                                        width: '100%'
+                                                        width: '100%',
+                                                        backgroundColor: canEdit ? '#fff' : '#f8f9fa'
                                                     }}
                                                 />
                                                 <label
@@ -3504,6 +3333,7 @@ const AddSalesReturn = () => {
                                     id="printAfterSave"
                                     checked={printAfterSave}
                                     onChange={handlePrintAfterSaveChange}
+                                    disabled={!canEdit}
                                     style={{
                                         height: '14px',
                                         width: '14px'
@@ -3517,7 +3347,7 @@ const AddSalesReturn = () => {
                                         marginBottom: '0'
                                     }}
                                 >
-                                    Print after save
+                                    Print after update
                                 </label>
                             </div>
 
@@ -3525,7 +3355,8 @@ const AddSalesReturn = () => {
                                 <button
                                     type="button"
                                     className="btn btn-secondary btn-sm d-flex align-items-center"
-                                    onClick={resetForm}
+                                    onClick={handleCancel}
+                                    id="cancelBtn"
                                     disabled={isSaving}
                                     style={{
                                         height: '26px',
@@ -3534,49 +3365,51 @@ const AddSalesReturn = () => {
                                         fontWeight: '500'
                                     }}
                                 >
-                                    <i className="bi bi-arrow-counterclockwise me-1" style={{ fontSize: '0.9rem' }}></i> Reset
+                                    <i className="bi bi-x-circle me-1" style={{ fontSize: '0.9rem' }}></i> Cancel
                                 </button>
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary btn-sm d-flex align-items-center"
-                                    id="saveBill"
-                                    disabled={isSaving}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleSubmit(e, printAfterSave);
-                                        }
-                                    }}
-                                    style={{
-                                        height: '26px',
-                                        padding: '0 16px',
-                                        fontSize: '0.8rem',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <span
-                                                className="spinner-border spinner-border-sm me-2"
-                                                role="status"
-                                                aria-hidden="true"
-                                                style={{ width: '10px', height: '10px' }}
-                                            ></span>
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <i className="bi bi-save me-1" style={{ fontSize: '0.9rem' }}></i> Save
-                                        </>
-                                    )}
-                                </button>
+                                {canEdit && (
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary btn-sm d-flex align-items-center"
+                                        id="updateBill"
+                                        disabled={isSaving}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleSubmit(e, printAfterSave);
+                                            }
+                                        }}
+                                        style={{
+                                            height: '26px',
+                                            padding: '0 16px',
+                                            fontSize: '0.8rem',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <span
+                                                    className="spinner-border spinner-border-sm me-2"
+                                                    role="status"
+                                                    aria-hidden="true"
+                                                    style={{ width: '10px', height: '10px' }}
+                                                ></span>
+                                                Updating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="bi bi-pencil-square me-1" style={{ fontSize: '0.9rem' }}></i> Update
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            {showHeaderItemModal && (
+            {showHeaderItemModal && canEdit && (
                 <div
                     className="modal fade show"
                     id="headerItemModal"
@@ -3767,7 +3600,7 @@ const AddSalesReturn = () => {
                 </div>
             )}
 
-            {showAccountModal && (
+            {showAccountModal && canEdit && (
                 <div
                     className="modal fade show"
                     id="accountModal"
@@ -3830,10 +3663,6 @@ const AddSalesReturn = () => {
                                             e.preventDefault();
                                             setShowAccountCreationModal(true);
                                             handleAccountModalClose();
-                                        }
-                                    }}
-                                    onFocus={() => {
-                                        if (accountLastSearchQuery && !accountSearchQuery && accountShouldShowLastSearchResults) {
                                         }
                                     }}
                                     ref={accountSearchRef}
@@ -4215,4 +4044,4 @@ function numberToWords(num) {
     return words.trim();
 }
 
-export default AddSalesReturn;
+export default EditSalesReturn;

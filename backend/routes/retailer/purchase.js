@@ -57,195 +57,6 @@ router.get('/fetchlatest/accounts', isLoggedIn, ensureAuthenticated, ensureCompa
     }
 });
 
-// // Purchase Bill routes
-// router.get('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, checkStoreManagement, async (req, res) => {
-//     try {
-//         if (req.tradeType === 'retailer') {
-//             const companyId = req.session.currentCompany;
-//             // Fetch all required data in parallel for better performance
-//             const [
-//                 items,
-//                 purchasebills,
-//                 company,
-//                 stores,
-//                 racks,
-//                 // accounts,
-//                 lastCounter
-//             ] = await Promise.all([
-//                 Item.find({ company: companyId, status: 'active' }).populate('category').populate('unit').populate('mainUnit').populate('stockEntries').lean(),
-//                 PurchaseBill.find({ company: companyId }).populate('account').populate('items.item').populate('items.unit'),
-//                 Company.findById(companyId).select('renewalDate fiscalYear dateFormat vatEnabled').populate('fiscalYear'),
-//                 req.storeManagementEnabled ? Store.find({ company: companyId, isActive: true }) : [],
-//                 Rack.find({ company: companyId }).populate('store'),
-//                 // Account.find({}).lean().exec(),
-//                 BillCounter.findOne({
-//                     company: companyId,
-//                     fiscalYear: req.session.currentFiscalYear?.id,
-//                     transactionType: 'purchase'
-//                 })
-//             ]);
-
-//             // Date handling
-//             const today = new Date();
-//             const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
-//             const transactionDateNepali = new NepaliDate(today).format('YYYY-MM-DD');
-//             const companyDateFormat = company ? company.dateFormat : 'english';
-
-//             // Fiscal year handling
-//             let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//             let currentFiscalYear = null;
-
-//             if (fiscalYear) {
-//                 currentFiscalYear = await FiscalYear.findById(fiscalYear);
-//             }
-
-//             if (!currentFiscalYear && company.fiscalYear) {
-//                 currentFiscalYear = company.fiscalYear;
-//                 fiscalYear = currentFiscalYear._id.toString();
-//             }
-
-//             if (!fiscalYear) {
-//                 return res.status(400).json({
-//                     success: false,
-//                     error: 'No fiscal year found in session or company.'
-//                 });
-//             }
-
-//             const itemsWithStock = items.map(item => {
-//                 const totalStock = item.stockEntries.reduce((sum, entry) => {
-//                     return sum + (entry.quantity || 0);
-//                 }, 0);
-
-//                 // Sort stock entries by date in descending order (newest first)
-//                 const sortedStockEntries = [...item.stockEntries].sort((a, b) => {
-//                     return new Date(b.date) - new Date(a.date);
-//                 });
-
-//                 // Get the latest stock entry (first item after sorting)
-//                 const latestStockEntry = sortedStockEntries[0] || null;
-
-//                 // Get the latest puPrice and multiply by WSUnit (default to 1 if not available)
-//                 const puPrice = latestStockEntry?.puPrice
-//                     ? Math.round(latestStockEntry.puPrice * (latestStockEntry.WSUnit || 1) * 100) / 100
-//                     : item.puPrice
-//                         ? Math.round(item.puPrice * (item.WSUnit || 1) * 100) / 100
-//                         : 0;
-
-//                 return {
-//                     ...item,
-//                     stock: totalStock,
-//                     latestPuPrice: puPrice,  // This now includes WSUnit multiplication
-//                     latestStockEntry: latestStockEntry,
-//                 };
-//             });
-
-//             // Calculate next bill number
-//             const nextNumber = lastCounter ? lastCounter.currentBillNumber + 1 : 1;
-//             const fiscalYears = await FiscalYear.findById(fiscalYear);
-//             const prefix = fiscalYears.billPrefixes.purchase;
-//             const nextBillNumber = `${prefix}${nextNumber.toString().padStart(7, '0')}`;
-
-//             // Group racks by store
-//             const racksByStore = {};
-//             racks.forEach(rack => {
-//                 if (!racksByStore[rack.store._id]) {
-//                     racksByStore[rack.store._id] = [];
-//                 }
-//                 racksByStore[rack.store._id].push({
-//                     _id: rack._id,
-//                     name: rack.name,
-//                     description: rack.description
-//                 });
-//             });
-
-//             // Fetch only the required company groups: Cash in Hand, Sundry Debtors, Sundry Creditors
-//             const relevantGroups = await CompanyGroup.find({
-//                 name: { $in: ['Sundry Debtors', 'Sundry Creditors'] }
-//             }).exec();
-
-//             // Convert relevant group IDs to an array of ObjectIds
-//             const relevantGroupIds = relevantGroups.map(group => group._id);
-
-//             const accounts = await Account.find({
-//                 company: companyId,
-//                 // fiscalYear: fiscalYear,
-//                 isActive: true,
-//                 $or: [
-//                     { originalFiscalYear: fiscalYear }, // Created here
-//                     {
-//                         fiscalYear: fiscalYear,
-//                         originalFiscalYear: { $lt: fiscalYear } // Migrated from older FYs
-//                     }
-//                 ],
-//                 companyGroups: { $in: relevantGroupIds }
-//             });
-
-//             // Prepare response data
-//             const responseData = {
-//                 success: true,
-//                 data: {
-//                     company: {
-//                         _id: company._id,
-//                         renewalDate: company.renewalDate,
-//                         dateFormat: company.dateFormat,
-//                         vatEnabled: company.vatEnabled,
-//                         fiscalYear: company.fiscalYear
-//                     },
-//                     items: itemsWithStock,
-//                     accounts,
-//                     purchaseBills: purchasebills.map(bill => ({
-//                         _id: bill._id,
-//                         billNumber: bill.billNumber,
-//                         account: bill.account,
-//                         items: bill.items,
-//                         totalAmount: bill.totalAmount,
-//                         discount: bill.discount,
-//                         taxableAmount: bill.taxableAmount,
-//                         vatAmount: bill.vatAmount,
-//                         grandTotal: bill.grandTotal,
-//                         transactionDate: bill.transactionDate
-//                     })),
-//                     nextPurchaseBillNumber: nextBillNumber,
-//                     dates: {
-//                         nepaliDate,
-//                         transactionDateNepali
-//                     },
-//                     currentFiscalYear: {
-//                         _id: currentFiscalYear._id,
-//                         name: currentFiscalYear.name,
-//                         startDate: currentFiscalYear.startDate,
-//                         endDate: currentFiscalYear.endDate,
-//                         isActive: currentFiscalYear.isActive
-//                     },
-//                     stores: stores.map(store => ({
-//                         _id: store._id,
-//                         name: store.name,
-//                         code: store.code,
-//                         location: store.location
-//                     })),
-//                     racksByStore,
-//                     userPreferences: {
-//                         theme: req.user.preferences?.theme || 'light'
-//                     },
-//                     permissions: {
-//                         isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor',
-//                         storeManagementEnabled: req.storeManagementEnabled
-//                     }
-//                 }
-//             };
-
-//             return res.json(responseData);
-//         }
-//     } catch (error) {
-//         console.error('Error in /purchase-bills route:', error);
-//         return res.status(500).json({
-//             success: false,
-//             error: 'Internal server error',
-//             details: error.message
-//         });
-//     }
-// });
-
 // Route to get next purchase bill number
 router.get('/purchase/next-number', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
@@ -742,17 +553,6 @@ router.post('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                     return res.status(400).json({ success: false, message: `Expiry date is required for item ${product.name}` });
                 }
 
-                // // Validate numeric fields
-                // if (isNaN(parseFloat(item.puPrice))) {
-                //     await session.abortTransaction();
-                //     return res.status(400).json({ success: false, message: `Invalid price for item ${product.name}` });
-                // }
-
-                // if (isNaN(parseFloat(item.quantity))) {
-                //     await session.abortTransaction();
-                //     return res.status(400).json({ success: false, message: `Invalid quantity for item ${product.name}` });
-                // }
-
                 // Track VAT status for validation
                 if (product.vatStatus === 'vatable') {
                     hasVatableItems = true;
@@ -932,7 +732,6 @@ router.post('/purchase', isLoggedIn, ensureAuthenticated, ensureCompanySelected,
                     { session }
                 );
             }
-
             // Update bill with items
             newBill.items = billItems;
 
@@ -1213,7 +1012,253 @@ router.get('/purchase/finds', isLoggedIn, ensureAuthenticated, ensureCompanySele
     }
 });
 
-// Get payment form by billNumber
+// Route to get MongoDB _id by billNumber
+router.get('/purchase/get-id-by-number', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        const { billNumber } = req.query;
+        const companyId = req.session.currentCompany;
+        const fiscalYear = req.session.currentFiscalYear?.id;
+
+        if (!billNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Bill number is required'
+            });
+        }
+
+        const purchaseBill = await PurchaseBill.findOne({
+            billNumber: billNumber,
+            company: companyId,
+            fiscalYear: fiscalYear
+        })
+            .select('_id billNumber')
+            .lean();
+
+        if (!purchaseBill) {
+            return res.status(404).json({
+                success: false,
+                error: 'Voucher not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                _id: purchaseBill._id,
+                billNumber: purchaseBill.billNumber
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting bill ID:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Route to get party info for a voucher
+router.get('/purchase/find-party', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        const { billNumber } = req.query;
+        const companyId = req.session.currentCompany;
+        const fiscalYear = req.session.currentFiscalYear?.id;
+
+        if (!billNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Voucher number is required'
+            });
+        }
+
+        // Find the purchase bill
+        const purchaseBill = await PurchaseBill.findOne({
+            billNumber: billNumber,
+            company: companyId,
+            fiscalYear: fiscalYear
+        })
+            .populate({
+                path: 'account',
+                select: 'name address pan uniqueNumber'
+            })
+            .select('billNumber date account partyBillNumber paymentMode')
+            .lean();
+
+        if (!purchaseBill) {
+            return res.status(404).json({
+                success: false,
+                error: 'Voucher not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                billNumber: purchaseBill.billNumber,
+                date: purchaseBill.date,
+                partyBillNumber: purchaseBill.partyBillNumber,
+                paymentMode: purchaseBill.paymentMode,
+                accountId: purchaseBill.account._id,
+                accountName: purchaseBill.account.name,
+                accountAddress: purchaseBill.account.address || '',
+                accountPan: purchaseBill.account.pan || '',
+                accountUniqueNumber: purchaseBill.account.uniqueNumber || ''
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching voucher party info:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Updated Route to update party for a voucher
+router.put('/purchase/change-party/:billNumber', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        const { billNumber } = req.params;
+        const { accountId } = req.body;
+        const companyId = req.session.currentCompany;
+        const fiscalYear = req.session.currentFiscalYear?.id;
+
+        if (!accountId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Account ID is required'
+            });
+        }
+
+        // Verify account exists
+        const account = await Account.findOne({
+            _id: accountId,
+            company: companyId,
+            isActive: true
+        });
+
+        if (!account) {
+            return res.status(404).json({
+                success: false,
+                error: 'Account not found'
+            });
+        }
+
+        // Get the original purchase bill to get amounts
+        const originalBill = await PurchaseBill.findOne({
+            billNumber: billNumber,
+            company: companyId,
+            fiscalYear: fiscalYear
+        });
+
+        if (!originalBill) {
+            return res.status(404).json({
+                success: false,
+                error: 'Voucher not found'
+            });
+        }
+
+        // Update purchase bill account
+        const updatedBill = await PurchaseBill.findOneAndUpdate(
+            {
+                billNumber: billNumber,
+                company: companyId,
+                fiscalYear: fiscalYear
+            },
+            {
+                $set: {
+                    account: accountId,
+                    'accountInfo.name': account.name,
+                    'accountInfo.address': account.address,
+                    'accountInfo.pan': account.pan,
+                    'accountInfo.uniqueNumber': account.uniqueNumber
+                }
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        ).select('billNumber account totalAmount taxableAmount nonVatPurchase vatAmount roundOffAmount');
+
+        // Update related transactions
+        // IMPORTANT: Party account should be CREDIT side, Purchase account should be DEBIT side
+        const transactions = await Transaction.find({
+            purchaseBillId: originalBill._id,
+            company: companyId,
+            fiscalYear: fiscalYear
+        });
+
+        // Process each transaction based on its type
+        for (const transaction of transactions) {
+            let updateFields = {};
+
+            // Check if this is a party account transaction (based on the account)
+            const isPartyTransaction = transaction.account.toString() === originalBill.account.toString();
+
+            if (isPartyTransaction) {
+                // This was the old party transaction, update to new party
+                // Party account should be CREDIT side (money owed to party)
+                updateFields = {
+                    account: accountId,
+                    'accountInfo.name': account.name,
+                    'accountInfo.address': account.address,
+                    'accountInfo.pan': account.pan,
+                    debit: 0,  // Party gets CREDIT
+                    credit: originalBill.totalAmount,
+                    balance: 0
+                };
+            } else {
+                // Check if this is a purchase account transaction
+                const purchaseAccount = await Account.findOne({
+                    _id: transaction.account,
+                    company: companyId,
+                    name: 'Purchase'
+                });
+
+                if (purchaseAccount) {
+                    // Purchase account should be DEBIT side (purchase expense)
+                    const purchaseAmount = originalBill.taxableAmount + originalBill.nonVatPurchase;
+                    updateFields = {
+                        debit: purchaseAmount,
+                        credit: 0,
+                        balance: 0,
+                        purchaseSalesType: account.name  // Update purchase type with new party name
+                    };
+                } else {
+                    // For other transactions (VAT, RoundOff, etc.)
+                    updateFields = {
+                        purchaseSalesType: account.name
+                    };
+                }
+            }
+
+            // Update the transaction
+            await Transaction.findByIdAndUpdate(
+                transaction._id,
+                { $set: updateFields }
+            );
+        }
+
+        res.json({
+            success: true,
+            message: 'Party updated successfully',
+            data: {
+                billNumber: updatedBill.billNumber,
+                accountId: updatedBill.account,
+                accountName: account.name
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating party:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+// Get purchase form by billNumber
 router.get('/purchase/edit/billNumber', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     if (req.tradeType === 'retailer') {
         try {
@@ -1935,28 +1980,6 @@ router.put('/purchase/edit/:id', isLoggedIn, ensureAuthenticated, ensureCompanyS
                 update.entriesToAdd.push(stockEntry);
 
                 // Add to bill items
-                // existingBill.items.push({
-                //     item: product._id,
-                //     batchNumber: item.batchNumber,
-                //     expiryDate: item.expiryDate,
-                //     WSUnit: WSUnit,
-                //     quantity: item.quantity,
-                //     Altbonus: item.bonus || 0,
-                //     Altquantity: item.quantity,
-                //     Altprice: item.price,
-                //     AltpuPrice: item.puPrice || 0,
-                //     bonus: item.bonus || 0,
-                //     price: item.price,
-                //     puPrice: item.puPrice || 0,
-                //     mrp: item.mrp,
-                //     marginPercentage: item.marginPercentage,
-                //     currency: item.currency,
-                //     unit: item.unit,
-                //     vatStatus: product.vatStatus,
-                //     uniqueUuId: item.uniqueUuId || uuidv4()
-                // });
-
-                // Add to bill items
                 existingBill.items.push({
                     item: product._id,
                     batchNumber: item.batchNumber,
@@ -1991,40 +2014,6 @@ router.put('/purchase/edit/:id', isLoggedIn, ensureAuthenticated, ensureCompanyS
                     { session }
                 );
             }
-
-            // Create transactions
-            // 1. Party account transaction
-            // for (let i = 0; i < items.length; i++) {
-            //     const item = items[i];
-            //     const product = await Item.findById(item.item).session(session);
-            //     const partyTransaction = new Transaction({
-            //         item: product,
-            //         unit: item.unit,
-            //         WSUnit: item.WSUnit,
-            //         price: item.price,
-            //         puPrice: item.puPrice || 0,
-            //         discountPercentagePerItem: discountPercentage || 0,
-            //         discountAmountPerItem: (item.puPrice * item.quantity * (discountPercentage || 0)) / 100,
-            //         netPuPrice: item.puPrice - (item.puPrice * (discountPercentage || 0) / 100),
-            //         quantity: item.quantity || 0,
-            //         bonus: item.bonus || 0,
-            //         account: accountId,
-            //         billNumber: existingBill.billNumber,
-            //         partyBillNumber: existingBill.partyBillNumber,
-            //         type: 'Purc',
-            //         purchaseBillId: existingBill._id,
-            //         purchaseSalesType: 'Purchase',
-            //         debit: 0,
-            //         credit: existingBill.totalAmount,
-            //         paymentMode: paymentMode,
-            //         balance: 0,
-            //         date: nepaliDate ? nepaliDate : new Date(billDate),
-            //         company: companyId,
-            //         user: userId,
-            //         fiscalYear: currentFiscalYear
-            //     });
-            //     await partyTransaction.save({ session });
-            // }
 
             // In backend, update the party transaction creation:
             for (let i = 0; i < items.length; i++) {
@@ -2359,7 +2348,6 @@ router.get('/purchase/:id/print', isLoggedIn, ensureAuthenticated, ensureCompany
         });
     }
 });
-
 
 router.get('/purchase-vat-report', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {

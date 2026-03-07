@@ -577,6 +577,310 @@ router.get('/accounts/cash/search', isLoggedIn, ensureAuthenticated, ensureCompa
     }
 });
 
+// router.get('/all/accounts/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+//     try {
+//         const companyId = req.session.currentCompany;
+//         const {
+//             search = '',
+//             page = 1,
+//             limit = 25,
+//             fiscalYear: requestedFiscalYear
+//         } = req.query;
+
+//         const skip = (page - 1) * limit;
+//         const fiscalYear = requestedFiscalYear || req.session.currentFiscalYear?.id;
+
+//         if (!fiscalYear) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'No fiscal year found'
+//             });
+//         }
+
+//         // Build base query
+//         const baseQuery = {
+//             company: companyId,
+//             isActive: true,
+//             $or: [
+//                 { originalFiscalYear: fiscalYear },
+//                 {
+//                     fiscalYear: fiscalYear,
+//                     originalFiscalYear: { $lt: fiscalYear }
+//                 }
+//             ]
+//         };
+
+//         // Get relevant company groups
+//         const relevantGroups = await CompanyGroup.find({
+//             name: { $in: ['Sundry Debtors', 'Sundry Creditors', 'Cash in Hand'] }
+//         }).exec();
+
+//         const relevantGroupIds = relevantGroups.map(group => group._id);
+//         baseQuery.companyGroups = { $in: relevantGroupIds };
+
+//         let finalQuery = baseQuery;
+
+//         // Add search conditions if search term exists
+//         if (search && search.trim() !== '') {
+//             const searchString = search.trim();
+//             const searchConditions = [];
+
+//             // Text field searches
+//             const textFields = ['name', 'address', 'phone', 'email', 'contactperson'];
+//             textFields.forEach(field => {
+//                 searchConditions.push({
+//                     [field]: { $regex: searchString, $options: 'i' }
+//                 });
+//             });
+
+//             // For uniqueNumber - search as string (converted from number)
+//             searchConditions.push({
+//                 $expr: {
+//                     $regexMatch: {
+//                         input: { $toString: "$uniqueNumber" },
+//                         regex: searchString,
+//                         options: "i"
+//                     }
+//                 }
+//             });
+
+//             // For PAN field - Since it's Number type, convert to string for regex
+//             searchConditions.push({
+//                 $expr: {
+//                     $regexMatch: {
+//                         input: { $toString: "$pan" },
+//                         regex: searchString,
+//                         options: "i"
+//                     }
+//                 }
+//             });
+
+//             // If search is numeric, also try exact number matches
+//             if (!isNaN(searchString) && searchString !== '') {
+//                 const numericValue = parseFloat(searchString);
+
+//                 // Try exact number match for uniqueNumber
+//                 searchConditions.push({ uniqueNumber: numericValue });
+
+//                 // Try exact number match for PAN
+//                 searchConditions.push({ pan: numericValue });
+//             }
+
+//             // Combine base query with search conditions
+//             finalQuery = {
+//                 $and: [
+//                     baseQuery,
+//                     { $or: searchConditions }
+//                 ]
+//             };
+//         }
+
+//         // Get total count for pagination
+//         const totalAccounts = await Account.countDocuments(finalQuery);
+
+//         // Fetch accounts with pagination
+//         const accounts = await Account.find(finalQuery)
+//             .populate('companyGroups', 'name')
+//             .skip(skip)
+//             .limit(parseInt(limit))
+//             .sort({ name: 1 })
+//             .lean();
+
+//         // Calculate balances for all accounts in parallel
+//         const accountsWithBalances = await Promise.all(
+//             accounts.map(async (account) => {
+//                 const balanceData = await calculateAccountBalance(
+//                     account._id,
+//                     companyId,
+//                     fiscalYear
+//                 );
+
+//                 return {
+//                     ...account,
+//                     balance: balanceData.balance,
+//                     balanceType: balanceData.balanceType,
+//                     rawBalance: balanceData.rawBalance
+//                 };
+//             })
+//         );
+
+//         res.json({
+//             success: true,
+//             accounts: accountsWithBalances,
+//             pagination: {
+//                 currentPage: parseInt(page),
+//                 totalPages: Math.ceil(totalAccounts / limit),
+//                 totalAccounts,
+//                 accountsPerPage: parseInt(limit),
+//                 hasNextPage: (page * limit) < totalAccounts,
+//                 hasPreviousPage: page > 1
+//             }
+//         });
+//     } catch (error) {
+//         console.error("Error searching accounts:", error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Failed to search accounts',
+//             message: error.message
+//         });
+//     }
+// });
+
+router.get('/all/accounts/search', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
+    try {
+        const companyId = req.session.currentCompany;
+        const {
+            search = '',
+            page = 1,
+            limit = 25,
+            fiscalYear: requestedFiscalYear
+        } = req.query;
+
+        const skip = (page - 1) * limit;
+        const fiscalYear = requestedFiscalYear || req.session.currentFiscalYear?.id;
+
+        if (!fiscalYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'No fiscal year found'
+            });
+        }
+
+        // Build base query
+        const baseQuery = {
+            company: companyId,
+            isActive: true,
+            $or: [
+                { originalFiscalYear: fiscalYear },
+                {
+                    fiscalYear: fiscalYear,
+                    originalFiscalYear: { $lt: fiscalYear }
+                }
+            ]
+        };
+
+        // Get company groups to EXCLUDE
+        const groupsToExclude = await CompanyGroup.find({
+            name: {
+                $in: ['Bank Accounts', 'Bank O/D Account', 'Cash in Hand']
+            }
+        }).exec();
+
+        const excludeGroupIds = groupsToExclude.map(group => group._id);
+
+        // Exclude the specified groups
+        if (excludeGroupIds.length > 0) {
+            baseQuery.companyGroups = { $nin: excludeGroupIds };
+        }
+
+        let finalQuery = baseQuery;
+
+        // Add search conditions if search term exists
+        if (search && search.trim() !== '') {
+            const searchString = search.trim();
+            const searchConditions = [];
+
+            // Text field searches
+            const textFields = ['name', 'address', 'phone', 'email', 'contactperson'];
+            textFields.forEach(field => {
+                searchConditions.push({
+                    [field]: { $regex: searchString, $options: 'i' }
+                });
+            });
+
+            // For uniqueNumber - search as string (converted from number)
+            searchConditions.push({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$uniqueNumber" },
+                        regex: searchString,
+                        options: "i"
+                    }
+                }
+            });
+
+            // For PAN field - Since it's Number type, convert to string for regex
+            searchConditions.push({
+                $expr: {
+                    $regexMatch: {
+                        input: { $toString: "$pan" },
+                        regex: searchString,
+                        options: "i"
+                    }
+                }
+            });
+
+            // If search is numeric, also try exact number matches
+            if (!isNaN(searchString) && searchString !== '') {
+                const numericValue = parseFloat(searchString);
+
+                // Try exact number match for uniqueNumber
+                searchConditions.push({ uniqueNumber: numericValue });
+
+                // Try exact number match for PAN
+                searchConditions.push({ pan: numericValue });
+            }
+
+            // Combine base query with search conditions
+            finalQuery = {
+                $and: [
+                    baseQuery,
+                    { $or: searchConditions }
+                ]
+            };
+        }
+
+        // Get total count for pagination
+        const totalAccounts = await Account.countDocuments(finalQuery);
+
+        // Fetch accounts with pagination
+        const accounts = await Account.find(finalQuery)
+            .populate('companyGroups', 'name')
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort({ name: 1 })
+            .lean();
+
+        // Calculate balances for all accounts in parallel
+        const accountsWithBalances = await Promise.all(
+            accounts.map(async (account) => {
+                const balanceData = await calculateAccountBalance(
+                    account._id,
+                    companyId,
+                    fiscalYear
+                );
+
+                return {
+                    ...account,
+                    balance: balanceData.balance,
+                    balanceType: balanceData.balanceType,
+                    rawBalance: balanceData.rawBalance
+                };
+            })
+        );
+
+        res.json({
+            success: true,
+            accounts: accountsWithBalances,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalAccounts / limit),
+                totalAccounts,
+                accountsPerPage: parseInt(limit),
+                hasNextPage: (page * limit) < totalAccounts,
+                hasPreviousPage: page > 1
+            }
+        });
+    } catch (error) {
+        console.error("Error searching accounts:", error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to search accounts',
+            message: error.message
+        });
+    }
+});
+
 router.get('/contacts', async (req, res) => {
     try {
         const companyId = req.session.currentCompany;
