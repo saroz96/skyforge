@@ -1829,8 +1829,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 
 //                 totalStockValue += itemStockValue;
 
-//                 sendEvent('log', { 
-//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}` 
+//                 sendEvent('log', {
+//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}`
 //                 });
 //             }
 
@@ -2482,8 +2482,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     });
 
 //                     // Prepare fiscal year array
-//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id) 
-//                         ? item.fiscalYear 
+//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id)
+//                         ? item.fiscalYear
 //                         : [...item.fiscalYear, newFiscalYear._id];
 
 //                     // Prepare openingStockByFiscalYear array
@@ -2550,8 +2550,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 
 //                 totalStockValue += itemStockValue;
 
-//                 sendEvent('log', { 
-//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}` 
+//                 sendEvent('log', {
+//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}`
 //                 });
 //             }
 
@@ -2582,8 +2582,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     sendEvent('log', { message: `Found Stock account: ${stockAccount.name}, updating with total stock value: ${totalStockValue.toFixed(2)}` });
 
 //                     // Prepare fiscal year array
-//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id) 
-//                         ? stockAccount.fiscalYear 
+//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? stockAccount.fiscalYear
 //                         : [...stockAccount.fiscalYear, newFiscalYear._id];
 
 //                     // Prepare openingBalanceByFiscalYear array
@@ -2787,8 +2787,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                         }
 
 //                         // Prepare fiscal year array
-//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id) 
-//                             ? account.fiscalYear 
+//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id)
+//                             ? account.fiscalYear
 //                             : [...account.fiscalYear, newFiscalYear._id];
 
 //                         // Prepare openingBalanceByFiscalYear array
@@ -2867,8 +2867,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //             const isProfit = totalCreditBalance > totalDebitBalance; // Credit > Debit = Profit
 //             const isLoss = totalDebitBalance > totalCreditBalance;   // Debit > Credit = Loss
 
-//             sendEvent('log', { 
-//                 message: `Total Debit Balance: ${totalDebitBalance.toFixed(2)}, Total Credit Balance: ${totalCreditBalance.toFixed(2)}, Difference: ${balanceDifference.toFixed(2)} (${isProfit ? 'Profit' : 'Loss'})` 
+//             sendEvent('log', {
+//                 message: `Total Debit Balance: ${totalDebitBalance.toFixed(2)}, Total Credit Balance: ${totalCreditBalance.toFixed(2)}, Difference: ${balanceDifference.toFixed(2)} (${isProfit ? 'Profit' : 'Loss'})`
 //             });
 
 //             // Update Profit & Loss account with the difference
@@ -2876,8 +2876,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                 sendEvent('log', { message: `Updating Profit & Loss account with ${isProfit ? 'profit' : 'loss'} amount: ${balanceDifference.toFixed(2)}` });
 
 //                 // Prepare fiscal year array
-//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id) 
-//                     ? profitLossAccount.fiscalYear 
+//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id)
+//                     ? profitLossAccount.fiscalYear
 //                     : [...profitLossAccount.fiscalYear, newFiscalYear._id];
 
 //                 // Prepare openingBalanceByFiscalYear array
@@ -3301,8 +3301,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     });
 
 //                     // Prepare fiscal year array
-//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id) 
-//                         ? item.fiscalYear 
+//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id)
+//                         ? item.fiscalYear
 //                         : [...item.fiscalYear, newFiscalYear._id];
 
 //                     // Prepare openingStockByFiscalYear array
@@ -3369,8 +3369,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 
 //                 totalStockValue += itemStockValue;
 
-//                 sendEvent('log', { 
-//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}` 
+//                 sendEvent('log', {
+//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}`
 //                 });
 //             }
 
@@ -3401,8 +3401,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     sendEvent('log', { message: `Found Stock account: ${stockAccount.name}, updating with total stock value: ${totalStockValue.toFixed(2)}` });
 
 //                     // Prepare fiscal year array
-//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id) 
-//                         ? stockAccount.fiscalYear 
+//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? stockAccount.fiscalYear
 //                         : [...stockAccount.fiscalYear, newFiscalYear._id];
 
 //                     // Prepare openingBalanceByFiscalYear array
@@ -3629,8 +3629,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                         }
 
 //                         // Prepare fiscal year array
-//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id) 
-//                             ? account.fiscalYear 
+//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id)
+//                             ? account.fiscalYear
 //                             : [...account.fiscalYear, newFiscalYear._id];
 
 //                         // Prepare openingBalanceByFiscalYear array
@@ -3712,8 +3712,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //             const isProfit = totalCreditBalance > totalDebitBalance; // Credit > Debit = Profit
 //             const isLoss = totalDebitBalance > totalCreditBalance;   // Debit > Credit = Loss
 
-//             sendEvent('log', { 
-//                 message: `Total Debit Balance: ${totalDebitBalance.toFixed(2)}, Total Credit Balance: ${totalCreditBalance.toFixed(2)}, Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}` 
+//             sendEvent('log', {
+//                 message: `Total Debit Balance: ${totalDebitBalance.toFixed(2)}, Total Credit Balance: ${totalCreditBalance.toFixed(2)}, Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}`
 //             });
 
 //             // Update Profit & Loss account with the net profit/loss
@@ -3726,8 +3726,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                 const pnlBalanceType = isProfit ? 'Cr' : 'Dr';
 
 //                 // Prepare fiscal year array
-//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id) 
-//                     ? profitLossAccount.fiscalYear 
+//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id)
+//                     ? profitLossAccount.fiscalYear
 //                     : [...profitLossAccount.fiscalYear, newFiscalYear._id];
 
 //                 // Prepare openingBalanceByFiscalYear array
@@ -3823,8 +3823,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     };
 
 //                     // Update capital account with adjusted balance
-//                     const capitalUpdatedFiscalYear = capitalAccount.fiscalYear.includes(newFiscalYear._id) 
-//                         ? capitalAccount.fiscalYear 
+//                     const capitalUpdatedFiscalYear = capitalAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? capitalAccount.fiscalYear
 //                         : [...capitalAccount.fiscalYear, newFiscalYear._id];
 
 //                     const capitalUpdatedOpeningBalanceByFiscalYear = capitalAccount.openingBalanceByFiscalYear
@@ -3862,9 +3862,9 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                         { session, new: true }
 //                     );
 
-//                     sendEvent('log', { 
+//                     sendEvent('log', {
 //                         message: `Updated Capital Account with new balance: ${newCapitalOpeningBalance.amount} ${newCapitalOpeningBalance.type} ` +
-//                                 `(includes ${isProfit ? 'profit' : 'loss'} transfer of ${netProfitLoss.toFixed(2)})` 
+//                                 `(includes ${isProfit ? 'profit' : 'loss'} transfer of ${netProfitLoss.toFixed(2)})`
 //                     });
 //                 } else {
 //                     sendEvent('log', { message: 'Warning: Capital Account not found, skipping profit/loss transfer' });
@@ -5048,8 +5048,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 
 //             sendEvent('progress', { value: 100 });
 //             sendEvent('complete', {
-//                 message: `Fiscal year ${fiscalYearName} created successfully! 
-//                 Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)} 
+//                 message: `Fiscal year ${fiscalYearName} created successfully!
+//                 Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}
 //                 Current fiscal year set to ${fiscalYearName}.`
 //             });
 //         }, transactionOptions); // End of withTransaction
@@ -5393,8 +5393,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     });
 
 //                     // Prepare fiscal year array
-//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id) 
-//                         ? item.fiscalYear 
+//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id)
+//                         ? item.fiscalYear
 //                         : [...item.fiscalYear, newFiscalYear._id];
 
 //                     // Prepare openingStockByFiscalYear array
@@ -5461,8 +5461,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 
 //                 totalStockValue += itemStockValue;
 
-//                 sendEvent('log', { 
-//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}` 
+//                 sendEvent('log', {
+//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}`
 //                 });
 //             }
 
@@ -5493,8 +5493,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     sendEvent('log', { message: `Found Stock account: ${stockAccount.name}, updating with total stock value: ${totalStockValue.toFixed(2)}` });
 
 //                     // Prepare fiscal year array
-//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id) 
-//                         ? stockAccount.fiscalYear 
+//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? stockAccount.fiscalYear
 //                         : [...stockAccount.fiscalYear, newFiscalYear._id];
 
 //                     // Prepare openingBalanceByFiscalYear array
@@ -5721,8 +5721,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                         }
 
 //                         // Prepare fiscal year array
-//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id) 
-//                             ? account.fiscalYear 
+//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id)
+//                             ? account.fiscalYear
 //                             : [...account.fiscalYear, newFiscalYear._id];
 
 //                         // Prepare openingBalanceByFiscalYear array
@@ -5804,8 +5804,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //             const isProfit = totalCreditBalance > totalDebitBalance; // Credit > Debit = Profit
 //             const isLoss = totalDebitBalance > totalCreditBalance;   // Debit > Credit = Loss
 
-//             sendEvent('log', { 
-//                 message: `Total Debit Balance: ${totalDebitBalance.toFixed(2)}, Total Credit Balance: ${totalCreditBalance.toFixed(2)}, Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}` 
+//             sendEvent('log', {
+//                 message: `Total Debit Balance: ${totalDebitBalance.toFixed(2)}, Total Credit Balance: ${totalCreditBalance.toFixed(2)}, Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}`
 //             });
 
 //             // Update Profit & Loss account with the net profit/loss
@@ -5818,8 +5818,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                 const pnlBalanceType = isProfit ? 'Cr' : 'Dr';
 
 //                 // Prepare fiscal year array
-//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id) 
-//                     ? profitLossAccount.fiscalYear 
+//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id)
+//                     ? profitLossAccount.fiscalYear
 //                     : [...profitLossAccount.fiscalYear, newFiscalYear._id];
 
 //                 // Prepare openingBalanceByFiscalYear array
@@ -5915,8 +5915,8 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                     };
 
 //                     // Update capital account with adjusted balance
-//                     const capitalUpdatedFiscalYear = capitalAccount.fiscalYear.includes(newFiscalYear._id) 
-//                         ? capitalAccount.fiscalYear 
+//                     const capitalUpdatedFiscalYear = capitalAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? capitalAccount.fiscalYear
 //                         : [...capitalAccount.fiscalYear, newFiscalYear._id];
 
 //                     const capitalUpdatedOpeningBalanceByFiscalYear = capitalAccount.openingBalanceByFiscalYear
@@ -5954,9 +5954,9 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //                         { session, new: true }
 //                     );
 
-//                     sendEvent('log', { 
+//                     sendEvent('log', {
 //                         message: `Updated Capital Account with new balance: ${newCapitalOpeningBalance.amount} ${newCapitalOpeningBalance.type} ` +
-//                                 `(includes ${isProfit ? 'profit' : 'loss'} transfer of ${netProfitLoss.toFixed(2)})` 
+//                                 `(includes ${isProfit ? 'profit' : 'loss'} transfer of ${netProfitLoss.toFixed(2)})`
 //                     });
 //                 } else {
 //                     sendEvent('log', { message: 'Warning: Capital Account not found, skipping profit/loss transfer' });
@@ -6040,6 +6040,997 @@ router.get('/change-fiscal-year', isLoggedIn, ensureAuthenticated, ensureCompany
 //     });
 // });
 
+// router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+//     if (req.tradeType !== 'retailer') {
+//         res.write(`data: ${JSON.stringify({ type: 'error', message: 'Unauthorized access' })}\n\n`);
+//         return res.end();
+//     }
+
+//     // Set headers for SSE
+//     res.writeHead(200, {
+//         'Content-Type': 'text/event-stream',
+//         'Cache-Control': 'no-cache',
+//         'Connection': 'keep-alive',
+//     });
+
+//     // Function to send events
+//     const sendEvent = (type, data) => {
+//         res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+//     };
+
+//     const session = await mongoose.startSession();
+//     let transactionCommitted = false;
+//     let transactionAborted = false;
+
+//     // Helper function to safely abort transaction
+//     const safeAbortTransaction = async () => {
+//         if (!transactionCommitted && !transactionAborted && session.inTransaction()) {
+//             try {
+//                 await session.abortTransaction();
+//                 transactionAborted = true;
+//             } catch (abortError) {
+//                 // Ignore errors when aborting already aborted transaction
+//                 if (!abortError.message.includes('abortTransaction twice')) {
+//                     console.error('Error aborting transaction:', abortError);
+//                 }
+//             }
+//         }
+//     };
+
+//     try {
+//         // Start transaction with extended timeout and retry options
+//         const transactionOptions = {
+//             readConcern: { level: 'snapshot' },
+//             writeConcern: { w: 'majority' },
+//             maxTimeMS: 600000, // 10 minute timeout
+//             retryWrites: true
+//         };
+
+//         await session.withTransaction(async () => {
+//             const companyId = req.session.currentCompany;
+//             const currentFiscalYear = req.session.currentFiscalYear.id;
+
+//             // Get parameters from query string
+//             const { startDateEnglish, endDateEnglish, startDateNepali, endDateNepali, dateFormat } = req.query;
+
+//             let startDate, endDate;
+//             if (dateFormat === 'nepali') {
+//                 startDate = startDateNepali;
+//                 endDate = endDateNepali;
+//             } else if (dateFormat === 'english') {
+//                 startDate = startDateEnglish;
+//                 endDate = endDateEnglish;
+//             } else {
+//                 sendEvent('error', { message: 'Invalid date format' });
+//                 throw new Error('Invalid date format');
+//             }
+
+//             if (!endDate) {
+//                 // If endDate is not provided, calculate it as one year minus one day from startDate
+//                 endDate = new Date(startDate);
+//                 endDate.setFullYear(endDate.getFullYear() + 1);
+//                 endDate.setDate(endDate.getDate() - 1);
+//             }
+
+//             const startDateObject = new Date(startDate);
+//             const endDateObject = new Date(endDate);
+//             const startYear = startDateObject.getFullYear();
+//             const endYear = endDateObject.getFullYear();
+//             const fiscalYearName = `${startYear}/${endYear.toString().slice(-2)}`;
+
+//             // Step 1: Create fiscal year
+//             sendEvent('log', { message: `Creating new fiscal year ${fiscalYearName}...` });
+//             sendEvent('progress', { value: 10 });
+
+//             const existingFiscalYear = await FiscalYear.findOne({
+//                 name: fiscalYearName,
+//                 company: companyId
+//             }).session(session);
+
+//             if (existingFiscalYear) {
+//                 sendEvent('error', { message: `Fiscal Year ${fiscalYearName} already exists.` });
+//                 throw new Error('Fiscal year already exists');
+//             }
+
+//             // Process in batches to avoid transaction timeouts
+//             const processInBatches = async (items, processFn, batchSize = 50) => {
+//                 for (let i = 0; i < items.length; i += batchSize) {
+//                     const batch = items.slice(i, i + batchSize);
+//                     await Promise.all(batch.map(item => processFn(item)));
+
+//                     // Send progress updates
+//                     const progress = 33 + (i / items.length * 33);
+//                     sendEvent('progress', { value: Math.min(progress, 66) });
+//                 }
+//             };
+
+//             const newFiscalYear = (await FiscalYear.create([{
+//                 name: fiscalYearName,
+//                 startDate: startDateObject,
+//                 endDate: endDateObject,
+//                 dateFormat,
+//                 company: companyId
+//             }], { session }))[0];
+
+//             sendEvent('log', { message: `Created new fiscal year: ${fiscalYearName}` });
+//             sendEvent('progress', { value: 33 });
+
+//             // Step 1.5: Clone settings to new fiscal year - FIXED DUPLICATE KEY ISSUE
+//             sendEvent('log', { message: 'Cloning settings to new fiscal year...' });
+
+//             // Check if settings already exist for this user and company in new fiscal year
+//             const existingSettings = await Settings.findOne({
+//                 company: companyId,
+//                 fiscalYear: newFiscalYear._id,
+//                 userId: req.user.id
+//             }).session(session);
+
+//             if (existingSettings) {
+//                 sendEvent('log', { message: 'Settings already exist for new fiscal year, skipping creation' });
+//             } else {
+//                 const currentSettings = await Settings.findOne({
+//                     company: companyId,
+//                     fiscalYear: currentFiscalYear,
+//                     userId: req.user.id
+//                 }).session(session);
+
+//                 if (currentSettings) {
+//                     // Create new settings with unique _id and proper fiscal year reference
+//                     const newSettingsData = {
+//                         ...currentSettings.toObject(),
+//                         _id: new mongoose.Types.ObjectId(), // Generate new unique ID
+//                         fiscalYear: newFiscalYear._id,
+//                         createdAt: new Date(),
+//                         updatedAt: new Date()
+//                     };
+//                     // Remove any existing _id to ensure new one is used
+//                     delete newSettingsData._id;
+
+//                     await Settings.create([newSettingsData], { session });
+//                     sendEvent('log', { message: 'Settings cloned successfully' });
+//                 } else {
+//                     // Create default settings
+//                     await Settings.create([{
+//                         company: companyId,
+//                         userId: req.user.id,
+//                         fiscalYear: newFiscalYear._id,
+//                         createdAt: new Date(),
+//                         updatedAt: new Date()
+//                     }], { session });
+//                     sendEvent('log', { message: 'Created default settings for new fiscal year' });
+//                 }
+//             }
+
+//             // Step 2: Process items in batches
+//             sendEvent('log', { message: 'Creating items for new fiscal year...' });
+//             const items = await Item.find({
+//                 company: companyId,
+//                 fiscalYear: { $in: [currentFiscalYear] }
+//             }).session(session);
+
+//             // Store total stock value for stock account update
+//             let totalStockValue = 0;
+
+//             await processInBatches(items, async (item) => {
+//                 try {
+//                     // Get ALL transactions that affect stock for this item
+//                     const stockTransactions = await Transaction.find({
+//                         item: item._id,
+//                         company: companyId,
+//                         fiscalYear: currentFiscalYear,
+//                         type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'StockAdjustment'] }
+//                     }).sort({ date: 1 }).session(session);
+
+//                     // Calculate current stock by processing all transactions
+//                     let currentStock = Number(item.openingStockByFiscalYear?.find(f => f.fiscalYear.equals(currentFiscalYear))?.openingStock) || 0;
+//                     let totalPurchases = 0;
+//                     let totalSales = 0;
+//                     let totalPurchaseReturns = 0;
+//                     let totalSalesReturns = 0;
+//                     let totalAdjustments = 0;
+
+//                     for (const transaction of stockTransactions) {
+//                         const quantity = Number(transaction.quantity) || 0;
+//                         const adjustmentQuantity = Number(transaction.adjustmentQuantity) || 0;
+
+//                         switch (transaction.type) {
+//                             case 'Purc': // Purchase
+//                                 currentStock += quantity;
+//                                 totalPurchases += quantity;
+//                                 break;
+//                             case 'Sale': // Sale
+//                                 currentStock -= quantity;
+//                                 totalSales += quantity;
+//                                 break;
+//                             case 'PrRt': // Purchase Return
+//                                 currentStock -= quantity;
+//                                 totalPurchaseReturns += quantity;
+//                                 break;
+//                             case 'SlRt': // Sales Return
+//                                 currentStock += quantity;
+//                                 totalSalesReturns += quantity;
+//                                 break;
+//                             case 'StockAdjustment': // Stock Adjustment
+//                                 currentStock += adjustmentQuantity;
+//                                 totalAdjustments += adjustmentQuantity;
+//                                 break;
+//                         }
+//                     }
+
+//                     // Calculate weighted average purchase price from stockEntries
+//                     let totalQuantityFromEntries = 0;
+//                     let totalPriceFromEntries = 0;
+//                     let totalSalesPriceFromEntries = 0;
+
+//                     for (const entry of item.stockEntries) {
+//                         const entryPuPrice = Number(entry.puPrice) || 0;
+//                         const entryQuantity = Number(entry.quantity) || 0;
+//                         const entryPrice = Number(entry.price) || 0;
+
+//                         if (entryPuPrice > 0 && entryQuantity > 0) {
+//                             totalQuantityFromEntries += entryQuantity;
+//                             totalPriceFromEntries += entryQuantity * entryPuPrice;
+//                             totalSalesPriceFromEntries += entryQuantity * entryPrice;
+//                         }
+//                     }
+
+//                     let purchasePrice = 0;
+//                     let salesPrice = 0;
+
+//                     if (totalQuantityFromEntries > 0) {
+//                         purchasePrice = totalPriceFromEntries / totalQuantityFromEntries;
+//                         salesPrice = totalSalesPriceFromEntries / totalQuantityFromEntries;
+//                     } else {
+//                         // Fallback to transaction-based calculation if no valid stock entries
+//                         const purchases = await Transaction.find({
+//                             item: item._id,
+//                             company: companyId,
+//                             type: 'Purc',
+//                             fiscalYear: currentFiscalYear
+//                         }).session(session);
+
+//                         let totalQuantity = 0;
+//                         let totalPrice = 0;
+//                         for (let purchase of purchases) {
+//                             const purchaseQuantity = Number(purchase.quantity) || 0;
+//                             const purchasePuPrice = Number(purchase.puPrice) || 0;
+//                             if (purchaseQuantity > 0 && purchasePuPrice > 0) {
+//                                 totalQuantity += purchaseQuantity;
+//                                 totalPrice += purchaseQuantity * purchasePuPrice;
+//                             }
+//                         }
+
+//                         // Ensure item.puPrice is also a number for fallback
+//                         purchasePrice = totalQuantity > 0 ? (totalPrice / totalQuantity) : (Number(item.puPrice) || 0);
+
+//                         const salesTransactions = await Transaction.find({
+//                             item: item._id,
+//                             company: companyId,
+//                             type: 'Sale',
+//                             fiscalYear: currentFiscalYear
+//                         }).session(session);
+
+//                         let totalSalesQuantity = 0;
+//                         let totalSalesPrice = 0;
+//                         for (let sale of salesTransactions) {
+//                             const saleSalesPrice = Number(sale.salesPrice) || 0;
+//                             const saleQuantity = Number(sale.quantity) || 0;
+//                             if (saleSalesPrice > 0 && saleQuantity > 0) {
+//                                 totalSalesQuantity += saleQuantity;
+//                                 totalSalesPrice += saleQuantity * saleSalesPrice;
+//                             }
+//                         }
+//                         salesPrice = totalSalesQuantity > 0 ? (totalSalesPrice / totalSalesQuantity) : (Number(item.price) || 0); // Use item.price as fallback if no sales transactions
+//                     }
+
+//                     // Ensure all final values are numbers, defaulting to 0 if NaN
+//                     purchasePrice = Number(purchasePrice) || 0;
+//                     salesPrice = Number(salesPrice) || 0;
+
+//                     const openingStockFromEntries = item.stockEntries.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+//                     const openingStock = Number(openingStockFromEntries > 0 ? openingStockFromEntries : currentStock) || 0;
+//                     const openingStockValue = Number(purchasePrice * openingStock) || 0; // Ensure this is a number
+
+//                     sendEvent('log', {
+//                         message: `Item ${item.name} - ` +
+//                             `Stock from Entries: ${openingStockFromEntries}, ` +
+//                             `Purchases: ${totalPurchases}, ` +
+//                             `Sales: ${totalSales}, ` +
+//                             `Purchase Returns: ${totalPurchaseReturns}, ` +
+//                             `Sales Returns: ${totalSalesReturns}, ` +
+//                             `Adjustments: ${totalAdjustments},` +
+//                             `Calculated Purchase Price: ${purchasePrice} (from ${totalQuantityFromEntries > 0 ? 'stock entries' : 'transactions'})`
+//                     });
+
+//                     // Prepare fiscal year array
+//                     const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id)
+//                         ? item.fiscalYear
+//                         : [...item.fiscalYear, newFiscalYear._id];
+
+//                     // Prepare openingStockByFiscalYear array
+//                     const updatedOpeningStockByFiscalYear = item.openingStockByFiscalYear
+//                         .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
+//                         .concat([{
+//                             fiscalYear: newFiscalYear._id,
+//                             openingStock: openingStock,
+//                             openingStockValue: openingStockValue,
+//                             purchasePrice: purchasePrice,
+//                             salesPrice: salesPrice,
+//                         }]);
+
+//                     // Prepare closingStockByFiscalYear array
+//                     const updatedClosingStockByFiscalYear = item.closingStockByFiscalYear
+//                         .filter(f => !f.fiscalYear.equals(currentFiscalYear))
+//                         .concat([{
+//                             fiscalYear: currentFiscalYear,
+//                             closingStock: openingStock,
+//                             closingStockValue: openingStockValue,
+//                             purchasePrice: purchasePrice,
+//                             salesPrice: salesPrice,
+//                         }]);
+
+//                     // Update item using findOneAndUpdate to avoid version conflicts
+//                     await Item.findOneAndUpdate(
+//                         { _id: item._id },
+//                         {
+//                             $set: {
+//                                 fiscalYear: updatedFiscalYear,
+//                                 openingStockByFiscalYear: updatedOpeningStockByFiscalYear,
+//                                 closingStockByFiscalYear: updatedClosingStockByFiscalYear,
+//                                 stock: openingStock,
+//                                 openingStock: openingStock
+//                             }
+//                         },
+//                         { session, new: true }
+//                     );
+
+//                     sendEvent('log', { message: `Updated item: ${item.name} with new opening stock: ${openingStock} and value: ${openingStockValue}` });
+//                 } catch (saveError) {
+//                     console.error(`Error processing item ${item.name}:`, saveError);
+//                     throw saveError;
+//                 }
+//             });
+
+//             // STEP 2.5: CALCULATE TOTAL STOCK VALUE FROM STOCK ENTRIES AND UPDATE STOCK ACCOUNT
+//             sendEvent('log', { message: 'Calculating total stock value from stock entries...' });
+
+//             // Recalculate total stock value from ALL stock entries (quantity * puPrice)
+//             totalStockValue = 0;
+
+//             // Process each item to calculate stock value from stockEntries
+//             for (const item of items) {
+//                 let itemStockValue = 0;
+
+//                 // Calculate stock value from stockEntries (quantity * puPrice)
+//                 item.stockEntries.forEach(entry => {
+//                     const quantity = Number(entry.quantity) || 0;
+//                     const puPrice = Number(entry.puPrice) || 0;
+//                     const stockValue = quantity * puPrice;
+//                     itemStockValue += stockValue;
+//                 });
+
+//                 totalStockValue += itemStockValue;
+
+//                 sendEvent('log', {
+//                     message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}`
+//                 });
+//             }
+
+//             sendEvent('log', { message: `Total stock value from all items: ${totalStockValue.toFixed(2)}` });
+
+//             // Find the Stock in hand company group
+//             const stockGroup = await CompanyGroup.findOne({
+//                 name: 'Stock in hand',
+//                 company: companyId
+//             }).session(session);
+
+//             // Declare stockAccount variable at the proper scope
+//             let stockAccount = null;
+
+//             if (!stockGroup) {
+//                 sendEvent('log', { message: 'Warning: Stock in hand company group not found' });
+//             } else {
+//                 // Find the Stock account
+//                 stockAccount = await Account.findOne({
+//                     company: companyId,
+//                     companyGroups: stockGroup._id,
+//                     isActive: true
+//                 }).session(session);
+
+//                 if (!stockAccount) {
+//                     sendEvent('log', { message: 'Warning: Stock account not found under Stock in hand group' });
+//                 } else {
+//                     sendEvent('log', { message: `Found Stock account: ${stockAccount.name}, updating with total stock value: ${totalStockValue.toFixed(2)}` });
+
+//                     // Prepare fiscal year array
+//                     const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? stockAccount.fiscalYear
+//                         : [...stockAccount.fiscalYear, newFiscalYear._id];
+
+//                     // Prepare openingBalanceByFiscalYear array
+//                     const updatedOpeningBalanceByFiscalYear = stockAccount.openingBalanceByFiscalYear
+//                         .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
+//                         .concat([{
+//                             fiscalYear: newFiscalYear._id,
+//                             amount: totalStockValue,
+//                             type: 'Dr', // Stock is an asset, so debit balance
+//                             date: new Date()
+//                         }]);
+
+//                     // Prepare closingBalanceByFiscalYear array
+//                     const updatedClosingBalanceByFiscalYear = stockAccount.closingBalanceByFiscalYear
+//                         .filter(f => !f.fiscalYear.equals(currentFiscalYear))
+//                         .concat([{
+//                             fiscalYear: currentFiscalYear,
+//                             amount: totalStockValue,
+//                             type: 'Dr', // Stock is an asset, so debit balance
+//                             date: new Date()
+//                         }]);
+
+//                     // Update stock account using findOneAndUpdate to avoid version conflicts
+//                     await Account.findOneAndUpdate(
+//                         { _id: stockAccount._id },
+//                         {
+//                             $set: {
+//                                 fiscalYear: updatedFiscalYear,
+//                                 openingBalanceByFiscalYear: updatedOpeningBalanceByFiscalYear,
+//                                 closingBalanceByFiscalYear: updatedClosingBalanceByFiscalYear,
+//                                 openingBalance: {
+//                                     fiscalYear: newFiscalYear._id,
+//                                     amount: totalStockValue,
+//                                     type: 'Dr'
+//                                 }
+//                             }
+//                         },
+//                         { session, new: true }
+//                     );
+
+//                     sendEvent('log', { message: `Successfully updated Stock account with total stock value: ${totalStockValue.toFixed(2)}` });
+//                 }
+//             }
+
+//             sendEvent('progress', { value: 66 });
+
+//             // Step 3: Process accounts in batches
+//             sendEvent('log', { message: 'Updating accounts for new fiscal year...' });
+//             const accounts = await Account.find({
+//                 company: companyId,
+//                 fiscalYear: { $in: [currentFiscalYear] }
+//             }).session(session);
+
+//             // Define account groups that should have zero opening balance (except cash accounts)
+//             const zeroBalanceGroups = await CompanyGroup.find({
+//                 name: {
+//                     $in: ['Purchase', 'Sale', 'Fixed Assets',
+//                         'Reserves & Surplus',
+//                         'Secured Loans',
+//                         'Securities & Deposits',
+//                         'Stock in hand',      // Already handled above, skip in regular processing
+//                         'Unsecured Loans',
+//                         'Expenses (Direct/Mfg.)',
+//                         'Expenses (Indirect/Admn.)',
+//                         'Income (Direct/Opr.)',
+//                         'Income (Indirect)',
+//                         'Loans & Advances',
+//                         'Provisions/Expenses Payable',
+//                         'Current Assets',
+//                     ]
+//                 },
+//                 company: companyId
+//             }).select('_id').session(session);
+
+//             const zeroBalanceGroupIds = zeroBalanceGroups.map(g => g._id.toString()); // Convert to string for easier comparison
+
+//             // Get special account group IDs
+//             const [cashInHandGroup, sundryDebtorsGroup, sundryCreditorsGroup, profitLossGroup, capitalGroup] = await Promise.all([
+//                 CompanyGroup.findOne({ name: 'Cash in Hand', company: companyId }).select('_id').session(session),
+//                 CompanyGroup.findOne({ name: 'Sundry Debtors', company: companyId }).select('_id').session(session),
+//                 CompanyGroup.findOne({ name: 'Sundry Creditors', company: companyId }).select('_id').session(session),
+//                 CompanyGroup.findOne({ name: 'Profit & Loss', company: companyId }).select('_id').session(session),
+//                 CompanyGroup.findOne({ name: 'Capital Account', company: companyId }).select('_id').session(session)
+//             ]);
+
+//             const cashInHandGroupId = cashInHandGroup?._id.toString();
+//             const sundryDebtorsGroupId = sundryDebtorsGroup?._id.toString();
+//             const sundryCreditorsGroupId = sundryCreditorsGroup?._id.toString();
+//             const profitLossGroupId = profitLossGroup?._id.toString();
+//             const capitalGroupId = capitalGroup?._id.toString();
+
+//             // Find Profit & Loss account and Capital Account
+//             let profitLossAccount = null;
+//             let capitalAccount = null;
+
+//             if (profitLossGroupId) {
+//                 profitLossAccount = await Account.findOne({
+//                     company: companyId,
+//                     companyGroups: profitLossGroupId,
+//                     isActive: true
+//                 }).session(session);
+//             }
+
+//             if (capitalGroupId) {
+//                 capitalAccount = await Account.findOne({
+//                     company: companyId,
+//                     companyGroups: capitalGroupId,
+//                     isActive: true
+//                 }).session(session);
+//             }
+
+//             // Variables to track total debit and credit balances
+//             // IMPORTANT: Start with stock value in totalDebitBalance since stock is an asset (debit)
+//             let totalDebitBalance = totalStockValue;
+//             let totalCreditBalance = 0;
+
+//             sendEvent('log', {
+//                 message: `Starting Profit/Loss calculation with Stock value (debit): ${totalStockValue.toFixed(2)}`
+//             });
+
+//             const processAccountBatch = async (batch) => {
+//                 return Promise.all(batch.map(async (account) => {
+//                     try {
+//                         // Skip stock account as it's already processed (only if stockAccount exists)
+//                         if (stockAccount && account._id.equals(stockAccount._id)) {
+//                             sendEvent('log', { message: `Skipping Stock account ${account.name} as it was already processed and added to totalDebitBalance` });
+//                             return;
+//                         }
+
+//                         const accountCompanyGroupId = account.companyGroups ? account.companyGroups.toString() : null;
+
+//                         // Determine account type based on their company group
+//                         const isCashAccount = accountCompanyGroupId === cashInHandGroupId;
+//                         const isSundryAccount = accountCompanyGroupId === sundryDebtorsGroupId || accountCompanyGroupId === sundryCreditorsGroupId;
+//                         const isZeroBalanceAccount = zeroBalanceGroupIds.includes(accountCompanyGroupId);
+//                         const isProfitLossAccount = profitLossAccount && account._id.equals(profitLossAccount._id);
+//                         const isCapitalAccount = capitalAccount && account._id.equals(capitalAccount._id);
+
+//                         // Build transaction query
+//                         let transactionQuery = {
+//                             account: account._id,
+//                             company: companyId,
+//                             fiscalYear: currentFiscalYear,
+//                             type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt', 'BnkDep', 'BnkWtd'] }
+//                         };
+
+//                         // For Sundry Debtors/Creditors, filter out cash transactions from 'Sale'/'Purc' etc.
+//                         if (isSundryAccount) {
+//                             transactionQuery.$or = [
+//                                 { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: { $ne: 'cash' } },
+//                                 { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt'] } }
+//                             ];
+//                         } else if (isCashAccount) {
+//                             // For cash accounts, only consider transactions that involve cash
+//                             transactionQuery.$or = [
+//                                 { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: 'cash' },
+//                                 { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'BnkWtd', 'BnkDep'] } }
+//                             ];
+//                         }
+
+//                         // Get transactions for balance calculation
+//                         const transactions = await Transaction.find(transactionQuery).session(session);
+
+//                         // Calculate new opening balance - USING openingBalanceByFiscalYear
+//                         let newOpeningBalance;
+//                         if (isZeroBalanceAccount) {
+//                             newOpeningBalance = {
+//                                 amount: 0,
+//                                 type: 'Dr',
+//                                 fiscalYear: newFiscalYear._id
+//                             };
+//                             sendEvent('log', { message: `Resetting balance to zero for ${account.name} (Zero Balance Group)` });
+//                         } else if (isProfitLossAccount) {
+//                             // For Profit & Loss, we'll calculate the balance separately later
+//                             newOpeningBalance = {
+//                                 amount: 0,
+//                                 type: 'Dr',
+//                                 fiscalYear: newFiscalYear._id
+//                             };
+//                             sendEvent('log', { message: `Setting P&L account ${account.name} to zero initially` });
+//                         } else {
+//                             // Get opening balance from openingBalanceByFiscalYear for current fiscal year
+//                             const currentFiscalYearOpeningBalanceEntry = account.openingBalanceByFiscalYear?.find(
+//                                 f => f.fiscalYear.equals(currentFiscalYear)
+//                             );
+
+//                             let runningBalance = 0;
+//                             let startingBalanceType = 'Dr';
+
+//                             if (currentFiscalYearOpeningBalanceEntry) {
+//                                 runningBalance = Number(currentFiscalYearOpeningBalanceEntry.amount) || 0;
+//                                 startingBalanceType = currentFiscalYearOpeningBalanceEntry.type || 'Dr';
+//                                 if (startingBalanceType === 'Cr') {
+//                                     runningBalance = -runningBalance;
+//                                 }
+//                                 sendEvent('log', { message: `Using opening balance from openingBalanceByFiscalYear for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'}` });
+//                             } else {
+//                                 // Fallback to current openingBalance if no fiscal year entry found
+//                                 runningBalance = Number(account.openingBalance?.amount) || 0;
+//                                 startingBalanceType = account.openingBalance?.type || 'Dr';
+//                                 if (startingBalanceType === 'Cr') {
+//                                     runningBalance = -runningBalance;
+//                                 }
+//                                 sendEvent('log', { message: `Using current account.openingBalance for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'} (fallback)` });
+//                             }
+
+//                             // Process all transactions to calculate running balance
+//                             for (const transaction of transactions) {
+//                                 const debit = Number(transaction.debit) || 0;
+//                                 const credit = Number(transaction.credit) || 0;
+//                                 if (debit > 0) runningBalance += debit;
+//                                 if (credit > 0) runningBalance -= credit;
+//                             }
+
+//                             newOpeningBalance = {
+//                                 amount: Math.abs(runningBalance),
+//                                 type: runningBalance >= 0 ? 'Dr' : 'Cr',
+//                                 fiscalYear: newFiscalYear._id
+//                             };
+//                         }
+
+//                         // Track total balances for Profit & Loss calculation (skip P&L and Capital accounts for now)
+//                         if (!isProfitLossAccount && !isCapitalAccount) {
+//                             if (newOpeningBalance.type === 'Dr') {
+//                                 totalDebitBalance += newOpeningBalance.amount;
+//                             } else {
+//                                 totalCreditBalance += newOpeningBalance.amount;
+//                             }
+//                             sendEvent('log', {
+//                                 message: `Account ${account.name}: ${newOpeningBalance.amount} ${newOpeningBalance.type}. ` +
+//                                     `Total Debit: ${totalDebitBalance.toFixed(2)}, Total Credit: ${totalCreditBalance.toFixed(2)}`
+//                             });
+//                         }
+
+//                         // Prepare fiscal year array
+//                         const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id)
+//                             ? account.fiscalYear
+//                             : [...account.fiscalYear, newFiscalYear._id];
+
+//                         // Prepare openingBalanceByFiscalYear array
+//                         const updatedOpeningBalanceByFiscalYear = account.openingBalanceByFiscalYear
+//                             .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
+//                             .concat([{
+//                                 fiscalYear: newFiscalYear._id,
+//                                 amount: Number(newOpeningBalance.amount) || 0,
+//                                 type: newOpeningBalance.type,
+//                                 date: new Date()
+//                             }]);
+
+//                         // Prepare closingBalanceByFiscalYear array
+//                         const updatedClosingBalanceByFiscalYear = account.closingBalanceByFiscalYear
+//                             .filter(f => !f.fiscalYear.equals(currentFiscalYear))
+//                             .concat([{
+//                                 fiscalYear: currentFiscalYear,
+//                                 amount: Number(newOpeningBalance.amount) || 0,
+//                                 type: newOpeningBalance.type,
+//                                 date: new Date()
+//                             }]);
+
+//                         // Update account using findOneAndUpdate to avoid version conflicts
+//                         await Account.findOneAndUpdate(
+//                             { _id: account._id },
+//                             {
+//                                 $set: {
+//                                     fiscalYear: updatedFiscalYear,
+//                                     openingBalanceByFiscalYear: updatedOpeningBalanceByFiscalYear,
+//                                     closingBalanceByFiscalYear: updatedClosingBalanceByFiscalYear,
+//                                     openingBalance: {
+//                                         fiscalYear: newFiscalYear._id,
+//                                         amount: Number(newOpeningBalance.amount) || 0,
+//                                         type: newOpeningBalance.type
+//                                     }
+//                                 }
+//                             },
+//                             { session, new: true }
+//                         );
+
+//                         sendEvent('log', {
+//                             message: `Updated account: ${account.name} with new balance: ${newOpeningBalance.amount} ${newOpeningBalance.type}` +
+//                                 (isZeroBalanceAccount ? ' (reset to zero)' : '') +
+//                                 (isCashAccount ? ' (cash account)' : '') +
+//                                 (isSundryAccount ? ' (sundry account)' : '') +
+//                                 (isProfitLossAccount ? ' (P&L account)' : '') +
+//                                 (isCapitalAccount ? ' (capital account)' : '')
+//                         });
+//                     } catch (saveError) {
+//                         console.error(`Error processing account ${account.name}:`, saveError);
+//                         throw saveError;
+//                     }
+//                 }));
+//             };
+
+//             // Process accounts in batches of 50
+//             const BATCH_SIZE = 50;
+//             let accountsProcessed = 0;
+//             const totalAccounts = accounts.length;
+
+//             for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
+//                 const batch = accounts.slice(i, i + BATCH_SIZE);
+//                 await processAccountBatch(batch);
+//                 accountsProcessed += batch.length;
+
+//                 // Update progress
+//                 const progress = 66 + (accountsProcessed / totalAccounts * 34);
+//                 sendEvent('progress', { value: Math.min(progress, 100) });
+//             }
+
+//             sendEvent('log', { message: `Completed updating ${accountsProcessed} accounts` });
+
+//             // STEP 4: CALCULATE AND UPDATE PROFIT & LOSS ACCOUNT
+//             sendEvent('log', { message: 'Calculating Profit & Loss adjustment...' });
+
+//             // CORRECTED LOGIC:
+//             // In accounting, for Profit & Loss calculation:
+//             // Profit = Total Credits (Income) > Total Debits (Expenses)
+//             // But when looking at ALL accounts (assets + liabilities + equity + income + expenses):
+//             // For trial balance: Total Debits MUST equal Total Credits
+//             // The balancing figure is Profit/Loss
+//             // If Debits > Credits: We need Credit balance (Profit) to balance
+//             // If Credits > Debits: We need Debit balance (Loss) to balance
+
+//             // So the CORRECT calculation is:
+//             const netProfitLoss = Math.abs(totalCreditBalance - totalDebitBalance);
+//             const isProfit = totalDebitBalance > totalCreditBalance;  // Debits > Credits = Profit (Credit)
+//             const isLoss = totalCreditBalance > totalDebitBalance;    // Credits > Debits = Loss (Debit)
+
+//             sendEvent('log', {
+//                 message: `Final Totals including Stock value:
+//     Total Debit Balance (Assets + Expenses): ${totalDebitBalance.toFixed(2)}
+//     Total Credit Balance (Liabilities + Income): ${totalCreditBalance.toFixed(2)}
+//     Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}
+//     Balance Type: ${isProfit ? 'Cr' : 'Dr'}`
+//             });
+
+//             // Update Profit & Loss account with the net profit/loss
+//             if (profitLossAccount && netProfitLoss > 0) {
+//                 sendEvent('log', { message: `Updating Profit & Loss account with net ${isProfit ? 'profit' : 'loss'} amount: ${netProfitLoss.toFixed(2)}` });
+
+//                 // For P&L account:
+//                 // Profit = Credit balance (needed to balance when Debits > Credits)
+//                 // Loss = Debit balance (needed to balance when Credits > Debits)
+//                 const pnlBalanceType = isProfit ? 'Cr' : 'Dr';
+
+//                 // Prepare fiscal year array
+//                 const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id)
+//                     ? profitLossAccount.fiscalYear
+//                     : [...profitLossAccount.fiscalYear, newFiscalYear._id];
+
+//                 // Prepare openingBalanceByFiscalYear array (start new fiscal year with zero)
+//                 const updatedOpeningBalanceByFiscalYear = profitLossAccount.openingBalanceByFiscalYear
+//                     .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
+//                     .concat([{
+//                         fiscalYear: newFiscalYear._id,
+//                         amount: 0,
+//                         type: 'Dr',
+//                         date: new Date()
+//                     }]);
+
+//                 // Prepare closingBalanceByFiscalYear array (closing balance for current fiscal year)
+//                 const updatedClosingBalanceByFiscalYear = profitLossAccount.closingBalanceByFiscalYear
+//                     .filter(f => !f.fiscalYear.equals(currentFiscalYear))
+//                     .concat([{
+//                         fiscalYear: currentFiscalYear,
+//                         amount: netProfitLoss,
+//                         type: pnlBalanceType,
+//                         date: new Date()
+//                     }]);
+
+//                 // Update Profit & Loss account
+//                 await Account.findOneAndUpdate(
+//                     { _id: profitLossAccount._id },
+//                     {
+//                         $set: {
+//                             fiscalYear: updatedFiscalYear,
+//                             openingBalanceByFiscalYear: updatedOpeningBalanceByFiscalYear,
+//                             closingBalanceByFiscalYear: updatedClosingBalanceByFiscalYear,
+//                             openingBalance: {
+//                                 fiscalYear: newFiscalYear._id,
+//                                 amount: 0,
+//                                 type: 'Dr'
+//                             }
+//                         }
+//                     },
+//                     { session, new: true }
+//                 );
+
+//                 sendEvent('log', { message: `Successfully updated Profit & Loss account with net ${isProfit ? 'profit' : 'loss'} amount: ${netProfitLoss.toFixed(2)} ${pnlBalanceType}` });
+
+//                 // STEP 5: TRANSFER PROFIT/LOSS TO CAPITAL ACCOUNT
+//                 if (capitalAccount) {
+//                     sendEvent('log', { message: 'Transferring Profit/Loss to Capital Account...' });
+
+//                     // Get current capital balance from openingBalanceByFiscalYear
+//                     const currentCapitalBalanceEntry = capitalAccount.openingBalanceByFiscalYear?.find(
+//                         f => f.fiscalYear.equals(currentFiscalYear)
+//                     );
+
+//                     let capitalBalance = 0;
+//                     let capitalBalanceType = 'Cr'; // Capital is normally Credit balance
+
+//                     if (currentCapitalBalanceEntry) {
+//                         capitalBalance = Number(currentCapitalBalanceEntry.amount) || 0;
+//                         capitalBalanceType = currentCapitalBalanceEntry.type || 'Cr';
+//                     }
+
+//                     // Get capital account transactions for the year
+//                     const capitalTransactions = await Transaction.find({
+//                         account: capitalAccount._id,
+//                         company: companyId,
+//                         fiscalYear: currentFiscalYear,
+//                         type: { $in: ['Jrnl', 'DrNt', 'CrNt', 'Pymt', 'Rcpt'] }
+//                     }).session(session);
+
+//                     // Calculate net effect of transactions on capital
+//                     let capitalNetEffect = 0;
+//                     for (const transaction of capitalTransactions) {
+//                         const debit = Number(transaction.debit) || 0;
+//                         const credit = Number(transaction.credit) || 0;
+
+//                         // For capital account (which is a Credit account):
+//                         // Debit decreases capital (negative effect)
+//                         // Credit increases capital (positive effect)
+//                         capitalNetEffect += credit - debit;
+//                     }
+
+//                     // Calculate adjusted capital balance before profit/loss transfer
+//                     let adjustedCapitalBalance;
+//                     if (capitalBalanceType === 'Cr') {
+//                         adjustedCapitalBalance = capitalBalance + capitalNetEffect;
+//                     } else {
+//                         adjustedCapitalBalance = capitalBalance - capitalNetEffect;
+//                     }
+
+//                     // Now add/subtract profit/loss
+//                     // IMPORTANT: Capital is a CREDIT account
+//                     if (isProfit) {
+//                         // Profit INCREASES capital (add to credit balance)
+//                         adjustedCapitalBalance += netProfitLoss;
+//                     } else {
+//                         // Loss DECREASES capital (subtract from credit balance)
+//                         adjustedCapitalBalance -= netProfitLoss;
+//                     }
+
+//                     // Determine final capital balance type
+//                     // Capital should normally be Credit, but could become Debit if losses exceed capital
+//                     const finalCapitalBalance = Math.abs(adjustedCapitalBalance);
+//                     const finalCapitalType = adjustedCapitalBalance >= 0 ? 'Cr' : 'Dr';
+
+//                     sendEvent('log', {
+//                         message: `Capital Account Calculation:
+//             Starting Capital: ${capitalBalance.toFixed(2)} ${capitalBalanceType}
+//             Transaction Net Effect: ${capitalNetEffect.toFixed(2)}
+//             ${isProfit ? 'Profit added' : 'Loss deducted'}: ${netProfitLoss.toFixed(2)}
+//             Final Capital: ${finalCapitalBalance.toFixed(2)} ${finalCapitalType}`
+//                     });
+
+//                     // Update capital account with adjusted balance
+//                     const capitalUpdatedFiscalYear = capitalAccount.fiscalYear.includes(newFiscalYear._id)
+//                         ? capitalAccount.fiscalYear
+//                         : [...capitalAccount.fiscalYear, newFiscalYear._id];
+
+//                     const capitalUpdatedOpeningBalanceByFiscalYear = capitalAccount.openingBalanceByFiscalYear
+//                         .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
+//                         .concat([{
+//                             fiscalYear: newFiscalYear._id,
+//                             amount: finalCapitalBalance,
+//                             type: finalCapitalType,
+//                             date: new Date()
+//                         }]);
+
+//                     const capitalUpdatedClosingBalanceByFiscalYear = capitalAccount.closingBalanceByFiscalYear
+//                         .filter(f => !f.fiscalYear.equals(currentFiscalYear))
+//                         .concat([{
+//                             fiscalYear: currentFiscalYear,
+//                             amount: finalCapitalBalance,
+//                             type: finalCapitalType,
+//                             date: new Date()
+//                         }]);
+
+//                     await Account.findOneAndUpdate(
+//                         { _id: capitalAccount._id },
+//                         {
+//                             $set: {
+//                                 fiscalYear: capitalUpdatedFiscalYear,
+//                                 openingBalanceByFiscalYear: capitalUpdatedOpeningBalanceByFiscalYear,
+//                                 closingBalanceByFiscalYear: capitalUpdatedClosingBalanceByFiscalYear,
+//                                 openingBalance: {
+//                                     fiscalYear: newFiscalYear._id,
+//                                     amount: finalCapitalBalance,
+//                                     type: finalCapitalType
+//                                 }
+//                             }
+//                         },
+//                         { session, new: true }
+//                     );
+
+//                     sendEvent('log', {
+//                         message: `Updated Capital Account with new balance: ${finalCapitalBalance.toFixed(2)} ${finalCapitalType} ` +
+//                             `(includes ${isProfit ? 'profit' : 'loss'} transfer of ${netProfitLoss.toFixed(2)})`
+//                     });
+//                 } else {
+//                     sendEvent('log', { message: 'Warning: Capital Account not found, skipping profit/loss transfer' });
+//                 }
+//             } else if (!profitLossAccount) {
+//                 sendEvent('log', { message: 'Warning: Profit & Loss account not found, skipping P&L adjustment' });
+//             }
+
+//             // Initialize bill counters - Check for existing ones first
+//             sendEvent('log', { message: 'Initializing bill counters...' });
+//             const transactionTypes = [
+//                 'Sales', 'Purchase', 'SalesReturn', 'PurchaseReturn',
+//                 'Payment', 'Receipt', 'Journal', 'DebitNote', 'CreditNote', 'StockAdjustment', 'BankDeposit', 'BankWithdrawal'
+//             ];
+
+//             for (const transactionType of transactionTypes) {
+//                 const existingCounter = await BillCounter.findOne({
+//                     company: companyId,
+//                     fiscalYear: newFiscalYear._id,
+//                     transactionType
+//                 }).session(session);
+
+//                 if (!existingCounter) {
+//                     await BillCounter.create([{
+//                         company: companyId,
+//                         fiscalYear: newFiscalYear._id,
+//                         transactionType,
+//                         currentBillNumber: 0
+//                     }], { session });
+//                 }
+//             }
+
+//             // Update session
+//             req.session.currentFiscalYear = {
+//                 id: newFiscalYear._id.toString(),
+//                 startDate: newFiscalYear.startDate,
+//                 endDate: newFiscalYear.endDate,
+//                 name: newFiscalYear.name,
+//                 dateFormat: newFiscalYear.dateFormat,
+//                 isActive: true
+//             };
+
+//             // Mark transaction as committed
+//             transactionCommitted = true;
+
+//             sendEvent('progress', { value: 100 });
+//             sendEvent('complete', {
+//                 message: `Fiscal year ${fiscalYearName} created successfully!
+//                 Net ${isProfit ? 'Profit' : 'Loss'} for the year: ${netProfitLoss.toFixed(2)} ${isProfit ? 'Cr' : 'Dr'}
+//                 Current fiscal year set to ${fiscalYearName}.`
+//             });
+//         }, transactionOptions); // End of withTransaction
+
+//     } catch (err) {
+//         console.error('Error in fiscal year creation:', err);
+
+//         // Only abort if transaction wasn't committed
+//         await safeAbortTransaction();
+
+//         sendEvent('error', {
+//             message: `Failed to create fiscal year: ${err.message}`,
+//             details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+//         });
+//     } finally {
+//         try {
+//             if (session.inTransaction()) { // Ensure session is not left hanging if transaction failed without explicit abort
+//                 await safeAbortTransaction();
+//             }
+//             await session.endSession();
+//         } catch (sessionError) {
+//             console.error('Error ending session:', sessionError);
+//         }
+//         res.end(); // Always end the response
+//     }
+
+//     // Handle client disconnect
+//     req.on('close', async () => {
+//         // Ensure that if the client disconnects mid-transaction, it's aborted
+//         await safeAbortTransaction();
+//         try {
+//             await session.endSession();
+//         } catch (sessionError) {
+//             console.error('Error ending session on client close:', sessionError);
+//         }
+//     });
+// });
+
 router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType !== 'retailer') {
         res.write(`data: ${JSON.stringify({ type: 'error', message: 'Unauthorized access' })}\n\n`);
@@ -6053,983 +7044,513 @@ router.get('/change-fiscal-year-stream', ensureAuthenticated, ensureCompanySelec
         'Connection': 'keep-alive',
     });
 
-    // Function to send events
     const sendEvent = (type, data) => {
-        res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
-    };
-
-    const session = await mongoose.startSession();
-    let transactionCommitted = false;
-    let transactionAborted = false;
-
-    // Helper function to safely abort transaction
-    const safeAbortTransaction = async () => {
-        if (!transactionCommitted && !transactionAborted && session.inTransaction()) {
-            try {
-                await session.abortTransaction();
-                transactionAborted = true;
-            } catch (abortError) {
-                // Ignore errors when aborting already aborted transaction
-                if (!abortError.message.includes('abortTransaction twice')) {
-                    console.error('Error aborting transaction:', abortError);
-                }
-            }
+        try {
+            res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+        } catch (err) {
+            console.error('Error sending event:', err);
         }
     };
 
+    const companyId = req.session.currentCompany;
+    const currentFiscalYear = req.session.currentFiscalYear.id;
+    const userId = req.user.id;
+
+    // Check if fiscal year change is already in progress
+    const lockKey = `fiscal_year_lock_${companyId}`;
+    const isLocked = await getLock(lockKey);
+
+    if (isLocked) {
+        sendEvent('error', { message: 'Fiscal year change already in progress. Please wait.' });
+        return res.end();
+    }
+
+    // Set lock
+    await setLock(lockKey, true, 3600); // 1 hour timeout
+
     try {
-        // Start transaction with extended timeout and retry options
-        const transactionOptions = {
-            readConcern: { level: 'snapshot' },
-            writeConcern: { w: 'majority' },
-            maxTimeMS: 600000, // 10 minute timeout
-            retryWrites: true
-        };
+        // Get parameters
+        const { startDateEnglish, endDateEnglish, startDateNepali, endDateNepali, dateFormat } = req.query;
 
-        await session.withTransaction(async () => {
-            const companyId = req.session.currentCompany;
-            const currentFiscalYear = req.session.currentFiscalYear.id;
+        let startDate, endDate;
+        if (dateFormat === 'nepali') {
+            startDate = startDateNepali;
+            endDate = endDateNepali;
+        } else {
+            startDate = startDateEnglish;
+            endDate = endDateEnglish;
+        }
 
-            // Get parameters from query string
-            const { startDateEnglish, endDateEnglish, startDateNepali, endDateNepali, dateFormat } = req.query;
+        if (!endDate) {
+            endDate = new Date(startDate);
+            endDate.setFullYear(endDate.getFullYear() + 1);
+            endDate.setDate(endDate.getDate() - 1);
+        }
 
-            let startDate, endDate;
-            if (dateFormat === 'nepali') {
-                startDate = startDateNepali;
-                endDate = endDateNepali;
-            } else if (dateFormat === 'english') {
-                startDate = startDateEnglish;
-                endDate = endDateEnglish;
-            } else {
-                sendEvent('error', { message: 'Invalid date format' });
-                throw new Error('Invalid date format');
-            }
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        const fiscalYearName = `${startDateObj.getFullYear()}/${endDateObj.getFullYear().toString().slice(-2)}`;
 
-            if (!endDate) {
-                // If endDate is not provided, calculate it as one year minus one day from startDate
-                endDate = new Date(startDate);
-                endDate.setFullYear(endDate.getFullYear() + 1);
-                endDate.setDate(endDate.getDate() - 1);
-            }
+        // Step 1: Create fiscal year (atomic operation)
+        sendEvent('log', { message: `Creating new fiscal year ${fiscalYearName}...` });
+        sendEvent('progress', { value: 5 });
 
-            const startDateObject = new Date(startDate);
-            const endDateObject = new Date(endDate);
-            const startYear = startDateObject.getFullYear();
-            const endYear = endDateObject.getFullYear();
-            const fiscalYearName = `${startYear}/${endYear.toString().slice(-2)}`;
+        const existingFiscalYear = await FiscalYear.findOne({
+            name: fiscalYearName,
+            company: companyId
+        });
 
-            // Step 1: Create fiscal year
-            sendEvent('log', { message: `Creating new fiscal year ${fiscalYearName}...` });
-            sendEvent('progress', { value: 10 });
+        if (existingFiscalYear) {
+            throw new Error(`Fiscal year ${fiscalYearName} already exists`);
+        }
 
-            const existingFiscalYear = await FiscalYear.findOne({
-                name: fiscalYearName,
-                company: companyId
-            }).session(session);
+        const newFiscalYear = new FiscalYear({
+            name: fiscalYearName,
+            startDate: startDateObj,
+            endDate: endDateObj,
+            dateFormat,
+            company: companyId,
+            createdBy: userId
+        });
 
-            if (existingFiscalYear) {
-                sendEvent('error', { message: `Fiscal Year ${fiscalYearName} already exists.` });
-                throw new Error('Fiscal year already exists');
-            }
+        await newFiscalYear.save();
 
-            // Process in batches to avoid transaction timeouts
-            const processInBatches = async (items, processFn, batchSize = 50) => {
-                for (let i = 0; i < items.length; i += batchSize) {
-                    const batch = items.slice(i, i + batchSize);
-                    await Promise.all(batch.map(item => processFn(item)));
+        sendEvent('log', { message: `Created fiscal year: ${fiscalYearName}` });
+        sendEvent('progress', { value: 10 });
 
-                    // Send progress updates
-                    const progress = 33 + (i / items.length * 33);
-                    sendEvent('progress', { value: Math.min(progress, 66) });
-                }
-            };
+        // Step 2: Clone settings
+        sendEvent('log', { message: 'Cloning settings...' });
 
-            const newFiscalYear = (await FiscalYear.create([{
-                name: fiscalYearName,
-                startDate: startDateObject,
-                endDate: endDateObject,
-                dateFormat,
-                company: companyId
-            }], { session }))[0];
+        const currentSettings = await Settings.findOne({
+            company: companyId,
+            fiscalYear: currentFiscalYear,
+            userId
+        });
 
-            sendEvent('log', { message: `Created new fiscal year: ${fiscalYearName}` });
-            sendEvent('progress', { value: 33 });
+        if (currentSettings) {
+            const newSettings = currentSettings.toObject();
+            delete newSettings._id;
+            newSettings.fiscalYear = newFiscalYear._id;
+            newSettings.createdAt = new Date();
+            newSettings.updatedAt = new Date();
 
-            // Step 1.5: Clone settings to new fiscal year - FIXED DUPLICATE KEY ISSUE
-            sendEvent('log', { message: 'Cloning settings to new fiscal year...' });
-
-            // Check if settings already exist for this user and company in new fiscal year
-            const existingSettings = await Settings.findOne({
+            await Settings.create(newSettings);
+        } else {
+            await Settings.create({
                 company: companyId,
-                fiscalYear: newFiscalYear._id,
-                userId: req.user.id
-            }).session(session);
+                userId,
+                fiscalYear: newFiscalYear._id
+            });
+        }
 
-            if (existingSettings) {
-                sendEvent('log', { message: 'Settings already exist for new fiscal year, skipping creation' });
-            } else {
-                const currentSettings = await Settings.findOne({
-                    company: companyId,
-                    fiscalYear: currentFiscalYear,
-                    userId: req.user.id
-                }).session(session);
+        sendEvent('log', { message: 'Settings cloned' });
+        sendEvent('progress', { value: 15 });
 
-                if (currentSettings) {
-                    // Create new settings with unique _id and proper fiscal year reference
-                    const newSettingsData = {
-                        ...currentSettings.toObject(),
-                        _id: new mongoose.Types.ObjectId(), // Generate new unique ID
-                        fiscalYear: newFiscalYear._id,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    };
-                    // Remove any existing _id to ensure new one is used
-                    delete newSettingsData._id;
+        // Step 3: Process items in batches with checkpoint
+        sendEvent('log', { message: 'Processing items...' });
 
-                    await Settings.create([newSettingsData], { session });
-                    sendEvent('log', { message: 'Settings cloned successfully' });
-                } else {
-                    // Create default settings
-                    await Settings.create([{
-                        company: companyId,
-                        userId: req.user.id,
-                        fiscalYear: newFiscalYear._id,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    }], { session });
-                    sendEvent('log', { message: 'Created default settings for new fiscal year' });
-                }
-            }
+        const items = await Item.find({
+            company: companyId,
+            fiscalYear: currentFiscalYear
+        }).lean();
 
-            // Step 2: Process items in batches
-            sendEvent('log', { message: 'Creating items for new fiscal year...' });
-            const items = await Item.find({
-                company: companyId,
-                fiscalYear: { $in: [currentFiscalYear] }
-            }).session(session);
+        const totalItems = items.length;
+        let processedItems = 0;
+        let totalStockValue = 0;
 
-            // Store total stock value for stock account update
-            let totalStockValue = 0;
+        // Process in batches of 10
+        const BATCH_SIZE = 10;
 
-            await processInBatches(items, async (item) => {
+        for (let i = 0; i < items.length; i += BATCH_SIZE) {
+            const batch = items.slice(i, i + BATCH_SIZE);
+
+            // Process batch in parallel but with Promise.allSettled for resilience
+            const results = await Promise.allSettled(batch.map(async (item) => {
                 try {
-                    // Get ALL transactions that affect stock for this item
+                    // Get stock transactions
                     const stockTransactions = await Transaction.find({
                         item: item._id,
                         company: companyId,
                         fiscalYear: currentFiscalYear,
                         type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'StockAdjustment'] }
-                    }).sort({ date: 1 }).session(session);
+                    }).sort({ date: 1 }).lean();
 
-                    // Calculate current stock by processing all transactions
-                    let currentStock = Number(item.openingStockByFiscalYear?.find(f => f.fiscalYear.equals(currentFiscalYear))?.openingStock) || 0;
-                    let totalPurchases = 0;
-                    let totalSales = 0;
-                    let totalPurchaseReturns = 0;
-                    let totalSalesReturns = 0;
-                    let totalAdjustments = 0;
+                    // Calculate stock movement
+                    let currentStock = Number(item.openingStockByFiscalYear?.find(
+                        f => f.fiscalYear.toString() === currentFiscalYear.toString()
+                    )?.openingStock) || 0;
 
-                    for (const transaction of stockTransactions) {
-                        const quantity = Number(transaction.quantity) || 0;
-                        const adjustmentQuantity = Number(transaction.adjustmentQuantity) || 0;
+                    for (const trans of stockTransactions) {
+                        const qty = Number(trans.quantity) || 0;
+                        const adjQty = Number(trans.adjustmentQuantity) || 0;
 
-                        switch (transaction.type) {
-                            case 'Purc': // Purchase
-                                currentStock += quantity;
-                                totalPurchases += quantity;
-                                break;
-                            case 'Sale': // Sale
-                                currentStock -= quantity;
-                                totalSales += quantity;
-                                break;
-                            case 'PrRt': // Purchase Return
-                                currentStock -= quantity;
-                                totalPurchaseReturns += quantity;
-                                break;
-                            case 'SlRt': // Sales Return
-                                currentStock += quantity;
-                                totalSalesReturns += quantity;
-                                break;
-                            case 'StockAdjustment': // Stock Adjustment
-                                currentStock += adjustmentQuantity;
-                                totalAdjustments += adjustmentQuantity;
-                                break;
+                        switch (trans.type) {
+                            case 'Purc': currentStock += qty; break;
+                            case 'Sale': currentStock -= qty; break;
+                            case 'PrRt': currentStock -= qty; break;
+                            case 'SlRt': currentStock += qty; break;
+                            case 'StockAdjustment': currentStock += adjQty; break;
                         }
                     }
 
-                    // Calculate weighted average purchase price from stockEntries
-                    let totalQuantityFromEntries = 0;
-                    let totalPriceFromEntries = 0;
-                    let totalSalesPriceFromEntries = 0;
+                    // Calculate average purchase price
+                    let totalQty = 0, totalPrice = 0, totalSalesPrice = 0;
 
-                    for (const entry of item.stockEntries) {
+                    for (const entry of item.stockEntries || []) {
+                        const entryQty = Number(entry.quantity) || 0;
                         const entryPuPrice = Number(entry.puPrice) || 0;
-                        const entryQuantity = Number(entry.quantity) || 0;
                         const entryPrice = Number(entry.price) || 0;
 
-                        if (entryPuPrice > 0 && entryQuantity > 0) {
-                            totalQuantityFromEntries += entryQuantity;
-                            totalPriceFromEntries += entryQuantity * entryPuPrice;
-                            totalSalesPriceFromEntries += entryQuantity * entryPrice;
+                        if (entryQty > 0 && entryPuPrice > 0) {
+                            totalQty += entryQty;
+                            totalPrice += entryQty * entryPuPrice;
+                            totalSalesPrice += entryQty * entryPrice;
                         }
                     }
 
-                    let purchasePrice = 0;
-                    let salesPrice = 0;
+                    const purchasePrice = totalQty > 0 ? totalPrice / totalQty : 0;
+                    const salesPrice = totalQty > 0 ? totalSalesPrice / totalQty : 0;
 
-                    if (totalQuantityFromEntries > 0) {
-                        purchasePrice = totalPriceFromEntries / totalQuantityFromEntries;
-                        salesPrice = totalSalesPriceFromEntries / totalQuantityFromEntries;
-                    } else {
-                        // Fallback to transaction-based calculation if no valid stock entries
-                        const purchases = await Transaction.find({
-                            item: item._id,
-                            company: companyId,
-                            type: 'Purc',
-                            fiscalYear: currentFiscalYear
-                        }).session(session);
-
-                        let totalQuantity = 0;
-                        let totalPrice = 0;
-                        for (let purchase of purchases) {
-                            const purchaseQuantity = Number(purchase.quantity) || 0;
-                            const purchasePuPrice = Number(purchase.puPrice) || 0;
-                            if (purchaseQuantity > 0 && purchasePuPrice > 0) {
-                                totalQuantity += purchaseQuantity;
-                                totalPrice += purchaseQuantity * purchasePuPrice;
-                            }
-                        }
-
-                        // Ensure item.puPrice is also a number for fallback
-                        purchasePrice = totalQuantity > 0 ? (totalPrice / totalQuantity) : (Number(item.puPrice) || 0);
-
-                        const salesTransactions = await Transaction.find({
-                            item: item._id,
-                            company: companyId,
-                            type: 'Sale',
-                            fiscalYear: currentFiscalYear
-                        }).session(session);
-
-                        let totalSalesQuantity = 0;
-                        let totalSalesPrice = 0;
-                        for (let sale of salesTransactions) {
-                            const saleSalesPrice = Number(sale.salesPrice) || 0;
-                            const saleQuantity = Number(sale.quantity) || 0;
-                            if (saleSalesPrice > 0 && saleQuantity > 0) {
-                                totalSalesQuantity += saleQuantity;
-                                totalSalesPrice += saleQuantity * saleSalesPrice;
-                            }
-                        }
-                        salesPrice = totalSalesQuantity > 0 ? (totalSalesPrice / totalSalesQuantity) : (Number(item.price) || 0); // Use item.price as fallback if no sales transactions
-                    }
-
-                    // Ensure all final values are numbers, defaulting to 0 if NaN
-                    purchasePrice = Number(purchasePrice) || 0;
-                    salesPrice = Number(salesPrice) || 0;
-
-                    const openingStockFromEntries = item.stockEntries.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
-                    const openingStock = Number(openingStockFromEntries > 0 ? openingStockFromEntries : currentStock) || 0;
-                    const openingStockValue = Number(purchasePrice * openingStock) || 0; // Ensure this is a number
-
-                    sendEvent('log', {
-                        message: `Item ${item.name} - ` +
-                            `Stock from Entries: ${openingStockFromEntries}, ` +
-                            `Purchases: ${totalPurchases}, ` +
-                            `Sales: ${totalSales}, ` +
-                            `Purchase Returns: ${totalPurchaseReturns}, ` +
-                            `Sales Returns: ${totalSalesReturns}, ` +
-                            `Adjustments: ${totalAdjustments},` +
-                            `Calculated Purchase Price: ${purchasePrice} (from ${totalQuantityFromEntries > 0 ? 'stock entries' : 'transactions'})`
-                    });
-
-                    // Prepare fiscal year array
-                    const updatedFiscalYear = item.fiscalYear.includes(newFiscalYear._id)
-                        ? item.fiscalYear
-                        : [...item.fiscalYear, newFiscalYear._id];
-
-                    // Prepare openingStockByFiscalYear array
-                    const updatedOpeningStockByFiscalYear = item.openingStockByFiscalYear
-                        .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
-                        .concat([{
-                            fiscalYear: newFiscalYear._id,
-                            openingStock: openingStock,
-                            openingStockValue: openingStockValue,
-                            purchasePrice: purchasePrice,
-                            salesPrice: salesPrice,
-                        }]);
-
-                    // Prepare closingStockByFiscalYear array
-                    const updatedClosingStockByFiscalYear = item.closingStockByFiscalYear
-                        .filter(f => !f.fiscalYear.equals(currentFiscalYear))
-                        .concat([{
-                            fiscalYear: currentFiscalYear,
-                            closingStock: openingStock,
-                            closingStockValue: openingStockValue,
-                            purchasePrice: purchasePrice,
-                            salesPrice: salesPrice,
-                        }]);
-
-                    // Update item using findOneAndUpdate to avoid version conflicts
-                    await Item.findOneAndUpdate(
-                        { _id: item._id },
-                        {
-                            $set: {
-                                fiscalYear: updatedFiscalYear,
-                                openingStockByFiscalYear: updatedOpeningStockByFiscalYear,
-                                closingStockByFiscalYear: updatedClosingStockByFiscalYear,
-                                stock: openingStock,
-                                openingStock: openingStock
-                            }
-                        },
-                        { session, new: true }
+                    const openingStockFromEntries = (item.stockEntries || []).reduce(
+                        (sum, entry) => sum + (Number(entry.quantity) || 0), 0
                     );
 
-                    sendEvent('log', { message: `Updated item: ${item.name} with new opening stock: ${openingStock} and value: ${openingStockValue}` });
-                } catch (saveError) {
-                    console.error(`Error processing item ${item.name}:`, saveError);
-                    throw saveError;
+                    const openingStock = openingStockFromEntries > 0 ? openingStockFromEntries : currentStock;
+                    const openingStockValue = purchasePrice * openingStock;
+
+                    // Update item
+                    await Item.updateOne(
+                        { _id: item._id },
+                        {
+                            $addToSet: { fiscalYear: newFiscalYear._id },
+                            $push: {
+                                openingStockByFiscalYear: {
+                                    fiscalYear: newFiscalYear._id,
+                                    openingStock,
+                                    openingStockValue,
+                                    purchasePrice,
+                                    salesPrice
+                                },
+                                closingStockByFiscalYear: {
+                                    fiscalYear: currentFiscalYear,
+                                    closingStock: openingStock,
+                                    closingStockValue: openingStockValue,
+                                    purchasePrice,
+                                    salesPrice
+                                }
+                            },
+                            $set: {
+                                stock: openingStock,
+                                openingStock
+                            }
+                        }
+                    );
+
+                    return { success: true, itemId: item._id, stockValue: openingStockValue };
+                } catch (error) {
+                    return { success: false, itemId: item._id, error: error.message };
                 }
-            });
+            }));
 
-            // STEP 2.5: CALCULATE TOTAL STOCK VALUE FROM STOCK ENTRIES AND UPDATE STOCK ACCOUNT
-            sendEvent('log', { message: 'Calculating total stock value from stock entries...' });
-
-            // Recalculate total stock value from ALL stock entries (quantity * puPrice)
-            totalStockValue = 0;
-
-            // Process each item to calculate stock value from stockEntries
-            for (const item of items) {
-                let itemStockValue = 0;
-
-                // Calculate stock value from stockEntries (quantity * puPrice)
-                item.stockEntries.forEach(entry => {
-                    const quantity = Number(entry.quantity) || 0;
-                    const puPrice = Number(entry.puPrice) || 0;
-                    const stockValue = quantity * puPrice;
-                    itemStockValue += stockValue;
-                });
-
-                totalStockValue += itemStockValue;
-
-                sendEvent('log', {
-                    message: `Item ${item.name}: ${item.stockEntries.length} stock entries, Stock Value: ${itemStockValue.toFixed(2)}`
-                });
+            // Process results
+            for (const result of results) {
+                if (result.status === 'fulfilled' && result.value.success) {
+                    totalStockValue += result.value.stockValue;
+                    processedItems++;
+                } else if (result.status === 'fulfilled' && !result.value.success) {
+                    console.error(`Failed to process item ${result.value.itemId}:`, result.value.error);
+                    sendEvent('log', { message: `Warning: Item ${result.value.itemId} failed, continuing...` });
+                } else if (result.status === 'rejected') {
+                    console.error('Batch item rejected:', result.reason);
+                }
             }
 
-            sendEvent('log', { message: `Total stock value from all items: ${totalStockValue.toFixed(2)}` });
+            // Update progress
+            const progress = 15 + (processedItems / totalItems * 50);
+            sendEvent('progress', { value: Math.min(progress, 65) });
 
-            // Find the Stock in hand company group
-            const stockGroup = await CompanyGroup.findOne({
-                name: 'Stock in hand',
-                company: companyId
-            }).session(session);
+            // Small delay to prevent overwhelming the database
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
 
-            // Declare stockAccount variable at the proper scope
-            let stockAccount = null;
+        sendEvent('log', { message: `Processed ${processedItems}/${totalItems} items` });
+        sendEvent('log', { message: `Total stock value: ${totalStockValue.toFixed(2)}` });
+        sendEvent('progress', { value: 65 });
 
-            if (!stockGroup) {
-                sendEvent('log', { message: 'Warning: Stock in hand company group not found' });
-            } else {
-                // Find the Stock account
-                stockAccount = await Account.findOne({
+        // Step 4: Update stock account
+        sendEvent('log', { message: 'Updating stock account...' });
+
+        const stockGroup = await CompanyGroup.findOne({
+            name: 'Stock in hand',
+            company: companyId
+        });
+
+        if (stockGroup) {
+            await Account.updateOne(
+                {
                     company: companyId,
                     companyGroups: stockGroup._id,
                     isActive: true
-                }).session(session);
-
-                if (!stockAccount) {
-                    sendEvent('log', { message: 'Warning: Stock account not found under Stock in hand group' });
-                } else {
-                    sendEvent('log', { message: `Found Stock account: ${stockAccount.name}, updating with total stock value: ${totalStockValue.toFixed(2)}` });
-
-                    // Prepare fiscal year array
-                    const updatedFiscalYear = stockAccount.fiscalYear.includes(newFiscalYear._id)
-                        ? stockAccount.fiscalYear
-                        : [...stockAccount.fiscalYear, newFiscalYear._id];
-
-                    // Prepare openingBalanceByFiscalYear array
-                    const updatedOpeningBalanceByFiscalYear = stockAccount.openingBalanceByFiscalYear
-                        .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
-                        .concat([{
+                },
+                {
+                    $addToSet: { fiscalYear: newFiscalYear._id },
+                    $push: {
+                        openingBalanceByFiscalYear: {
                             fiscalYear: newFiscalYear._id,
                             amount: totalStockValue,
-                            type: 'Dr', // Stock is an asset, so debit balance
+                            type: 'Dr',
                             date: new Date()
-                        }]);
-
-                    // Prepare closingBalanceByFiscalYear array
-                    const updatedClosingBalanceByFiscalYear = stockAccount.closingBalanceByFiscalYear
-                        .filter(f => !f.fiscalYear.equals(currentFiscalYear))
-                        .concat([{
+                        },
+                        closingBalanceByFiscalYear: {
                             fiscalYear: currentFiscalYear,
                             amount: totalStockValue,
-                            type: 'Dr', // Stock is an asset, so debit balance
+                            type: 'Dr',
                             date: new Date()
-                        }]);
-
-                    // Update stock account using findOneAndUpdate to avoid version conflicts
-                    await Account.findOneAndUpdate(
-                        { _id: stockAccount._id },
-                        {
-                            $set: {
-                                fiscalYear: updatedFiscalYear,
-                                openingBalanceByFiscalYear: updatedOpeningBalanceByFiscalYear,
-                                closingBalanceByFiscalYear: updatedClosingBalanceByFiscalYear,
-                                openingBalance: {
-                                    fiscalYear: newFiscalYear._id,
-                                    amount: totalStockValue,
-                                    type: 'Dr'
-                                }
-                            }
-                        },
-                        { session, new: true }
-                    );
-
-                    sendEvent('log', { message: `Successfully updated Stock account with total stock value: ${totalStockValue.toFixed(2)}` });
-                }
-            }
-
-            sendEvent('progress', { value: 66 });
-
-            // Step 3: Process accounts in batches
-            sendEvent('log', { message: 'Updating accounts for new fiscal year...' });
-            const accounts = await Account.find({
-                company: companyId,
-                fiscalYear: { $in: [currentFiscalYear] }
-            }).session(session);
-
-            // Define account groups that should have zero opening balance (except cash accounts)
-            const zeroBalanceGroups = await CompanyGroup.find({
-                name: {
-                    $in: ['Purchase', 'Sale', 'Fixed Assets',
-                        'Reserves & Surplus',
-                        'Secured Loans',
-                        'Securities & Deposits',
-                        'Stock in hand',      // Already handled above, skip in regular processing
-                        'Unsecured Loans',
-                        'Expenses (Direct/Mfg.)',
-                        'Expenses (Indirect/Admn.)',
-                        'Income (Direct/Opr.)',
-                        'Income (Indirect)',
-                        'Loans & Advances',
-                        'Provisions/Expenses Payable',
-                        'Current Assets',
-                    ]
-                },
-                company: companyId
-            }).select('_id').session(session);
-
-            const zeroBalanceGroupIds = zeroBalanceGroups.map(g => g._id.toString()); // Convert to string for easier comparison
-
-            // Get special account group IDs
-            const [cashInHandGroup, sundryDebtorsGroup, sundryCreditorsGroup, profitLossGroup, capitalGroup] = await Promise.all([
-                CompanyGroup.findOne({ name: 'Cash in Hand', company: companyId }).select('_id').session(session),
-                CompanyGroup.findOne({ name: 'Sundry Debtors', company: companyId }).select('_id').session(session),
-                CompanyGroup.findOne({ name: 'Sundry Creditors', company: companyId }).select('_id').session(session),
-                CompanyGroup.findOne({ name: 'Profit & Loss', company: companyId }).select('_id').session(session),
-                CompanyGroup.findOne({ name: 'Capital Account', company: companyId }).select('_id').session(session)
-            ]);
-
-            const cashInHandGroupId = cashInHandGroup?._id.toString();
-            const sundryDebtorsGroupId = sundryDebtorsGroup?._id.toString();
-            const sundryCreditorsGroupId = sundryCreditorsGroup?._id.toString();
-            const profitLossGroupId = profitLossGroup?._id.toString();
-            const capitalGroupId = capitalGroup?._id.toString();
-
-            // Find Profit & Loss account and Capital Account
-            let profitLossAccount = null;
-            let capitalAccount = null;
-
-            if (profitLossGroupId) {
-                profitLossAccount = await Account.findOne({
-                    company: companyId,
-                    companyGroups: profitLossGroupId,
-                    isActive: true
-                }).session(session);
-            }
-
-            if (capitalGroupId) {
-                capitalAccount = await Account.findOne({
-                    company: companyId,
-                    companyGroups: capitalGroupId,
-                    isActive: true
-                }).session(session);
-            }
-
-            // Variables to track total debit and credit balances
-            // IMPORTANT: Start with stock value in totalDebitBalance since stock is an asset (debit)
-            let totalDebitBalance = totalStockValue;
-            let totalCreditBalance = 0;
-
-            sendEvent('log', {
-                message: `Starting Profit/Loss calculation with Stock value (debit): ${totalStockValue.toFixed(2)}`
-            });
-
-            const processAccountBatch = async (batch) => {
-                return Promise.all(batch.map(async (account) => {
-                    try {
-                        // Skip stock account as it's already processed (only if stockAccount exists)
-                        if (stockAccount && account._id.equals(stockAccount._id)) {
-                            sendEvent('log', { message: `Skipping Stock account ${account.name} as it was already processed and added to totalDebitBalance` });
-                            return;
-                        }
-
-                        const accountCompanyGroupId = account.companyGroups ? account.companyGroups.toString() : null;
-
-                        // Determine account type based on their company group
-                        const isCashAccount = accountCompanyGroupId === cashInHandGroupId;
-                        const isSundryAccount = accountCompanyGroupId === sundryDebtorsGroupId || accountCompanyGroupId === sundryCreditorsGroupId;
-                        const isZeroBalanceAccount = zeroBalanceGroupIds.includes(accountCompanyGroupId);
-                        const isProfitLossAccount = profitLossAccount && account._id.equals(profitLossAccount._id);
-                        const isCapitalAccount = capitalAccount && account._id.equals(capitalAccount._id);
-
-                        // Build transaction query
-                        let transactionQuery = {
-                            account: account._id,
-                            company: companyId,
-                            fiscalYear: currentFiscalYear,
-                            type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt', 'BnkDep', 'BnkWtd'] }
-                        };
-
-                        // For Sundry Debtors/Creditors, filter out cash transactions from 'Sale'/'Purc' etc.
-                        if (isSundryAccount) {
-                            transactionQuery.$or = [
-                                { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: { $ne: 'cash' } },
-                                { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'DrNt', 'CrNt'] } }
-                            ];
-                        } else if (isCashAccount) {
-                            // For cash accounts, only consider transactions that involve cash
-                            transactionQuery.$or = [
-                                { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: 'cash' },
-                                { type: { $in: ['Pymt', 'Rcpt', 'Jrnl', 'BnkWtd', 'BnkDep'] } }
-                            ];
-                        }
-
-                        // Get transactions for balance calculation
-                        const transactions = await Transaction.find(transactionQuery).session(session);
-
-                        // Calculate new opening balance - USING openingBalanceByFiscalYear
-                        let newOpeningBalance;
-                        if (isZeroBalanceAccount) {
-                            newOpeningBalance = {
-                                amount: 0,
-                                type: 'Dr',
-                                fiscalYear: newFiscalYear._id
-                            };
-                            sendEvent('log', { message: `Resetting balance to zero for ${account.name} (Zero Balance Group)` });
-                        } else if (isProfitLossAccount) {
-                            // For Profit & Loss, we'll calculate the balance separately later
-                            newOpeningBalance = {
-                                amount: 0,
-                                type: 'Dr',
-                                fiscalYear: newFiscalYear._id
-                            };
-                            sendEvent('log', { message: `Setting P&L account ${account.name} to zero initially` });
-                        } else {
-                            // Get opening balance from openingBalanceByFiscalYear for current fiscal year
-                            const currentFiscalYearOpeningBalanceEntry = account.openingBalanceByFiscalYear?.find(
-                                f => f.fiscalYear.equals(currentFiscalYear)
-                            );
-
-                            let runningBalance = 0;
-                            let startingBalanceType = 'Dr';
-
-                            if (currentFiscalYearOpeningBalanceEntry) {
-                                runningBalance = Number(currentFiscalYearOpeningBalanceEntry.amount) || 0;
-                                startingBalanceType = currentFiscalYearOpeningBalanceEntry.type || 'Dr';
-                                if (startingBalanceType === 'Cr') {
-                                    runningBalance = -runningBalance;
-                                }
-                                sendEvent('log', { message: `Using opening balance from openingBalanceByFiscalYear for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'}` });
-                            } else {
-                                // Fallback to current openingBalance if no fiscal year entry found
-                                runningBalance = Number(account.openingBalance?.amount) || 0;
-                                startingBalanceType = account.openingBalance?.type || 'Dr';
-                                if (startingBalanceType === 'Cr') {
-                                    runningBalance = -runningBalance;
-                                }
-                                sendEvent('log', { message: `Using current account.openingBalance for ${account.name}: ${runningBalance >= 0 ? runningBalance : -runningBalance} ${runningBalance >= 0 ? 'Dr' : 'Cr'} (fallback)` });
-                            }
-
-                            // Process all transactions to calculate running balance
-                            for (const transaction of transactions) {
-                                const debit = Number(transaction.debit) || 0;
-                                const credit = Number(transaction.credit) || 0;
-                                if (debit > 0) runningBalance += debit;
-                                if (credit > 0) runningBalance -= credit;
-                            }
-
-                            newOpeningBalance = {
-                                amount: Math.abs(runningBalance),
-                                type: runningBalance >= 0 ? 'Dr' : 'Cr',
-                                fiscalYear: newFiscalYear._id
-                            };
-                        }
-
-                        // Track total balances for Profit & Loss calculation (skip P&L and Capital accounts for now)
-                        if (!isProfitLossAccount && !isCapitalAccount) {
-                            if (newOpeningBalance.type === 'Dr') {
-                                totalDebitBalance += newOpeningBalance.amount;
-                            } else {
-                                totalCreditBalance += newOpeningBalance.amount;
-                            }
-                            sendEvent('log', {
-                                message: `Account ${account.name}: ${newOpeningBalance.amount} ${newOpeningBalance.type}. ` +
-                                    `Total Debit: ${totalDebitBalance.toFixed(2)}, Total Credit: ${totalCreditBalance.toFixed(2)}`
-                            });
-                        }
-
-                        // Prepare fiscal year array
-                        const updatedFiscalYear = account.fiscalYear.includes(newFiscalYear._id)
-                            ? account.fiscalYear
-                            : [...account.fiscalYear, newFiscalYear._id];
-
-                        // Prepare openingBalanceByFiscalYear array
-                        const updatedOpeningBalanceByFiscalYear = account.openingBalanceByFiscalYear
-                            .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
-                            .concat([{
-                                fiscalYear: newFiscalYear._id,
-                                amount: Number(newOpeningBalance.amount) || 0,
-                                type: newOpeningBalance.type,
-                                date: new Date()
-                            }]);
-
-                        // Prepare closingBalanceByFiscalYear array
-                        const updatedClosingBalanceByFiscalYear = account.closingBalanceByFiscalYear
-                            .filter(f => !f.fiscalYear.equals(currentFiscalYear))
-                            .concat([{
-                                fiscalYear: currentFiscalYear,
-                                amount: Number(newOpeningBalance.amount) || 0,
-                                type: newOpeningBalance.type,
-                                date: new Date()
-                            }]);
-
-                        // Update account using findOneAndUpdate to avoid version conflicts
-                        await Account.findOneAndUpdate(
-                            { _id: account._id },
-                            {
-                                $set: {
-                                    fiscalYear: updatedFiscalYear,
-                                    openingBalanceByFiscalYear: updatedOpeningBalanceByFiscalYear,
-                                    closingBalanceByFiscalYear: updatedClosingBalanceByFiscalYear,
-                                    openingBalance: {
-                                        fiscalYear: newFiscalYear._id,
-                                        amount: Number(newOpeningBalance.amount) || 0,
-                                        type: newOpeningBalance.type
-                                    }
-                                }
-                            },
-                            { session, new: true }
-                        );
-
-                        sendEvent('log', {
-                            message: `Updated account: ${account.name} with new balance: ${newOpeningBalance.amount} ${newOpeningBalance.type}` +
-                                (isZeroBalanceAccount ? ' (reset to zero)' : '') +
-                                (isCashAccount ? ' (cash account)' : '') +
-                                (isSundryAccount ? ' (sundry account)' : '') +
-                                (isProfitLossAccount ? ' (P&L account)' : '') +
-                                (isCapitalAccount ? ' (capital account)' : '')
-                        });
-                    } catch (saveError) {
-                        console.error(`Error processing account ${account.name}:`, saveError);
-                        throw saveError;
-                    }
-                }));
-            };
-
-            // Process accounts in batches of 50
-            const BATCH_SIZE = 50;
-            let accountsProcessed = 0;
-            const totalAccounts = accounts.length;
-
-            for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
-                const batch = accounts.slice(i, i + BATCH_SIZE);
-                await processAccountBatch(batch);
-                accountsProcessed += batch.length;
-
-                // Update progress
-                const progress = 66 + (accountsProcessed / totalAccounts * 34);
-                sendEvent('progress', { value: Math.min(progress, 100) });
-            }
-
-            sendEvent('log', { message: `Completed updating ${accountsProcessed} accounts` });
-
-            // STEP 4: CALCULATE AND UPDATE PROFIT & LOSS ACCOUNT
-            sendEvent('log', { message: 'Calculating Profit & Loss adjustment...' });
-
-            // CORRECTED LOGIC:
-            // In accounting, for Profit & Loss calculation:
-            // Profit = Total Credits (Income) > Total Debits (Expenses) 
-            // But when looking at ALL accounts (assets + liabilities + equity + income + expenses):
-            // For trial balance: Total Debits MUST equal Total Credits
-            // The balancing figure is Profit/Loss
-            // If Debits > Credits: We need Credit balance (Profit) to balance
-            // If Credits > Debits: We need Debit balance (Loss) to balance
-
-            // So the CORRECT calculation is:
-            const netProfitLoss = Math.abs(totalCreditBalance - totalDebitBalance);
-            const isProfit = totalDebitBalance > totalCreditBalance;  // Debits > Credits = Profit (Credit)
-            const isLoss = totalCreditBalance > totalDebitBalance;    // Credits > Debits = Loss (Debit)
-
-            sendEvent('log', {
-                message: `Final Totals including Stock value:
-    Total Debit Balance (Assets + Expenses): ${totalDebitBalance.toFixed(2)} 
-    Total Credit Balance (Liabilities + Income): ${totalCreditBalance.toFixed(2)} 
-    Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)} 
-    Balance Type: ${isProfit ? 'Cr' : 'Dr'}`
-            });
-
-            // Update Profit & Loss account with the net profit/loss
-            if (profitLossAccount && netProfitLoss > 0) {
-                sendEvent('log', { message: `Updating Profit & Loss account with net ${isProfit ? 'profit' : 'loss'} amount: ${netProfitLoss.toFixed(2)}` });
-
-                // For P&L account:
-                // Profit = Credit balance (needed to balance when Debits > Credits)
-                // Loss = Debit balance (needed to balance when Credits > Debits)
-                const pnlBalanceType = isProfit ? 'Cr' : 'Dr';
-
-                // Prepare fiscal year array
-                const updatedFiscalYear = profitLossAccount.fiscalYear.includes(newFiscalYear._id)
-                    ? profitLossAccount.fiscalYear
-                    : [...profitLossAccount.fiscalYear, newFiscalYear._id];
-
-                // Prepare openingBalanceByFiscalYear array (start new fiscal year with zero)
-                const updatedOpeningBalanceByFiscalYear = profitLossAccount.openingBalanceByFiscalYear
-                    .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
-                    .concat([{
-                        fiscalYear: newFiscalYear._id,
-                        amount: 0,
-                        type: 'Dr',
-                        date: new Date()
-                    }]);
-
-                // Prepare closingBalanceByFiscalYear array (closing balance for current fiscal year)
-                const updatedClosingBalanceByFiscalYear = profitLossAccount.closingBalanceByFiscalYear
-                    .filter(f => !f.fiscalYear.equals(currentFiscalYear))
-                    .concat([{
-                        fiscalYear: currentFiscalYear,
-                        amount: netProfitLoss,
-                        type: pnlBalanceType,
-                        date: new Date()
-                    }]);
-
-                // Update Profit & Loss account
-                await Account.findOneAndUpdate(
-                    { _id: profitLossAccount._id },
-                    {
-                        $set: {
-                            fiscalYear: updatedFiscalYear,
-                            openingBalanceByFiscalYear: updatedOpeningBalanceByFiscalYear,
-                            closingBalanceByFiscalYear: updatedClosingBalanceByFiscalYear,
-                            openingBalance: {
-                                fiscalYear: newFiscalYear._id,
-                                amount: 0,
-                                type: 'Dr'
-                            }
                         }
                     },
-                    { session, new: true }
-                );
+                    $set: {
+                        openingBalance: {
+                            fiscalYear: newFiscalYear._id,
+                            amount: totalStockValue,
+                            type: 'Dr'
+                        }
+                    }
+                }
+            );
+        }
 
-                sendEvent('log', { message: `Successfully updated Profit & Loss account with net ${isProfit ? 'profit' : 'loss'} amount: ${netProfitLoss.toFixed(2)} ${pnlBalanceType}` });
+        sendEvent('progress', { value: 70 });
 
-                // STEP 5: TRANSFER PROFIT/LOSS TO CAPITAL ACCOUNT
-                if (capitalAccount) {
-                    sendEvent('log', { message: 'Transferring Profit/Loss to Capital Account...' });
+        // Step 5: Process accounts in batches
+        sendEvent('log', { message: 'Processing accounts...' });
 
-                    // Get current capital balance from openingBalanceByFiscalYear
-                    const currentCapitalBalanceEntry = capitalAccount.openingBalanceByFiscalYear?.find(
-                        f => f.fiscalYear.equals(currentFiscalYear)
-                    );
+        const accounts = await Account.find({
+            company: companyId,
+            fiscalYear: currentFiscalYear
+        }).lean();
 
-                    let capitalBalance = 0;
-                    let capitalBalanceType = 'Cr'; // Capital is normally Credit balance
+        const totalAccounts = accounts.length;
+        let processedAccounts = 0;
+        let totalDebit = totalStockValue;
+        let totalCredit = 0;
 
-                    if (currentCapitalBalanceEntry) {
-                        capitalBalance = Number(currentCapitalBalanceEntry.amount) || 0;
-                        capitalBalanceType = currentCapitalBalanceEntry.type || 'Cr';
+        // Get account groups
+        const [zeroBalanceGroups, cashGroup, debtorsGroup, creditorsGroup] = await Promise.all([
+            CompanyGroup.find({
+                name: { $in: ['Purchase', 'Sale', 'Fixed Assets', 'Expenses', 'Income'] },
+                company: companyId
+            }).lean(),
+            CompanyGroup.findOne({ name: 'Cash in Hand', company: companyId }).lean(),
+            CompanyGroup.findOne({ name: 'Sundry Debtors', company: companyId }).lean(),
+            CompanyGroup.findOne({ name: 'Sundry Creditors', company: companyId }).lean()
+        ]);
+
+        const zeroGroupIds = new Set(zeroBalanceGroups.map(g => g._id.toString()));
+        const cashGroupId = cashGroup?._id.toString();
+        const debtorsGroupId = debtorsGroup?._id.toString();
+        const creditorsGroupId = creditorsGroup?._id.toString();
+
+        // Process accounts in batches
+        for (let i = 0; i < accounts.length; i += BATCH_SIZE) {
+            const batch = accounts.slice(i, i + BATCH_SIZE);
+
+            const results = await Promise.allSettled(batch.map(async (account) => {
+                try {
+                    // Skip stock account
+                    if (stockGroup && account.companyGroups?.toString() === stockGroup._id.toString()) {
+                        return { success: true, skipped: true };
                     }
 
-                    // Get capital account transactions for the year
-                    const capitalTransactions = await Transaction.find({
-                        account: capitalAccount._id,
+                    const groupId = account.companyGroups?.toString();
+                    const isCash = groupId === cashGroupId;
+                    const isDebtor = groupId === debtorsGroupId;
+                    const isCreditor = groupId === creditorsGroupId;
+                    const isZeroBalance = zeroGroupIds.has(groupId);
+
+                    // Build transaction query
+                    let query = {
+                        account: account._id,
                         company: companyId,
                         fiscalYear: currentFiscalYear,
-                        type: { $in: ['Jrnl', 'DrNt', 'CrNt', 'Pymt', 'Rcpt'] }
-                    }).session(session);
+                        type: { $in: ['Purc', 'Sale', 'SlRt', 'PrRt', 'Pymt', 'Rcpt', 'Jrnl'] }
+                    };
 
-                    // Calculate net effect of transactions on capital
-                    let capitalNetEffect = 0;
-                    for (const transaction of capitalTransactions) {
-                        const debit = Number(transaction.debit) || 0;
-                        const credit = Number(transaction.credit) || 0;
-
-                        // For capital account (which is a Credit account):
-                        // Debit decreases capital (negative effect)
-                        // Credit increases capital (positive effect)
-                        capitalNetEffect += credit - debit;
+                    if (isDebtor || isCreditor) {
+                        query.$or = [
+                            { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: { $ne: 'cash' } },
+                            { type: { $in: ['Pymt', 'Rcpt', 'Jrnl'] } }
+                        ];
+                    } else if (isCash) {
+                        query.$or = [
+                            { type: { $in: ['Sale', 'Purc', 'SlRt', 'PrRt'] }, paymentMode: 'cash' },
+                            { type: { $in: ['Pymt', 'Rcpt', 'Jrnl'] } }
+                        ];
                     }
 
-                    // Calculate adjusted capital balance before profit/loss transfer
-                    let adjustedCapitalBalance;
-                    if (capitalBalanceType === 'Cr') {
-                        adjustedCapitalBalance = capitalBalance + capitalNetEffect;
-                    } else {
-                        adjustedCapitalBalance = capitalBalance - capitalNetEffect;
-                    }
+                    const transactions = await Transaction.find(query).lean();
 
-                    // Now add/subtract profit/loss
-                    // IMPORTANT: Capital is a CREDIT account
-                    if (isProfit) {
-                        // Profit INCREASES capital (add to credit balance)
-                        adjustedCapitalBalance += netProfitLoss;
-                    } else {
-                        // Loss DECREASES capital (subtract from credit balance)
-                        adjustedCapitalBalance -= netProfitLoss;
-                    }
-
-                    // Determine final capital balance type
-                    // Capital should normally be Credit, but could become Debit if losses exceed capital
-                    const finalCapitalBalance = Math.abs(adjustedCapitalBalance);
-                    const finalCapitalType = adjustedCapitalBalance >= 0 ? 'Cr' : 'Dr';
-
-                    sendEvent('log', {
-                        message: `Capital Account Calculation:
-            Starting Capital: ${capitalBalance.toFixed(2)} ${capitalBalanceType}
-            Transaction Net Effect: ${capitalNetEffect.toFixed(2)}
-            ${isProfit ? 'Profit added' : 'Loss deducted'}: ${netProfitLoss.toFixed(2)}
-            Final Capital: ${finalCapitalBalance.toFixed(2)} ${finalCapitalType}`
-                    });
-
-                    // Update capital account with adjusted balance
-                    const capitalUpdatedFiscalYear = capitalAccount.fiscalYear.includes(newFiscalYear._id)
-                        ? capitalAccount.fiscalYear
-                        : [...capitalAccount.fiscalYear, newFiscalYear._id];
-
-                    const capitalUpdatedOpeningBalanceByFiscalYear = capitalAccount.openingBalanceByFiscalYear
-                        .filter(f => !f.fiscalYear.equals(newFiscalYear._id))
-                        .concat([{
-                            fiscalYear: newFiscalYear._id,
-                            amount: finalCapitalBalance,
-                            type: finalCapitalType,
-                            date: new Date()
-                        }]);
-
-                    const capitalUpdatedClosingBalanceByFiscalYear = capitalAccount.closingBalanceByFiscalYear
-                        .filter(f => !f.fiscalYear.equals(currentFiscalYear))
-                        .concat([{
-                            fiscalYear: currentFiscalYear,
-                            amount: finalCapitalBalance,
-                            type: finalCapitalType,
-                            date: new Date()
-                        }]);
-
-                    await Account.findOneAndUpdate(
-                        { _id: capitalAccount._id },
-                        {
-                            $set: {
-                                fiscalYear: capitalUpdatedFiscalYear,
-                                openingBalanceByFiscalYear: capitalUpdatedOpeningBalanceByFiscalYear,
-                                closingBalanceByFiscalYear: capitalUpdatedClosingBalanceByFiscalYear,
-                                openingBalance: {
-                                    fiscalYear: newFiscalYear._id,
-                                    amount: finalCapitalBalance,
-                                    type: finalCapitalType
-                                }
-                            }
-                        },
-                        { session, new: true }
+                    // Calculate balance
+                    let balance = 0;
+                    const openingEntry = account.openingBalanceByFiscalYear?.find(
+                        f => f.fiscalYear.toString() === currentFiscalYear.toString()
                     );
 
-                    sendEvent('log', {
-                        message: `Updated Capital Account with new balance: ${finalCapitalBalance.toFixed(2)} ${finalCapitalType} ` +
-                            `(includes ${isProfit ? 'profit' : 'loss'} transfer of ${netProfitLoss.toFixed(2)})`
-                    });
-                } else {
-                    sendEvent('log', { message: 'Warning: Capital Account not found, skipping profit/loss transfer' });
+                    if (openingEntry) {
+                        balance = Number(openingEntry.amount) || 0;
+                        if (openingEntry.type === 'Cr') balance = -balance;
+                    }
+
+                    for (const t of transactions) {
+                        balance += (Number(t.debit) || 0) - (Number(t.credit) || 0);
+                    }
+
+                    const finalAmount = isZeroBalance ? 0 : Math.abs(balance);
+                    const finalType = isZeroBalance ? 'Dr' : (balance >= 0 ? 'Dr' : 'Cr');
+
+                    // Update account
+                    await Account.updateOne(
+                        { _id: account._id },
+                        {
+                            $addToSet: { fiscalYear: newFiscalYear._id },
+                            $push: {
+                                openingBalanceByFiscalYear: {
+                                    fiscalYear: newFiscalYear._id,
+                                    amount: finalAmount,
+                                    type: finalType,
+                                    date: new Date()
+                                },
+                                closingBalanceByFiscalYear: {
+                                    fiscalYear: currentFiscalYear,
+                                    amount: finalAmount,
+                                    type: finalType,
+                                    date: new Date()
+                                }
+                            },
+                            $set: {
+                                openingBalance: {
+                                    fiscalYear: newFiscalYear._id,
+                                    amount: finalAmount,
+                                    type: finalType
+                                }
+                            }
+                        }
+                    );
+
+                    return { success: true, balance, finalAmount, finalType };
+                } catch (error) {
+                    return { success: false, accountId: account._id, error: error.message };
                 }
-            } else if (!profitLossAccount) {
-                sendEvent('log', { message: 'Warning: Profit & Loss account not found, skipping P&L adjustment' });
+            }));
+
+            // Process results
+            for (const result of results) {
+                if (result.status === 'fulfilled' && result.value.success && !result.value.skipped) {
+                    if (result.value.balance >= 0) {
+                        totalDebit += result.value.finalAmount;
+                    } else {
+                        totalCredit += result.value.finalAmount;
+                    }
+                }
+                processedAccounts++;
             }
 
-            // Initialize bill counters - Check for existing ones first
-            sendEvent('log', { message: 'Initializing bill counters...' });
-            const transactionTypes = [
-                'Sales', 'Purchase', 'SalesReturn', 'PurchaseReturn',
-                'Payment', 'Receipt', 'Journal', 'DebitNote', 'CreditNote', 'StockAdjustment', 'BankDeposit', 'BankWithdrawal'
-            ];
+            // Update progress
+            const progress = 70 + (processedAccounts / totalAccounts * 20);
+            sendEvent('progress', { value: Math.min(progress, 90) });
+        }
 
-            for (const transactionType of transactionTypes) {
-                const existingCounter = await BillCounter.findOne({
+        // Step 6: Calculate profit/loss
+        const netProfitLoss = Math.abs(totalCredit - totalDebit);
+        const isProfit = totalDebit > totalCredit;
+
+        sendEvent('log', {
+            message: `Net ${isProfit ? 'Profit' : 'Loss'}: ${netProfitLoss.toFixed(2)}`
+        });
+
+        // Step 7: Initialize bill counters
+        sendEvent('log', { message: 'Initializing bill counters...' });
+
+        const types = ['Sales', 'Purchase', 'SalesReturn', 'PurchaseReturn', 'Payment', 'Receipt', 'Journal'];
+
+        for (const type of types) {
+            const exists = await BillCounter.findOne({
+                company: companyId,
+                fiscalYear: newFiscalYear._id,
+                transactionType: type
+            });
+
+            if (!exists) {
+                await BillCounter.create({
                     company: companyId,
                     fiscalYear: newFiscalYear._id,
-                    transactionType
-                }).session(session);
-
-                if (!existingCounter) {
-                    await BillCounter.create([{
-                        company: companyId,
-                        fiscalYear: newFiscalYear._id,
-                        transactionType,
-                        currentBillNumber: 0
-                    }], { session });
-                }
+                    transactionType: type,
+                    currentBillNumber: 0
+                });
             }
+        }
 
-            // Update session
-            req.session.currentFiscalYear = {
-                id: newFiscalYear._id.toString(),
-                startDate: newFiscalYear.startDate,
-                endDate: newFiscalYear.endDate,
-                name: newFiscalYear.name,
-                dateFormat: newFiscalYear.dateFormat,
-                isActive: true
-            };
+        // Step 8: Update session
+        req.session.currentFiscalYear = {
+            id: newFiscalYear._id.toString(),
+            startDate: newFiscalYear.startDate,
+            endDate: newFiscalYear.endDate,
+            name: newFiscalYear.name,
+            dateFormat: newFiscalYear.dateFormat,
+            isActive: true
+        };
 
-            // Mark transaction as committed
-            transactionCommitted = true;
+        await req.session.save();
 
-            sendEvent('progress', { value: 100 });
-            sendEvent('complete', {
-                message: `Fiscal year ${fiscalYearName} created successfully! 
-                Net ${isProfit ? 'Profit' : 'Loss'} for the year: ${netProfitLoss.toFixed(2)} ${isProfit ? 'Cr' : 'Dr'}
-                Current fiscal year set to ${fiscalYearName}.`
-            });
-        }, transactionOptions); // End of withTransaction
+        sendEvent('progress', { value: 100 });
+        sendEvent('complete', {
+            message: `Fiscal year ${fiscalYearName} created successfully!`,
+            profitLoss: {
+                amount: netProfitLoss,
+                type: isProfit ? 'Profit' : 'Loss'
+            }
+        });
 
-    } catch (err) {
-        console.error('Error in fiscal year creation:', err);
-
-        // Only abort if transaction wasn't committed
-        await safeAbortTransaction();
-
+    } catch (error) {
+        console.error('Fiscal year creation error:', error);
         sendEvent('error', {
-            message: `Failed to create fiscal year: ${err.message}`,
-            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+            message: error.message || 'Failed to create fiscal year',
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     } finally {
-        try {
-            if (session.inTransaction()) { // Ensure session is not left hanging if transaction failed without explicit abort
-                await safeAbortTransaction();
-            }
-            await session.endSession();
-        } catch (sessionError) {
-            console.error('Error ending session:', sessionError);
-        }
-        res.end(); // Always end the response
+        // Release lock
+        await setLock(lockKey, false);
+        res.end();
     }
-
-    // Handle client disconnect
-    req.on('close', async () => {
-        // Ensure that if the client disconnects mid-transaction, it's aborted
-        await safeAbortTransaction();
-        try {
-            await session.endSession();
-        } catch (sessionError) {
-            console.error('Error ending session on client close:', sessionError);
-        }
-    });
 });
+
+// Helper functions for locking
+async function getLock(key) {
+    const lock = await Lock.findOne({ key });
+    return lock ? lock.value : false;
+}
+
+async function setLock(key, value, ttl = 3600) {
+    await Lock.updateOne(
+        { key },
+        {
+            key,
+            value,
+            expiresAt: new Date(Date.now() + ttl * 1000)
+        },
+        { upsert: true }
+    );
+}
+
+// Create Lock model
+const lockSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true },
+    value: { type: Boolean, required: true },
+    expiresAt: { type: Date, required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+
+lockSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+const Lock = mongoose.model('Lock', lockSchema);
 
 router.get('/progress', (req, res) => {
     res.status(200).json({ progress });

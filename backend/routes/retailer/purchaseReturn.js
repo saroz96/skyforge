@@ -485,7 +485,7 @@ router.post('/purchase-return', isLoggedIn, ensureAuthenticated, ensureCompanySe
         let finalAmount = totalAmount;
 
         // Handle round off
-        const roundOffForPurchaseReturn = await Settings.findOne({
+        let roundOffForPurchaseReturn = await Settings.findOne({
             company: companyId,
             userId,
             fiscalYear: currentFiscalYear
