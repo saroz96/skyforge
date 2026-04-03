@@ -789,6 +789,186 @@ router.post('/items/:id/status', isLoggedIn, ensureCompanySelected, async (req, 
     }
 });
 
+// router.post('/items/create', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+
+
+//     if (req.tradeType !== 'retailer') {
+//         return res.status(403).json({ error: 'This operation is only available for retailers' });
+//     }
+
+//     try {
+//         console.log('=== CREATE ITEM DEBUG ===');
+//         console.log('Request body:', JSON.stringify(req.body, null, 2));
+//         console.log('Session currentFiscalYear:', req.session.currentFiscalYear);
+//         console.log('Session currentCompany:', req.session.currentCompany);
+
+//         const { name, hscode, category, itemsCompany, compositionIds, mainUnit, WSUnit, unit, price, puPrice, vatStatus, openingStock, reorderLevel, openingStockBalance } = req.body;
+
+//         console.log('Required fields check:', {
+//             name: !!name,
+//             category: !!category,
+//             itemsCompany: !!itemsCompany,
+//             mainUnit: !!mainUnit,
+//             unit: !!unit,
+//             vatStatus: !!vatStatus
+//         });
+
+//         const companyId = req.session.currentCompany;
+
+//         if (!companyId) {
+//             return res.status(400).json({ error: 'Company ID is required' });
+//         }
+
+//         // Process composition IDs
+//         let compositions = [];
+//         if (compositionIds) {
+//             compositions = compositionIds.split(',')
+//                 .map(id => id.trim())
+//                 .filter(id => mongoose.Types.ObjectId.isValid(id))
+//                 .map(id => new mongoose.Types.ObjectId(id));
+//         }
+
+//         // Validate compositions exist
+//         if (compositions.length > 0) {
+//             const existingCompositions = await Composition.countDocuments({
+//                 _id: { $in: compositions },
+//                 company: companyId
+//             });
+
+//             if (existingCompositions !== compositions.length) {
+//                 return res.status(400).json({ error: 'One or more invalid compositions' });
+//             }
+//         }
+
+//         // Fetch company and fiscal year
+//         const company = await Company.findById(companyId).populate('fiscalYear');
+//         console.log('Found company:', company?._id);
+//         console.log('Company fiscalYear:', company?.fiscalYear);
+
+//         let fiscalYear = req.session.currentFiscalYear?.id;
+//         let currentFiscalYear = null;
+
+//         if (fiscalYear) {
+//             currentFiscalYear = await FiscalYear.findById(fiscalYear);
+//         }
+
+//         if (!currentFiscalYear && company.fiscalYear) {
+//             currentFiscalYear = company.fiscalYear;
+//             fiscalYear = currentFiscalYear._id;
+//         }
+
+//         if (!fiscalYear) {
+//             return res.status(400).json({ error: 'No fiscal year found' });
+//         }
+
+//         // Validate category, unit, and main unit
+//         const [categories, units, mainUnits] = await Promise.all([
+//             Category.findOne({ _id: category, company: companyId }),
+//             Unit.findOne({ _id: unit, company: companyId }),
+//             MainUnit.findOne({ _id: mainUnit, company: companyId })
+//         ]);
+//         console.log('🔄 Fetching category...');
+//         console.log('✅ Category found:', category ? category._id : 'NOT FOUND');
+//         console.log('🔄 Fetching unit...');
+//         console.log('✅ Unit found:', unit ? unit._id : 'NOT FOUND');
+//         console.log('🔄 Fetching main unit...');
+//         console.log('✅ Main unit found:', mainUnit ? mainUnit._id : 'NOT FOUND');
+
+//         if (!categories) return res.status(400).json({ error: 'Invalid category' });
+//         if (!units) return res.status(400).json({ error: 'Invalid unit' });
+//         if (!mainUnits) return res.status(400).json({ error: 'Invalid main unit' });
+
+//         // Check for existing item
+//         console.log('🔄 Checking for existing item...');
+//         const existingItem = await Item.findOne({ name, company: companyId, fiscalYear: { $in: [fiscalYear] } });
+
+//         console.log('✅ Existing item check complete:', existingItem ? 'FOUND' : 'NOT FOUND');
+
+
+//         if (existingItem) {
+//             return res.status(400).json({ error: 'Item already exists for this fiscal year' });
+//         }
+
+//         // Create new item
+//         const newItem = new Item({
+//             name,
+//             hscode,
+//             category,
+//             itemsCompany,
+//             composition: compositions,
+//             mainUnit,
+//             WSUnit,
+//             unit,
+//             price,
+//             puPrice,
+//             vatStatus,
+//             openingStock,
+//             stock: openingStock,
+//             company: companyId,
+//             reorderLevel,
+//             maxStock: reorderLevel,
+//             initialOpeningStock: {
+//                 fiscalYear,
+//                 salesPrice: price,
+//                 purchasePrice: puPrice,
+//                 openingStock,
+//                 openingStockBalance,
+//                 date: currentFiscalYear.startDate,
+//             },
+//             openingStockByFiscalYear: [{
+//                 fiscalYear,
+//                 salesPrice: price,
+//                 purchasePrice: puPrice,
+//                 openingStock,
+//                 openingStockBalance
+//             }],
+//             stockEntries: openingStock > 0 ? [{
+//                 quantity: openingStock,
+//                 price,
+//                 puPrice,
+//                 netPuPrice: puPrice,
+//                 date: new Date(),
+//                 uniqueUuId: uuidv4(),
+//                 fiscalYear
+//             }] : [],
+//             fiscalYear: [fiscalYear],
+//             originalFiscalYear: currentFiscalYear._id,
+//             createdAt: currentFiscalYear.startDate,
+//         });
+
+//         await newItem.save();
+
+//         return res.status(201).json({
+//             success: true,
+//             message: 'Item created successfully',
+//             item: {
+//                 _id: newItem._id,
+//                 name: newItem.name,
+//                 category: newItem.category,
+//                 itemsCompany: newItem.itemsCompany,
+//                 price: newItem.price,
+//                 stock: newItem.stock
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error creating item:', error);
+//         console.error('=== CREATE ITEM ERROR ===');
+//         console.error('Error name:', error.name);
+//         console.error('Error message:', error.message);
+//         console.error('Error stack:', error.stack);
+
+//         return res.status(500).json({
+//             error: 'Server error',
+//             details: error.message,
+//             details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+//             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+//         });
+//     }
+// });
+
+// Route to handle editing an item
+
 router.post('/items/create', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType !== 'retailer') {
         return res.status(403).json({ error: 'This operation is only available for retailers' });
@@ -954,7 +1134,7 @@ router.post('/items/create', ensureAuthenticated, ensureCompanySelected, ensureT
     }
 });
 
-// Route to handle editing an item
+
 router.put('/items/:id', ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
     if (req.tradeType === 'retailer') {
         try {

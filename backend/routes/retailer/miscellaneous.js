@@ -102,304 +102,304 @@ router.get('/items/search/getFetched', ensureAuthenticated, ensureCompanySelecte
 });
 
 
-// router.get('/items-ledger/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
-//     if (req.tradeType !== 'retailer') {
-//         return res.status(403).json({
-//             success: false,
-//             error: 'Access denied',
-//             message: 'This endpoint is only available for retailers'
-//         });
-//     }
+router.get('/items-ledger/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+    if (req.tradeType !== 'retailer') {
+        return res.status(403).json({
+            success: false,
+            error: 'Access denied',
+            message: 'This endpoint is only available for retailers'
+        });
+    }
 
-//     try {
-//         const companyId = req.session.currentCompany;
-//         const currentCompanyName = req.session.currentCompanyName;
-//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
-//         const companyDateFormat = company ? company.dateFormat : 'english';
+    try {
+        const companyId = req.session.currentCompany;
+        const currentCompanyName = req.session.currentCompanyName;
+        const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
+        const companyDateFormat = company ? company.dateFormat : 'english';
 
-//         // Extract dates from query parameters
-//         let fromDate = req.query.fromDate ? req.query.fromDate : null;
-//         let toDate = req.query.toDate ? req.query.toDate : null;
+        // Extract dates from query parameters
+        let fromDate = req.query.fromDate ? req.query.fromDate : null;
+        let toDate = req.query.toDate ? req.query.toDate : null;
 
-//         const today = new Date();
-//         const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
+        const today = new Date();
+        const nepaliDate = new NepaliDate(today).format('YYYY-MM-DD');
 
-//         // Fiscal year handling
-//         let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
-//         let currentFiscalYear = null;
+        // Fiscal year handling
+        let fiscalYear = req.session.currentFiscalYear ? req.session.currentFiscalYear.id : null;
+        let currentFiscalYear = null;
 
-//         if (fiscalYear) {
-//             currentFiscalYear = await FiscalYear.findById(fiscalYear);
-//         }
+        if (fiscalYear) {
+            currentFiscalYear = await FiscalYear.findById(fiscalYear);
+        }
 
-//         if (!currentFiscalYear && company.fiscalYear) {
-//             currentFiscalYear = company.fiscalYear;
-//             req.session.currentFiscalYear = {
-//                 id: currentFiscalYear._id.toString(),
-//                 startDate: currentFiscalYear.startDate,
-//                 endDate: currentFiscalYear.endDate,
-//                 name: currentFiscalYear.name,
-//                 dateFormat: currentFiscalYear.dateFormat,
-//                 isActive: currentFiscalYear.isActive
-//             };
-//             fiscalYear = req.session.currentFiscalYear.id;
-//         }
+        if (!currentFiscalYear && company.fiscalYear) {
+            currentFiscalYear = company.fiscalYear;
+            req.session.currentFiscalYear = {
+                id: currentFiscalYear._id.toString(),
+                startDate: currentFiscalYear.startDate,
+                endDate: currentFiscalYear.endDate,
+                name: currentFiscalYear.name,
+                dateFormat: currentFiscalYear.dateFormat,
+                isActive: currentFiscalYear.isActive
+            };
+            fiscalYear = req.session.currentFiscalYear.id;
+        }
 
-//         if (!fiscalYear) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'No fiscal year found in session or company.'
-//             });
-//         }
+        if (!fiscalYear) {
+            return res.status(400).json({
+                success: false,
+                error: 'No fiscal year found in session or company.'
+            });
+        }
 
-//         if (!fromDate || !toDate) {
-//             return res.json({
-//                 success: true,
-//                 data: {
-//                     company,
-//                     currentFiscalYear,
-//                     companyId,
-//                     nepaliDate,
-//                     companyDateFormat,
-//                     fromDate: req.query.fromDate || '',
-//                     toDate: req.query.toDate || '',
-//                     currentCompanyName,
-//                     title: 'Items Ledger',
-//                     user: req.user,
-//                     theme: req.user.preferences?.theme || 'light',
-//                     isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
-//                 }
-//             });
-//         }
+        if (!fromDate || !toDate) {
+            return res.json({
+                success: true,
+                data: {
+                    company,
+                    currentFiscalYear,
+                    companyId,
+                    nepaliDate,
+                    companyDateFormat,
+                    fromDate: req.query.fromDate || '',
+                    toDate: req.query.toDate || '',
+                    currentCompanyName,
+                    title: 'Items Ledger',
+                    user: req.user,
+                    theme: req.user.preferences?.theme || 'light',
+                    isAdminOrSupervisor: req.user.isAdmin || req.user.role === 'Supervisor'
+                }
+            });
+        }
 
-//         // Build the query based on the company's date format
-//         let query = { company: companyId };
+        // Build the query based on the company's date format
+        let query = { company: companyId };
 
-//         if (fromDate && toDate) {
-//             query.date = { $gte: fromDate, $lte: toDate };
-//         } else if (fromDate) {
-//             query.date = { $gte: fromDate };
-//         } else if (toDate) {
-//             query.date = { $lte: toDate };
-//         }
+        if (fromDate && toDate) {
+            query.date = { $gte: fromDate, $lte: toDate };
+        } else if (fromDate) {
+            query.date = { $gte: fromDate };
+        } else if (toDate) {
+            query.date = { $lte: toDate };
+        }
 
-//         const itemId = req.params.id;
-//         const item = await Item.findById(itemId)
-//             .populate('fiscalYear')
-//             .populate('openingStockByFiscalYear.fiscalYear')
-//             .populate('initialOpeningStock.openingStock')
-//             .populate('unit');
+        const itemId = req.params.id;
+        const item = await Item.findById(itemId)
+            .populate('fiscalYear')
+            .populate('openingStockByFiscalYear.fiscalYear')
+            .populate('initialOpeningStock.openingStock')
+            .populate('unit');
 
-//         if (!item) {
-//             return res.status(404).json({
-//                 success: false,
-//                 error: 'Item not found'
-//             });
-//         }
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                error: 'Item not found'
+            });
+        }
 
-//         // Validate inputs
-//         if (!mongoose.Types.ObjectId.isValid(itemId)) {
-//             return res.status(400).json({
-//                 success: false,
-//                 error: 'Invalid item ID'
-//             });
-//         }
-
-
-//         // Calculate adjusted opening stock
-//         let openingStock = parseFloat(item.initialOpeningStock?.openingStock) || 0.00;
-//         const purchasePrice = parseFloat(item.initialOpeningStock?.purchasePrice) || 0.00;
-
-//         if (fromDate) {
-//             const preDateQuery = {
-//                 company: companyId,
-//                 date: { $lt: fromDate },
-//                 'items.item': itemId
-//             };
-
-//             const [
-//                 historicalPurchases,
-//                 historicalPurchaseReturns,
-//                 historicalSales,
-//                 historicalSalesReturns,
-//                 historicalAdjustments
-//             ] = await Promise.all([
-//                 PurchaseBill.find(preDateQuery),
-//                 PurchaseReturn.find(preDateQuery),
-//                 SalesBill.find(preDateQuery),
-//                 SalesReturn.find(preDateQuery),
-//                 StockAdjustment.find(preDateQuery)
-//             ]);
-
-//             openingStock += calculateHistoricalStock(
-//                 historicalPurchases,
-//                 historicalPurchaseReturns,
-//                 historicalSales,
-//                 historicalSalesReturns,
-//                 historicalAdjustments,
-//                 itemId
-//             );
-//         }
-
-//         // Fetch transactions for the date range
-//         const [
-//             purchaseEntries,
-//             purchaseReturnEntries,
-//             salesEntries,
-//             salesReturnEntries,
-//             stockAdjustmentEntries
-//         ] = await Promise.all([
-//             PurchaseBill.find({ ...query, 'items.item': itemId })
-//                 .populate('account')
-//                 .populate({
-//                     path: 'items.item',
-//                     model: 'Item',
-//                     select: 'name stock bonus',
-//                     populate: { path: 'unit' }
-//                 }),
-//             PurchaseReturn.find({ ...query, 'items.item': itemId })
-//                 .populate('account')
-//                 .populate({
-//                     path: 'items.item',
-//                     model: 'Item',
-//                     select: 'name stock',
-//                     populate: { path: 'unit' }
-//                 }),
-//             SalesBill.find({ ...query, 'items.item': itemId })
-//                 .populate('account')
-//                 .populate({
-//                     path: 'items.item',
-//                     model: 'Item',
-//                     select: 'name stock',
-//                     populate: { path: 'unit' }
-//                 }),
-//             SalesReturn.find({ ...query, 'items.item': itemId })
-//                 .populate('account')
-//                 .populate({
-//                     path: 'items.item',
-//                     model: 'Item',
-//                     select: 'name stock',
-//                     populate: { path: 'unit' }
-//                 }),
-//             StockAdjustment.find({ ...query, 'items.item': itemId })
-//                 .populate({
-//                     path: 'items.item',
-//                     model: 'Item',
-//                     select: 'name stock',
-//                     populate: { path: 'unit' }
-//                 })
-//         ]);
-
-//         // Process all entries
-//         let entries = [];
-
-//         // Process purchase entries
-//         purchaseEntries.forEach(purchaseBill => {
-//             purchaseBill.items.forEach(itemEntry => {
-//                 if (itemEntry.item._id.toString() === itemId) {
-//                     entries.push(createPurchaseEntry(purchaseBill, itemEntry));
-//                 }
-//             });
-//         });
-
-//         // Process purchase return entries
-//         purchaseReturnEntries.forEach(purchaseReturn => {
-//             purchaseReturn.items.forEach(itemEntry => {
-//                 if (itemEntry.item._id.toString() === itemId) {
-//                     entries.push(createPurchaseReturnEntry(purchaseReturn, itemEntry));
-//                 }
-//             });
-//         });
-
-//         // Process sales entries
-//         salesEntries.forEach(salesBill => {
-//             salesBill.items.forEach(itemEntry => {
-//                 if (itemEntry.item._id.toString() === itemId) {
-//                     entries.push(createSalesEntry(salesBill, itemEntry));
-//                 }
-//             });
-//         });
-
-//         // Process sales return entries
-//         salesReturnEntries.forEach(salesReturn => {
-//             salesReturn.items.forEach(itemEntry => {
-//                 if (itemEntry.item._id.toString() === itemId) {
-//                     entries.push(createSalesReturnEntry(salesReturn, itemEntry));
-//                 }
-//             });
-//         });
-
-//         // Process stock adjustment entries
-//         stockAdjustmentEntries.forEach(adjustment => {
-//             adjustment.items.forEach(itemEntry => {
-//                 if (itemEntry.item._id.toString() === itemId) {
-//                     entries.push(createAdjustmentEntry(adjustment, itemEntry));
-//                 }
-//             });
-//         });
-
-//         // Sort entries by date
-//         entries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-//         // Calculate running balance
-//         let balance = openingStock;
-//         entries = entries.map(entry => {
-//             balance += (entry.qtyIn + (entry.bonus || 0)) - entry.qtyOut;
-//             return {
-//                 ...entry,
-//                 balance: balance
-//             };
-//         });
-
-//         // Prepare the response
-//         const response = {
-//             success: true,
-//             data: {
-//                 meta: {
-//                     openingStock,
-//                     purchasePrice,
-//                     currentStock: balance,
-//                     item: {
-//                         id: item._id,
-//                         name: item.name,
-//                         unit: item.unit?.name || 'N/A',
-//                         unitDetails: item.unit || null
-//                     },
-//                     dateRange: {
-//                         fromDate,
-//                         toDate
-//                     },
-//                     company: {
-//                         id: companyId,
-//                         name: currentCompanyName,
-//                         dateFormat: companyDateFormat
-//                     }
-//                 },
-//                 entries,
-//                 summary: {
-//                     totalPurchases: entries.reduce((sum, entry) => entry.type === 'Purc' ? sum + entry.qtyIn : sum, 0),
-//                     totalSales: entries.reduce((sum, entry) => entry.type === 'Sale' ? sum + entry.qtyOut : sum, 0),
-//                     totalPurchaseReturns: entries.reduce((sum, entry) => entry.type === 'PrRt' ? sum + entry.qtyOut : sum, 0),
-//                     totalSalesReturns: entries.reduce((sum, entry) => entry.type === 'SlRt' ? sum + entry.qtyIn : sum, 0),
-//                     totalAdjustments: entries.reduce((sum, entry) => ['xcess', 'short'].includes(entry.type) ? sum + entry.qtyIn - entry.qtyOut : sum, 0)
-//                 }
-//             }
-//         };
-
-//         res.json(response);
-
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({
-//             success: false,
-//             error: 'Server error',
-//             message: error.message
-//         });
-//     }
-// });
+        // Validate inputs
+        if (!mongoose.Types.ObjectId.isValid(itemId)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid item ID'
+            });
+        }
 
 
-// // Helper function to calculate historical stock movement
+        // Calculate adjusted opening stock
+        let openingStock = parseFloat(item.initialOpeningStock?.openingStock) || 0.00;
+        const purchasePrice = parseFloat(item.initialOpeningStock?.purchasePrice) || 0.00;
+
+        if (fromDate) {
+            const preDateQuery = {
+                company: companyId,
+                date: { $lt: fromDate },
+                'items.item': itemId
+            };
+
+            const [
+                historicalPurchases,
+                historicalPurchaseReturns,
+                historicalSales,
+                historicalSalesReturns,
+                historicalAdjustments
+            ] = await Promise.all([
+                PurchaseBill.find(preDateQuery),
+                PurchaseReturn.find(preDateQuery),
+                SalesBill.find(preDateQuery),
+                SalesReturn.find(preDateQuery),
+                StockAdjustment.find(preDateQuery)
+            ]);
+
+            openingStock += calculateHistoricalStock(
+                historicalPurchases,
+                historicalPurchaseReturns,
+                historicalSales,
+                historicalSalesReturns,
+                historicalAdjustments,
+                itemId
+            );
+        }
+
+        // Fetch transactions for the date range
+        const [
+            purchaseEntries,
+            purchaseReturnEntries,
+            salesEntries,
+            salesReturnEntries,
+            stockAdjustmentEntries
+        ] = await Promise.all([
+            PurchaseBill.find({ ...query, 'items.item': itemId })
+                .populate('account')
+                .populate({
+                    path: 'items.item',
+                    model: 'Item',
+                    select: 'name stock bonus',
+                    populate: { path: 'unit' }
+                }),
+            PurchaseReturn.find({ ...query, 'items.item': itemId })
+                .populate('account')
+                .populate({
+                    path: 'items.item',
+                    model: 'Item',
+                    select: 'name stock',
+                    populate: { path: 'unit' }
+                }),
+            SalesBill.find({ ...query, 'items.item': itemId })
+                .populate('account')
+                .populate({
+                    path: 'items.item',
+                    model: 'Item',
+                    select: 'name stock',
+                    populate: { path: 'unit' }
+                }),
+            SalesReturn.find({ ...query, 'items.item': itemId })
+                .populate('account')
+                .populate({
+                    path: 'items.item',
+                    model: 'Item',
+                    select: 'name stock',
+                    populate: { path: 'unit' }
+                }),
+            StockAdjustment.find({ ...query, 'items.item': itemId })
+                .populate({
+                    path: 'items.item',
+                    model: 'Item',
+                    select: 'name stock',
+                    populate: { path: 'unit' }
+                })
+        ]);
+
+        // Process all entries
+        let entries = [];
+
+        // Process purchase entries
+        purchaseEntries.forEach(purchaseBill => {
+            purchaseBill.items.forEach(itemEntry => {
+                if (itemEntry.item._id.toString() === itemId) {
+                    entries.push(createPurchaseEntry(purchaseBill, itemEntry));
+                }
+            });
+        });
+
+        // Process purchase return entries
+        purchaseReturnEntries.forEach(purchaseReturn => {
+            purchaseReturn.items.forEach(itemEntry => {
+                if (itemEntry.item._id.toString() === itemId) {
+                    entries.push(createPurchaseReturnEntry(purchaseReturn, itemEntry));
+                }
+            });
+        });
+
+        // Process sales entries
+        salesEntries.forEach(salesBill => {
+            salesBill.items.forEach(itemEntry => {
+                if (itemEntry.item._id.toString() === itemId) {
+                    entries.push(createSalesEntry(salesBill, itemEntry));
+                }
+            });
+        });
+
+        // Process sales return entries
+        salesReturnEntries.forEach(salesReturn => {
+            salesReturn.items.forEach(itemEntry => {
+                if (itemEntry.item._id.toString() === itemId) {
+                    entries.push(createSalesReturnEntry(salesReturn, itemEntry));
+                }
+            });
+        });
+
+        // Process stock adjustment entries
+        stockAdjustmentEntries.forEach(adjustment => {
+            adjustment.items.forEach(itemEntry => {
+                if (itemEntry.item._id.toString() === itemId) {
+                    entries.push(createAdjustmentEntry(adjustment, itemEntry));
+                }
+            });
+        });
+
+        // Sort entries by date
+        entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Calculate running balance
+        let balance = openingStock;
+        entries = entries.map(entry => {
+            balance += (entry.qtyIn + (entry.bonus || 0)) - entry.qtyOut;
+            return {
+                ...entry,
+                balance: balance
+            };
+        });
+
+        // Prepare the response
+        const response = {
+            success: true,
+            data: {
+                meta: {
+                    openingStock,
+                    purchasePrice,
+                    currentStock: balance,
+                    item: {
+                        id: item._id,
+                        name: item.name,
+                        unit: item.unit?.name || 'N/A',
+                        unitDetails: item.unit || null
+                    },
+                    dateRange: {
+                        fromDate,
+                        toDate
+                    },
+                    company: {
+                        id: companyId,
+                        name: currentCompanyName,
+                        dateFormat: companyDateFormat
+                    }
+                },
+                entries,
+                summary: {
+                    totalPurchases: entries.reduce((sum, entry) => entry.type === 'Purc' ? sum + entry.qtyIn : sum, 0),
+                    totalSales: entries.reduce((sum, entry) => entry.type === 'Sale' ? sum + entry.qtyOut : sum, 0),
+                    totalPurchaseReturns: entries.reduce((sum, entry) => entry.type === 'PrRt' ? sum + entry.qtyOut : sum, 0),
+                    totalSalesReturns: entries.reduce((sum, entry) => entry.type === 'SlRt' ? sum + entry.qtyIn : sum, 0),
+                    totalAdjustments: entries.reduce((sum, entry) => ['xcess', 'short'].includes(entry.type) ? sum + entry.qtyIn - entry.qtyOut : sum, 0)
+                }
+            }
+        };
+
+        res.json(response);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            error: 'Server error',
+            message: error.message
+        });
+    }
+});
+
+
+// Helper function to calculate historical stock movement
 // function calculateHistoricalStock(purchases, purchaseReturns, sales, salesReturns, adjustments, itemId) {
 //     let stockChange = 0;
 
@@ -444,275 +444,275 @@ router.get('/items/search/getFetched', ensureAuthenticated, ensureCompanySelecte
 
 //     return stockChange;
 // }
+    
+// router.get('/items-ledger/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
+//     if (req.tradeType !== 'retailer') {
+//         return res.status(403).json({
+//             success: false,
+//             error: 'Access denied',
+//             message: 'This endpoint is only available for retailers'
+//         });
+//     }
 
-router.get('/items-ledger/:id', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, async (req, res) => {
-    if (req.tradeType !== 'retailer') {
-        return res.status(403).json({
-            success: false,
-            error: 'Access denied',
-            message: 'This endpoint is only available for retailers'
-        });
-    }
+//     try {
+//         const companyId = req.session.currentCompany;
+//         const currentCompanyName = req.session.currentCompanyName;
+//         const currentCompany = await Company.findById(new ObjectId(companyId));
+//         const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
+//         const companyDateFormat = company ? company.dateFormat : 'english';
 
-    try {
-        const companyId = req.session.currentCompany;
-        const currentCompanyName = req.session.currentCompanyName;
-        const currentCompany = await Company.findById(new ObjectId(companyId));
-        const company = await Company.findById(companyId).select('renewalDate fiscalYear dateFormat').populate('fiscalYear');
-        const companyDateFormat = company ? company.dateFormat : 'english';
+//         // Extract dates from query parameters
+//         let fromDate = req.query.fromDate ? req.query.fromDate : null;
+//         let toDate = req.query.toDate ? req.query.toDate : null;
 
-        // Extract dates from query parameters
-        let fromDate = req.query.fromDate ? req.query.fromDate : null;
-        let toDate = req.query.toDate ? req.query.toDate : null;
+//         // If no dates provided, return empty response
+//         if (!fromDate || !toDate) {
+//             return res.json({
+//                 success: true,
+//                 data: {
+//                     openingStock: 0,
+//                     purchasePrice: 0,
+//                     entries: [],
+//                     summary: {
+//                         totalPurchases: 0,
+//                         totalSales: 0,
+//                         totalPurchaseReturns: 0,
+//                         totalSalesReturns: 0,
+//                         totalAdjustments: 0
+//                     }
+//                 }
+//             });
+//         }
 
-        // If no dates provided, return empty response
-        if (!fromDate || !toDate) {
-            return res.json({
-                success: true,
-                data: {
-                    openingStock: 0,
-                    purchasePrice: 0,
-                    entries: [],
-                    summary: {
-                        totalPurchases: 0,
-                        totalSales: 0,
-                        totalPurchaseReturns: 0,
-                        totalSalesReturns: 0,
-                        totalAdjustments: 0
-                    }
-                }
-            });
-        }
+//         const itemId = req.params.id;
 
-        const itemId = req.params.id;
+//         // Validate item ID
+//         if (!mongoose.Types.ObjectId.isValid(itemId)) {
+//             return res.status(400).json({
+//                 success: false,
+//                 error: 'Invalid item ID'
+//             });
+//         }
 
-        // Validate item ID
-        if (!mongoose.Types.ObjectId.isValid(itemId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid item ID'
-            });
-        }
+//         const item = await Item.findById(itemId)
+//             .populate('unit')
+//             .populate('category')
+//             .populate('initialOpeningStock.initialFiscalYear');
 
-        const item = await Item.findById(itemId)
-            .populate('unit')
-            .populate('category')
-            .populate('initialOpeningStock.initialFiscalYear');
+//         if (!item) {
+//             return res.status(404).json({
+//                 success: false,
+//                 error: 'Item not found'
+//             });
+//         }
 
-        if (!item) {
-            return res.status(404).json({
-                success: false,
-                error: 'Item not found'
-            });
-        }
+//         // Calculate opening stock - FIXED THIS PART
+//         let openingStock = 0;
+//         let purchasePrice = 0;
 
-        // Calculate opening stock - FIXED THIS PART
-        let openingStock = 0;
-        let purchasePrice = 0;
+//         // Get initial opening stock if available
+//         if (item.initialOpeningStock && item.initialOpeningStock.openingStock) {
+//             openingStock = parseFloat(item.initialOpeningStock.openingStock) || 0;
+//             purchasePrice = parseFloat(item.initialOpeningStock.purchasePrice) || 0;
+//         }
 
-        // Get initial opening stock if available
-        if (item.initialOpeningStock && item.initialOpeningStock.openingStock) {
-            openingStock = parseFloat(item.initialOpeningStock.openingStock) || 0;
-            purchasePrice = parseFloat(item.initialOpeningStock.purchasePrice) || 0;
-        }
+//         // Calculate historical stock movements before the fromDate
+//         const preDateQuery = {
+//             company: companyId,
+//             date: { $lt: fromDate },
+//             'items.item': itemId
+//         };
 
-        // Calculate historical stock movements before the fromDate
-        const preDateQuery = {
-            company: companyId,
-            date: { $lt: fromDate },
-            'items.item': itemId
-        };
+//         const [
+//             historicalPurchases,
+//             historicalPurchaseReturns,
+//             historicalSales,
+//             historicalSalesReturns,
+//             historicalAdjustments
+//         ] = await Promise.all([
+//             PurchaseBill.find(preDateQuery),
+//             PurchaseReturn.find(preDateQuery),
+//             SalesBill.find(preDateQuery),
+//             SalesReturn.find(preDateQuery),
+//             StockAdjustment.find(preDateQuery)
+//         ]);
 
-        const [
-            historicalPurchases,
-            historicalPurchaseReturns,
-            historicalSales,
-            historicalSalesReturns,
-            historicalAdjustments
-        ] = await Promise.all([
-            PurchaseBill.find(preDateQuery),
-            PurchaseReturn.find(preDateQuery),
-            SalesBill.find(preDateQuery),
-            SalesReturn.find(preDateQuery),
-            StockAdjustment.find(preDateQuery)
-        ]);
+//         // Calculate stock change from historical transactions
+//         const historicalStockChange = calculateHistoricalStock(
+//             historicalPurchases,
+//             historicalPurchaseReturns,
+//             historicalSales,
+//             historicalSalesReturns,
+//             historicalAdjustments,
+//             itemId
+//         );
 
-        // Calculate stock change from historical transactions
-        const historicalStockChange = calculateHistoricalStock(
-            historicalPurchases,
-            historicalPurchaseReturns,
-            historicalSales,
-            historicalSalesReturns,
-            historicalAdjustments,
-            itemId
-        );
+//         openingStock += historicalStockChange;
 
-        openingStock += historicalStockChange;
+//         // Build query for the date range
+//         let query = {
+//             company: companyId,
+//             date: { $gte: fromDate, $lte: toDate },
+//             'items.item': itemId
+//         };
 
-        // Build query for the date range
-        let query = {
-            company: companyId,
-            date: { $gte: fromDate, $lte: toDate },
-            'items.item': itemId
-        };
+//         // Fetch transactions for the date range
+//         const [
+//             purchaseEntries,
+//             purchaseReturnEntries,
+//             salesEntries,
+//             salesReturnEntries,
+//             stockAdjustmentEntries
+//         ] = await Promise.all([
+//             PurchaseBill.find(query)
+//                 .populate('account')
+//                 .populate({
+//                     path: 'items.item',
+//                     model: 'Item',
+//                     select: 'name stock bonus',
+//                     populate: { path: 'unit' }
+//                 }),
+//             PurchaseReturn.find(query)
+//                 .populate('account')
+//                 .populate({
+//                     path: 'items.item',
+//                     model: 'Item',
+//                     select: 'name stock',
+//                     populate: { path: 'unit' }
+//                 }),
+//             SalesBill.find(query)
+//                 .populate('account')
+//                 .populate({
+//                     path: 'items.item',
+//                     model: 'Item',
+//                     select: 'name stock',
+//                     populate: { path: 'unit' }
+//                 }),
+//             SalesReturn.find(query)
+//                 .populate('account')
+//                 .populate({
+//                     path: 'items.item',
+//                     model: 'Item',
+//                     select: 'name stock',
+//                     populate: { path: 'unit' }
+//                 }),
+//             StockAdjustment.find(query)
+//                 .populate({
+//                     path: 'items.item',
+//                     model: 'Item',
+//                     select: 'name stock',
+//                     populate: { path: 'unit' }
+//                 })
+//         ]);
 
-        // Fetch transactions for the date range
-        const [
-            purchaseEntries,
-            purchaseReturnEntries,
-            salesEntries,
-            salesReturnEntries,
-            stockAdjustmentEntries
-        ] = await Promise.all([
-            PurchaseBill.find(query)
-                .populate('account')
-                .populate({
-                    path: 'items.item',
-                    model: 'Item',
-                    select: 'name stock bonus',
-                    populate: { path: 'unit' }
-                }),
-            PurchaseReturn.find(query)
-                .populate('account')
-                .populate({
-                    path: 'items.item',
-                    model: 'Item',
-                    select: 'name stock',
-                    populate: { path: 'unit' }
-                }),
-            SalesBill.find(query)
-                .populate('account')
-                .populate({
-                    path: 'items.item',
-                    model: 'Item',
-                    select: 'name stock',
-                    populate: { path: 'unit' }
-                }),
-            SalesReturn.find(query)
-                .populate('account')
-                .populate({
-                    path: 'items.item',
-                    model: 'Item',
-                    select: 'name stock',
-                    populate: { path: 'unit' }
-                }),
-            StockAdjustment.find(query)
-                .populate({
-                    path: 'items.item',
-                    model: 'Item',
-                    select: 'name stock',
-                    populate: { path: 'unit' }
-                })
-        ]);
+//         // Process all entries
+//         let entries = [];
 
-        // Process all entries
-        let entries = [];
+//         // Process purchase entries
+//         purchaseEntries.forEach(purchaseBill => {
+//             purchaseBill.items.forEach(itemEntry => {
+//                 if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
+//                     entries.push(createPurchaseEntry(purchaseBill, itemEntry));
+//                 }
+//             });
+//         });
 
-        // Process purchase entries
-        purchaseEntries.forEach(purchaseBill => {
-            purchaseBill.items.forEach(itemEntry => {
-                if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
-                    entries.push(createPurchaseEntry(purchaseBill, itemEntry));
-                }
-            });
-        });
+//         // Process purchase return entries
+//         purchaseReturnEntries.forEach(purchaseReturn => {
+//             purchaseReturn.items.forEach(itemEntry => {
+//                 if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
+//                     entries.push(createPurchaseReturnEntry(purchaseReturn, itemEntry));
+//                 }
+//             });
+//         });
 
-        // Process purchase return entries
-        purchaseReturnEntries.forEach(purchaseReturn => {
-            purchaseReturn.items.forEach(itemEntry => {
-                if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
-                    entries.push(createPurchaseReturnEntry(purchaseReturn, itemEntry));
-                }
-            });
-        });
+//         // Process sales entries
+//         salesEntries.forEach(salesBill => {
+//             salesBill.items.forEach(itemEntry => {
+//                 if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
+//                     entries.push(createSalesEntry(salesBill, itemEntry));
+//                 }
+//             });
+//         });
 
-        // Process sales entries
-        salesEntries.forEach(salesBill => {
-            salesBill.items.forEach(itemEntry => {
-                if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
-                    entries.push(createSalesEntry(salesBill, itemEntry));
-                }
-            });
-        });
+//         // Process sales return entries
+//         salesReturnEntries.forEach(salesReturn => {
+//             salesReturn.items.forEach(itemEntry => {
+//                 if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
+//                     entries.push(createSalesReturnEntry(salesReturn, itemEntry));
+//                 }
+//             });
+//         });
 
-        // Process sales return entries
-        salesReturnEntries.forEach(salesReturn => {
-            salesReturn.items.forEach(itemEntry => {
-                if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
-                    entries.push(createSalesReturnEntry(salesReturn, itemEntry));
-                }
-            });
-        });
+//         // Process stock adjustment entries
+//         stockAdjustmentEntries.forEach(adjustment => {
+//             adjustment.items.forEach(itemEntry => {
+//                 if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
+//                     entries.push(createAdjustmentEntry(adjustment, itemEntry));
+//                 }
+//             });
+//         });
 
-        // Process stock adjustment entries
-        stockAdjustmentEntries.forEach(adjustment => {
-            adjustment.items.forEach(itemEntry => {
-                if (itemEntry.item && itemEntry.item._id.toString() === itemId) {
-                    entries.push(createAdjustmentEntry(adjustment, itemEntry));
-                }
-            });
-        });
+//         // Sort entries by date
+//         entries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        // Sort entries by date
-        entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+//         // Calculate running balance starting from opening stock
+//         let balance = openingStock;
+//         const processedEntries = entries.map(entry => {
+//             // Update balance based on transaction type
+//             if (entry.type === 'Purc' || entry.type === 'SlRt') {
+//                 // Purchases and Sales Returns increase stock
+//                 balance += (entry.qtyIn || 0) + (entry.bonus || 0);
+//             } else if (entry.type === 'Sale' || entry.type === 'PrRt') {
+//                 // Sales and Purchase Returns decrease stock
+//                 balance -= (entry.qtyOut || 0);
+//             } else if (entry.type === 'xcess') {
+//                 // Excess adjustments increase stock
+//                 balance += (entry.qtyIn || 0);
+//             } else if (entry.type === 'short') {
+//                 // Short adjustments decrease stock
+//                 balance -= (entry.qtyOut || 0);
+//             }
 
-        // Calculate running balance starting from opening stock
-        let balance = openingStock;
-        const processedEntries = entries.map(entry => {
-            // Update balance based on transaction type
-            if (entry.type === 'Purc' || entry.type === 'SlRt') {
-                // Purchases and Sales Returns increase stock
-                balance += (entry.qtyIn || 0) + (entry.bonus || 0);
-            } else if (entry.type === 'Sale' || entry.type === 'PrRt') {
-                // Sales and Purchase Returns decrease stock
-                balance -= (entry.qtyOut || 0);
-            } else if (entry.type === 'xcess') {
-                // Excess adjustments increase stock
-                balance += (entry.qtyIn || 0);
-            } else if (entry.type === 'short') {
-                // Short adjustments decrease stock
-                balance -= (entry.qtyOut || 0);
-            }
+//             return {
+//                 ...entry,
+//                 balance: balance
+//             };
+//         });
 
-            return {
-                ...entry,
-                balance: balance
-            };
-        });
+//         // Prepare the response with proper structure
+//         const response = {
+//             success: true,
+//             data: {
+//                 openingStock: openingStock,
+//                 purchasePrice: purchasePrice,
+//                 entries: processedEntries,
+//                 company: company,
+//                 currentCompany: currentCompany,
+//                 currentCompanyName: currentCompanyName,
+//                 companyDateFormat: companyDateFormat,
+//                 summary: {
+//                     totalPurchases: processedEntries.reduce((sum, entry) => entry.type === 'Purc' ? sum + (entry.qtyIn || 0) : sum, 0),
+//                     totalSales: processedEntries.reduce((sum, entry) => entry.type === 'Sale' ? sum + (entry.qtyOut || 0) : sum, 0),
+//                     totalPurchaseReturns: processedEntries.reduce((sum, entry) => entry.type === 'PrRt' ? sum + (entry.qtyOut || 0) : sum, 0),
+//                     totalSalesReturns: processedEntries.reduce((sum, entry) => entry.type === 'SlRt' ? sum + (entry.qtyIn || 0) : sum, 0),
+//                     totalAdjustments: processedEntries.reduce((sum, entry) =>
+//                         ['xcess', 'short'].includes(entry.type) ? sum + (entry.qtyIn || 0) - (entry.qtyOut || 0) : sum, 0)
+//                 }
+//             }
+//         };
 
-        // Prepare the response with proper structure
-        const response = {
-            success: true,
-            data: {
-                openingStock: openingStock,
-                purchasePrice: purchasePrice,
-                entries: processedEntries,
-                company: company,
-                currentCompany: currentCompany,
-                currentCompanyName: currentCompanyName,
-                companyDateFormat: companyDateFormat,
-                summary: {
-                    totalPurchases: processedEntries.reduce((sum, entry) => entry.type === 'Purc' ? sum + (entry.qtyIn || 0) : sum, 0),
-                    totalSales: processedEntries.reduce((sum, entry) => entry.type === 'Sale' ? sum + (entry.qtyOut || 0) : sum, 0),
-                    totalPurchaseReturns: processedEntries.reduce((sum, entry) => entry.type === 'PrRt' ? sum + (entry.qtyOut || 0) : sum, 0),
-                    totalSalesReturns: processedEntries.reduce((sum, entry) => entry.type === 'SlRt' ? sum + (entry.qtyIn || 0) : sum, 0),
-                    totalAdjustments: processedEntries.reduce((sum, entry) =>
-                        ['xcess', 'short'].includes(entry.type) ? sum + (entry.qtyIn || 0) - (entry.qtyOut || 0) : sum, 0)
-                }
-            }
-        };
+//         res.json(response);
 
-        res.json(response);
-
-    } catch (error) {
-        console.error('Error in items ledger:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Server error',
-            message: error.message
-        });
-    }
-});
+//     } catch (error) {
+//         console.error('Error in items ledger:', error);
+//         res.status(500).json({
+//             success: false,
+//             error: 'Server error',
+//             message: error.message
+//         });
+//     }
+// });
 
 // Improved calculateHistoricalStock function
 function calculateHistoricalStock(purchases, purchaseReturns, sales, salesReturns, adjustments, itemId) {

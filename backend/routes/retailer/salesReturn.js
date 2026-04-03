@@ -4136,6 +4136,7 @@ router.get('/sales-return/:id/print', isLoggedIn, ensureAuthenticated, ensureCom
         });
     }
 });
+
 router.get('/salesReturn-vat-report', isLoggedIn, ensureAuthenticated, ensureCompanySelected, ensureTradeType, ensureFiscalYear, async (req, res) => {
     try {
         if (req.tradeType !== 'retailer') {

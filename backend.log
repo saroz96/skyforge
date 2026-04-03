@@ -1,0 +1,35 @@
+
+> backend@1.0 start
+> nodemon app.js
+
+[33m[nodemon] 3.1.9[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node app.js`[39m
+[dotenv@17.2.1] injecting env (12) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+Server is running on port 5000
+connection error: Error: querySrv ECONNREFUSED _mongodb._tcp.cluster0.vgu4kmg.mongodb.net
+    at QueryReqWrap.onresolve [as oncomplete] (node:internal/dns/promises:293:17) {
+  errno: undefined,
+  code: 'ECONNREFUSED',
+  syscall: 'querySrv',
+  hostname: '_mongodb._tcp.cluster0.vgu4kmg.mongodb.net'
+}
+node:internal/dns/promises:293
+    this.reject(new DNSException(err, this.bindingName, this.hostname));
+                ^
+
+Error: querySrv ECONNREFUSED _mongodb._tcp.cluster0.vgu4kmg.mongodb.net
+    at QueryReqWrap.onresolve [as oncomplete] (node:internal/dns/promises:293:17) {
+  errno: undefined,
+  code: 'ECONNREFUSED',
+  syscall: 'querySrv',
+  hostname: '_mongodb._tcp.cluster0.vgu4kmg.mongodb.net'
+}
+
+Node.js v22.13.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting child process[39m
+[32m[nodemon] starting `node app.js`[39m
+^C

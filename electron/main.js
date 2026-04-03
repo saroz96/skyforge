@@ -28,6 +28,7 @@ function createWindow() {
   });
 
   const startUrl = 'https://skyforgee.com';
+  // const startUrl = 'http://localhost:3000';
   const checkServer = setInterval(() => {
     fetch(startUrl)
       .then(() => {
