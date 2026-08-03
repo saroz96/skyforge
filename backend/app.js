@@ -78,7 +78,7 @@ db.once("open", () => {
 // // Middleware
 app.use(cors({
     // origin: 'https://skyforgee.com',
-    origin: 'http://localhost:3000',
+    origin: 'https://skyforge-t87e-ikewlfp1k-saroj-basnets-projects.vercel.app/',
     // origin: 'https://web.skyforgee.com',
     // origin: ['http://localhost:3000', 'http://localhost:3000'],//this is for desktop app
     // origin: ['https://skyforgee.com', 'https://skyforgee.com'],//this is for desktop app
