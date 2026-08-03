@@ -30,7 +30,7 @@
       "dest": "frontend/build/index.html"
     }
   ],
-  "buildCommand": "cd frontend",
+  "buildCommand": "",
   "outputDirectory": "frontend/build",
   "framework": "create-react-app",
   "env": {
